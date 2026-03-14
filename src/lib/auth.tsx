@@ -1,4 +1,7 @@
+const API_URL = import.meta.env.VITE_API_URL;
+
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
+
 
 interface User {
   _id: string;
@@ -32,7 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchUser = useCallback(async (authToken: string) => {
     try {
-      const res = await fetch("/api/auth/me", {
+      const res = await fetch(`${API_URL}/api/auth/me`, {
         headers: { Authorization: `Bearer ${authToken}` },
       });
       if (res.ok) {
@@ -64,7 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [token, fetchUser]);
 
   const login = async (username: string, password: string) => {
-    const res = await fetch("/api/auth/login", {
+    const res = await fetch(`${API_URL}/api/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password }),
