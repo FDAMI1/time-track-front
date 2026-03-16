@@ -100,7 +100,7 @@ export function AppSidebar() {
             <Shield className="w-5 h-5" />
           </div>
           <div className="flex flex-col min-w-0">
-            <span className="text-sm font-semibold truncate">Unified Governance</span>
+            <span className="text-sm font-semibold truncate">Attendance</span>
             <span className="text-xs text-muted-foreground truncate">
               {orgType === "academy" ? "Academy" : orgType === "company" ? "Company" : "Platform"}
             </span>

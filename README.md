@@ -1,4 +1,4 @@
-# Unified Governance - Frontend
+# Attendance - Frontend
 
 ## Setup
 
