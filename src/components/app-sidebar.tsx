@@ -30,6 +30,10 @@ import {
   BookOpen,
   Activity,
   MessagesSquare,
+  FileText,
+  Files,
+  ShieldCheck,
+  DollarSign,
 } from "lucide-react";
 
 const roleLabels: Record<string, string> = {
@@ -79,12 +83,22 @@ export function AppSidebar() {
       if (["org_admin", "teacher", "manager"].includes(user.role)) {
         items.push({ title: "Classes", url: "/classes", icon: BookOpen });
       }
-      items.push({ title: "Chat", url: "/chat", icon: MessagesSquare });
+      const chatEnabled = (user.organizationId as any)?.features?.chat !== false;
+      if (chatEnabled) {
+        items.push({ title: "Chat", url: "/chat", icon: MessageCircle });
+      }
+      // Chat disabled (placeholder kept for reference)
       if (["org_admin", "teacher", "manager"].includes(user.role)) {
         items.push({ title: "Activity Logs", url: "/activity-logs", icon: Activity });
         items.push({ title: "WhatsApp", url: "/whatsapp", icon: MessageCircle });
+        items.push({ title: "Doc Templates", url: "/document-templates", icon: FileText });
+        if (user.role === "org_admin") {
+          items.push({ title: "Roles & Permissions", url: "/roles-permissions", icon: ShieldCheck });
+          items.push({ title: "Salary Setup", url: "/salary-setup", icon: DollarSign });
+        }
         items.push({ title: "Settings", url: "/settings", icon: Settings });
       }
+      items.push({ title: "Documents", url: "/documents", icon: Files });
     }
 
     return items;
@@ -100,7 +114,7 @@ export function AppSidebar() {
             <Shield className="w-5 h-5" />
           </div>
           <div className="flex flex-col min-w-0">
-            <span className="text-sm font-semibold truncate">Attendance</span>
+            <span className="text-sm font-semibold truncate">Unified Governance</span>
             <span className="text-xs text-muted-foreground truncate">
               {orgType === "academy" ? "Academy" : orgType === "company" ? "Company" : "Platform"}
             </span>

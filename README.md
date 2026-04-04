@@ -1,4 +1,4 @@
-# Attendance - Frontend
+# Unified Governance - Frontend
 
 ## Setup
 
@@ -17,11 +17,6 @@ cp .env.sample .env
 4. Start the development server:
 ```bash
 npm run dev
-
-npm install @radix-ui/react-scroll-area @radix-ui/react-checkbox @radix-ui/react-dropdown-menu
-npm install lucide-react
-
-
 ```
 
 The app will be available at `http://localhost:3000`.

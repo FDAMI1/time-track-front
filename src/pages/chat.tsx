@@ -28,6 +28,7 @@ import {
   Star,
   Smile,
   Search,
+  ArrowLeft,
 } from "lucide-react";
 
 function formatTime(dateStr: string) {
@@ -54,6 +55,7 @@ export default function ChatPage() {
   const { token, user } = useAuth();
   const { toast } = useToast();
   const [selectedConversation, setSelectedConversation] = useState<any>(null);
+  const [showConvList, setShowConvList] = useState(true);
   const [messageInput, setMessageInput] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [convType, setConvType] = useState<string>("private");
@@ -272,8 +274,8 @@ export default function ChatPage() {
   const otherUsers = (users || []).filter((u: any) => u._id !== user?._id);
 
   return (
-    <div className="flex h-full" data-testid="chat-page">
-      <div className="w-80 border-r flex flex-col">
+    <div className="flex h-full overflow-hidden" data-testid="chat-page">
+      <div className={`border-r flex flex-col shrink-0 w-full md:w-80 ${!showConvList ? "hidden md:flex" : "flex"}`}>
         <div className="p-3 border-b space-y-2">
           <div className="flex items-center justify-between gap-2">
             <h2 className="font-semibold text-lg" data-testid="text-chat-title">Chat</h2>
@@ -400,7 +402,7 @@ export default function ChatPage() {
                     className={`w-full text-left p-3 rounded-md flex items-center gap-3 hover-elevate ${
                       isSelected ? "bg-accent" : ""
                     }`}
-                    onClick={() => setSelectedConversation(conv)}
+                    onClick={() => { setSelectedConversation(conv); setShowConvList(false); }}
                     data-testid={`button-conversation-${conv._id}`}
                   >
                     <Avatar className="w-10 h-10 shrink-0">
@@ -442,9 +444,9 @@ export default function ChatPage() {
         </ScrollArea>
       </div>
 
-      <div className="flex-1 flex flex-col">
+      <div className={`flex-1 flex flex-col min-w-0 ${showConvList ? "hidden md:flex" : "flex"}`}>
         {!selectedConversation ? (
-          <div className="flex-1 flex items-center justify-center">
+          <div className="hidden md:flex flex-1 items-center justify-center">
             <div className="text-center">
               <MessageCircle className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
               <p className="text-muted-foreground font-medium" data-testid="text-no-conversation">
@@ -455,6 +457,15 @@ export default function ChatPage() {
         ) : (
           <>
             <div className="p-3 border-b flex items-center gap-3">
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-8 w-8 md:hidden shrink-0"
+                onClick={() => setShowConvList(true)}
+                data-testid="button-back-to-convs"
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </Button>
               <Avatar className="w-8 h-8">
                 <AvatarFallback className="text-xs bg-primary/10 text-primary">
                   {selectedConversation.type === "group" ? (

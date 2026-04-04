@@ -88,6 +88,10 @@ export default function SettingsPage() {
     timezone: "UTC",
   });
 
+  const [chatEnabled, setChatEnabled] = useState<boolean>(
+    (user?.organizationId as any)?.features?.chat !== false
+  );
+
   const [whatsappForm, setWhatsappForm] = useState({
     whatsappSenderNumber: "",
     whatsappPresentTemplate: "",
@@ -445,6 +449,27 @@ export default function SettingsPage() {
     },
   });
 
+  const updateChatFeature = useMutation({
+    mutationFn: async (enabled: boolean) => {
+      const org = user?.organizationId as any;
+      const currentFeatures = org?.features || {};
+      const res = await fetch("/api/organizations/my/features", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ features: { ...currentFeatures, chat: enabled } }),
+      });
+      if (!res.ok) { const err = await res.json(); throw new Error(err.message); }
+      return res.json();
+    },
+    onSuccess: (_, enabled) => {
+      setChatEnabled(enabled);
+      toast({ title: `Chat ${enabled ? "enabled" : "disabled"} successfully` });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
+
   const changePassword = useMutation({
     mutationFn: async (data: typeof passwordForm) => {
       const res = await fetch("/api/auth/change-password", {
@@ -631,6 +656,16 @@ export default function SettingsPage() {
                       }}
                       data-testid="switch-policy-enabled"
                     />
+                  </div>
+                  <div className="p-3 rounded-md bg-muted/40 border text-xs text-muted-foreground space-y-1">
+                    <p className="font-medium text-foreground">What is Attendance Policy?</p>
+                    <p>Attendance Policy defines the rules for marking attendance in your organization, including:</p>
+                    <ul className="list-disc list-inside space-y-0.5 mt-1">
+                      <li>Allowed check-in time window</li>
+                      <li>Late marking rules and thresholds</li>
+                      <li>Auto absent rules (when cutoff is exceeded)</li>
+                      <li>Working hours calculation for each session</li>
+                    </ul>
                   </div>
 
                   {isOrgAdmin && (
@@ -842,6 +877,32 @@ export default function SettingsPage() {
                 {saveWhatsappConfig.isPending ? "Saving..." : "Save WhatsApp Config"}
               </Button>
             </form>
+          </CardContent>
+        </Card>
+      )}
+
+      {isOrgAdmin && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <MessageCircle className="w-5 h-5" />
+              Feature Toggles
+            </CardTitle>
+            <CardDescription>Enable or disable platform features for all members of your organization</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between py-2 border-b">
+              <div>
+                <p className="font-medium text-sm">Chat</p>
+                <p className="text-xs text-muted-foreground">Allow members to send direct and group messages</p>
+              </div>
+              <Switch
+                data-testid="switch-chat-enabled"
+                checked={chatEnabled}
+                disabled={updateChatFeature.isPending}
+                onCheckedChange={(val) => updateChatFeature.mutate(val)}
+              />
+            </div>
           </CardContent>
         </Card>
       )}

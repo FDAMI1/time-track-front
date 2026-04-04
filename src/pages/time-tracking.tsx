@@ -38,8 +38,9 @@ function getCurrentTime() {
 export default function TimeTrackingPage() {
   const { token, user } = useAuth();
   const { toast } = useToast();
-  const [period, setPeriod] = useState("daily");
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
+  const today = new Date().toISOString().split("T")[0];
+  const [fromDate, setFromDate] = useState(today);
+  const [toDate, setToDate] = useState(today);
   const [viewTab, setViewTab] = useState<"entries" | "report">("entries");
   const [selectedUserId, setSelectedUserId] = useState<string>("");
 
@@ -63,39 +64,13 @@ export default function TimeTrackingPage() {
     };
   }, []);
 
-  function getDateRange() {
-    const now = new Date(selectedDate);
-    switch (period) {
-      case "daily":
-        return { startDate: selectedDate, endDate: selectedDate };
-      case "weekly": {
-        const ws = new Date(now);
-        ws.setDate(now.getDate() - now.getDay());
-        const we = new Date(ws);
-        we.setDate(ws.getDate() + 6);
-        return { startDate: ws.toISOString().split("T")[0], endDate: we.toISOString().split("T")[0] };
-      }
-      case "monthly": {
-        const ms = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
-        const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-        const me = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
-        return { startDate: ms, endDate: me };
-      }
-      case "yearly":
-        return { startDate: `${now.getFullYear()}-01-01`, endDate: `${now.getFullYear()}-12-31` };
-      default:
-        return { startDate: selectedDate, endDate: selectedDate };
-    }
-  }
-
-  const range = getDateRange();
   const isViewingSelf = !selectedUserId || selectedUserId === "self";
   const apiPath = isViewingSelf
-    ? `/api/timetracking/my?startDate=${range.startDate}&endDate=${range.endDate}`
-    : `/api/timetracking/user/${selectedUserId}?startDate=${range.startDate}&endDate=${range.endDate}`;
+    ? `/api/timetracking/my?startDate=${fromDate}&endDate=${toDate}`
+    : `/api/timetracking/user/${selectedUserId}?startDate=${fromDate}&endDate=${toDate}`;
 
   const { data: entries, isLoading } = useQuery({
-    queryKey: ["/api/timetracking", period, selectedDate, selectedUserId],
+    queryKey: ["/api/timetracking", fromDate, toDate, selectedUserId],
     queryFn: async () => {
       const res = await fetch(apiPath, {
         headers: { Authorization: `Bearer ${token}` },
@@ -106,11 +81,11 @@ export default function TimeTrackingPage() {
   });
 
   const reportPath = isViewingSelf
-    ? `/api/timetracking/report?period=${period}&startDate=${range.startDate}&endDate=${range.endDate}`
-    : `/api/timetracking/report?userId=${selectedUserId}&period=${period}&startDate=${range.startDate}&endDate=${range.endDate}`;
+    ? `/api/timetracking/report?startDate=${fromDate}&endDate=${toDate}`
+    : `/api/timetracking/report?userId=${selectedUserId}&startDate=${fromDate}&endDate=${toDate}`;
 
   const { data: report } = useQuery({
-    queryKey: ["/api/timetracking/report", period, selectedDate, selectedUserId],
+    queryKey: ["/api/timetracking/report", fromDate, toDate, selectedUserId],
     queryFn: async () => {
       const res = await fetch(reportPath, {
         headers: { Authorization: `Bearer ${token}` },
@@ -283,24 +258,32 @@ export default function TimeTrackingPage() {
               </SelectContent>
             </Select>
           )}
-          <Select value={period} onValueChange={setPeriod}>
-            <SelectTrigger className="w-[130px]" data-testid="select-period">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="daily">Daily</SelectItem>
-              <SelectItem value="weekly">Weekly</SelectItem>
-              <SelectItem value="monthly">Monthly</SelectItem>
-              <SelectItem value="yearly">Yearly</SelectItem>
-            </SelectContent>
-          </Select>
-          <Input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className="w-[160px]"
-            data-testid="input-date-filter"
-          />
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
+              <Label className="text-xs text-muted-foreground whitespace-nowrap">From</Label>
+              <Input
+                type="date"
+                value={fromDate}
+                onChange={(e) => {
+                  setFromDate(e.target.value);
+                  if (e.target.value > toDate) setToDate(e.target.value);
+                }}
+                className="w-[150px]"
+                data-testid="input-from-date"
+              />
+            </div>
+            <div className="flex items-center gap-1">
+              <Label className="text-xs text-muted-foreground whitespace-nowrap">To</Label>
+              <Input
+                type="date"
+                value={toDate}
+                min={fromDate}
+                onChange={(e) => setToDate(e.target.value)}
+                className="w-[150px]"
+                data-testid="input-to-date"
+              />
+            </div>
+          </div>
         </div>
       </div>
 
@@ -580,7 +563,7 @@ export default function TimeTrackingPage() {
           {report.dailyReport?.length > 0 && (
             <Card className="lg:col-span-2">
               <CardHeader>
-                <CardTitle className="text-lg">Daily Hours</CardTitle>
+                <CardTitle className="text-lg">Hours by Date ({fromDate === toDate ? fromDate : `${fromDate} → ${toDate}`})</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="h-64">

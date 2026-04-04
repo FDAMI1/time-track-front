@@ -107,7 +107,7 @@ export default function OrganizationsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/organizations"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/superadmin"] });
-      toast({ title: "Organization deactivated" });
+      toast({ title: "Organization permanently deleted" });
     },
   });
 
@@ -264,11 +264,9 @@ export default function OrganizationsPage() {
                   <Button variant="outline" size="sm" onClick={() => openEdit(org)} data-testid={`button-edit-org-${org._id}`}>
                     <Pencil className="w-3.5 h-3.5 mr-1" /> Edit
                   </Button>
-                  {org.isActive && (
-                    <Button variant="ghost" size="sm" className="text-destructive ml-auto" onClick={() => { if (confirm("Deactivate this organization and all its members?")) deleteOrg.mutate(org._id); }} data-testid={`button-delete-org-${org._id}`}>
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </Button>
-                  )}
+                  <Button variant="ghost" size="sm" className="text-destructive ml-auto" onClick={() => { if (confirm("Permanently delete this organization and ALL its data? This cannot be undone.")) deleteOrg.mutate(org._id); }} data-testid={`button-delete-org-${org._id}`}>
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
                 </div>
               </CardContent>
             </Card>

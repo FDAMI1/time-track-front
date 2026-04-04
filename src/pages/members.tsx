@@ -425,8 +425,8 @@ export default function MembersPage() {
         </Card>
       ) : (
         <Card>
-          <CardContent className="p-0">
-            <Table>
+          <CardContent className="p-0 overflow-x-auto">
+            <Table className="min-w-[700px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Member</TableHead>
@@ -486,9 +486,10 @@ export default function MembersPage() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={m.isActive ? "default" : "secondary"}>
+                      <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium border ${m.isActive ? "bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800" : "bg-muted text-muted-foreground border-border"}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${m.isActive ? "bg-green-500" : "bg-muted-foreground"}`} />
                         {m.isActive ? "Active" : "Inactive"}
-                      </Badge>
+                      </span>
                     </TableCell>
                     <TableCell className="text-right">
                       {canManageRole(m.role) && (

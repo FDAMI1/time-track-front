@@ -39,7 +39,7 @@ export default function LoginPage() {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
             <Shield className="w-8 h-8 text-primary" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight">Attendance</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Unified Governance</h1>
           <p className="text-muted-foreground mt-1">Academic & Workforce Management Platform</p>
         </div>
 
@@ -105,30 +105,6 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            <div className="mt-6 pt-4 border-t">
-              <p className="text-xs text-muted-foreground text-center mb-3">Demo Accounts</p>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                {[
-                  { label: "Super Admin", user: "superadmin", pass: "admin123" },
-                  { label: "Academy Admin", user: "academyadmin", pass: "admin123" },
-                  { label: "Teacher", user: "teacher1", pass: "teacher123" },
-                  { label: "Student", user: "student1", pass: "student123" },
-                  { label: "Company Admin", user: "companyadmin", pass: "admin123" },
-                  { label: "Manager", user: "manager1", pass: "manager123" },
-                ].map((demo) => (
-                  <button
-                    key={demo.user}
-                    type="button"
-                    className="text-left p-2 rounded-md border border-border/50 hover-elevate transition-colors"
-                    onClick={() => { setCredential(demo.user); setPassword(demo.pass); }}
-                    data-testid={`button-demo-${demo.user}`}
-                  >
-                    <span className="font-medium text-foreground block">{demo.label}</span>
-                    <span className="text-muted-foreground">{demo.user}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
           </CardContent>
         </Card>
       </div>

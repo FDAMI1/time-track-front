@@ -273,10 +273,9 @@ function TeamAttendanceTab({ roleFilter, token }: { roleFilter: string; token: s
       if (!res.ok) { const err = await res.json(); throw new Error(err.message); }
       return res.json();
     },
-    onSuccess: (result) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/attendance/daily-list"] });
       queryClient.invalidateQueries({ queryKey: ["/api/attendance/org"] });
-      openWhatsappLinks(result.notification);
       toast({ title: "Attendance updated" });
     },
     onError: (err: Error) => {
@@ -299,7 +298,6 @@ function TeamAttendanceTab({ roleFilter, token }: { roleFilter: string; token: s
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["/api/attendance/daily-list"] });
       queryClient.invalidateQueries({ queryKey: ["/api/attendance/org"] });
-      openBulkWhatsappLinks(result.notifications);
       toast({ title: `Marked ${result.marked} member(s) present` });
     },
     onError: () => {
@@ -322,7 +320,6 @@ function TeamAttendanceTab({ roleFilter, token }: { roleFilter: string; token: s
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["/api/attendance/daily-list"] });
       queryClient.invalidateQueries({ queryKey: ["/api/attendance/org"] });
-      openBulkWhatsappLinks(result.notifications);
       toast({ title: `Marked ${result.marked} member(s) absent` });
     },
     onError: () => {
@@ -340,10 +337,9 @@ function TeamAttendanceTab({ roleFilter, token }: { roleFilter: string; token: s
       if (!res.ok) throw new Error("Failed to update");
       return res.json();
     },
-    onSuccess: (result) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/attendance/daily-list"] });
       queryClient.invalidateQueries({ queryKey: ["/api/attendance/org"] });
-      openWhatsappLinks(result.notification);
       toast({ title: "Attendance updated" });
     },
   });

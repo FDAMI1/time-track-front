@@ -22,7 +22,11 @@ import WhatsappNotificationsPage from "@/pages/whatsapp-notifications";
 import TimeTrackingPage from "@/pages/time-tracking";
 import ClassesPage from "@/pages/classes";
 import ActivityLogsPage from "@/pages/activity-logs";
-import ChatPage from "@/pages/chat";
+// import ChatPage from "@/pages/chat"; // Chat disabled
+import DocumentTemplatesPage from "@/pages/document-templates";
+import DocumentsPage from "@/pages/documents";
+import RolesPermissionsPage from "@/pages/roles-permissions";
+import SalarySetupPage from "@/pages/salary-setup";
 import NotFound from "@/pages/not-found";
 import ForcePasswordChange from "@/components/force-password-change";
 
@@ -156,11 +160,21 @@ function AuthenticatedRouter() {
       {["org_admin", "teacher", "manager"].includes(user?.role || "") && (
         <Route path="/activity-logs" component={ActivityLogsPage} />
       )}
-      {user?.role !== "superadmin" && (
-        <Route path="/chat" component={ChatPage} />
-      )}
+      {/* Chat disabled */}
       {["superadmin", "org_admin", "teacher", "manager"].includes(user?.role || "") && (
         <Route path="/settings" component={SettingsPage} />
+      )}
+      {["org_admin", "teacher", "manager"].includes(user?.role || "") && (
+        <Route path="/document-templates" component={DocumentTemplatesPage} />
+      )}
+      {user?.role !== "superadmin" && (
+        <Route path="/documents" component={DocumentsPage} />
+      )}
+      {user?.role === "org_admin" && (
+        <Route path="/roles-permissions" component={RolesPermissionsPage} />
+      )}
+      {user?.role === "org_admin" && (
+        <Route path="/salary-setup" component={SalarySetupPage} />
       )}
       <Route component={NotFound} />
     </Switch>
