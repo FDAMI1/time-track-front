@@ -58,6 +58,14 @@ export default function TimeTrackingPage() {
 
   const isAdmin = ["org_admin", "manager"].includes(user?.role || "");
 
+  const roleLabel: Record<string, string> = {
+    teacher: "Teacher",
+    employee: "Employee",
+    manager: "Manager",
+    org_admin: "Admin",
+    student: "Student",
+  };
+
   useEffect(() => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
@@ -245,7 +253,7 @@ export default function TimeTrackingPage() {
         <div className="flex items-center gap-2 flex-wrap">
           {isAdmin && (
             <Select value={selectedUserId || "self"} onValueChange={(v) => setSelectedUserId(v === "self" ? "" : v)}>
-              <SelectTrigger className="w-[180px]" data-testid="select-user-filter">
+              <SelectTrigger className="w-[220px]" data-testid="select-user-filter">
                 <SelectValue placeholder="View member" />
               </SelectTrigger>
               <SelectContent>
@@ -253,7 +261,12 @@ export default function TimeTrackingPage() {
                 {(orgMembers || [])
                   .filter((m: any) => m.role !== "org_admin")
                   .map((m: any) => (
-                    <SelectItem key={m._id} value={m._id}>{m.firstName} {m.lastName}</SelectItem>
+                    <SelectItem key={m._id} value={m._id} data-testid={`select-member-${m._id}`}>
+                      <span className="flex items-center gap-2">
+                        <span>{m.firstName} {m.lastName}</span>
+                        <span className="text-xs text-muted-foreground">({roleLabel[m.role] || m.role})</span>
+                      </span>
+                    </SelectItem>
                   ))}
               </SelectContent>
             </Select>
@@ -286,6 +299,21 @@ export default function TimeTrackingPage() {
           </div>
         </div>
       </div>
+
+      {!isViewingSelf && selectedUserId && (() => {
+        const viewedMember = (orgMembers || []).find((m: any) => m._id === selectedUserId);
+        if (!viewedMember) return null;
+        return (
+          <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border" data-testid="banner-viewing-member">
+            <div className="w-2 h-2 rounded-full bg-primary" />
+            <span className="text-sm text-muted-foreground">Viewing entries for</span>
+            <span className="text-sm font-semibold">{viewedMember.firstName} {viewedMember.lastName}</span>
+            <Badge variant="secondary" className="text-xs" data-testid="badge-viewed-member-role">
+              {roleLabel[viewedMember.role] || viewedMember.role}
+            </Badge>
+          </div>
+        );
+      })()}
 
       {isViewingSelf && (
         <Card className={isTimerRunning ? "border-primary shadow-md" : ""}>

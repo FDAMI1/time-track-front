@@ -6,7 +6,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -14,8 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Switch } from "@/components/ui/switch";
-import { Plus, Search, Users, Pencil, Trash2, Eye, EyeOff, Phone, GraduationCap, MessageCircle, Clock, KeyRound, Copy, Check, RefreshCw, Lock } from "lucide-react";
+import { Plus, Search, Users, Pencil, Trash2, Eye, EyeOff, Phone, GraduationCap, MessageCircle, Clock, KeyRound, Copy, Check } from "lucide-react";
 
 const roleLabels: Record<string, string> = {
   org_admin: "Admin",
@@ -41,18 +39,11 @@ export default function MembersPage() {
   const [selectedMember, setSelectedMember] = useState<any>(null);
   const [search, setSearch] = useState("");
   const [filterRole, setFilterRole] = useState("all");
-  const [showCreatePassword, setShowCreatePassword] = useState(false);
   const [showEditPassword, setShowEditPassword] = useState(false);
-  const [resetPasswordOpen, setResetPasswordOpen] = useState(false);
-  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
-  const [resetMode, setResetMode] = useState<"auto" | "manual">("auto");
-  const [resetManualPassword, setResetManualPassword] = useState("");
-  const [showResetPassword, setShowResetPassword] = useState(false);
-  const [createPasswordMode, setCreatePasswordMode] = useState<"auto" | "manual">("auto");
-  const [createdPasswordOpen, setCreatedPasswordOpen] = useState(false);
-  const [tempPassword, setTempPassword] = useState("");
-  const [copiedPassword, setCopiedPassword] = useState(false);
-  const [createdMemberName, setCreatedMemberName] = useState("");
+  const [tempPwdState, setTempPwdState] = useState<{ open: boolean; password: string; username: string }>({ open: false, password: "", username: "" });
+  const [resetPwdState, setResetPwdState] = useState<{ open: boolean; password: string; username: string }>({ open: false, password: "", username: "" });
+  const [copiedTemp, setCopiedTemp] = useState(false);
+  const [copiedReset, setCopiedReset] = useState(false);
 
   const orgType = user?.organizationId?.type;
 
@@ -63,14 +54,14 @@ export default function MembersPage() {
     : [{ value: "teacher", label: "Teacher" }, { value: "student", label: "Student" }, { value: "manager", label: "Manager" }, { value: "employee", label: "Employee" }];
 
   const [form, setForm] = useState({
-    firstName: "", lastName: "", email: "", phone: "", education: "", username: "", password: "",
+    firstName: "", lastName: "", email: "", emailDomain: "", phone: "", education: "", username: "", userId: "",
     role: availableRoles[0]?.value || "employee",
     studentWhatsapp: "", parentWhatsapp: "",
     assignedSchedules: [] as string[],
   });
 
   const [editForm, setEditForm] = useState({
-    firstName: "", lastName: "", email: "", phone: "", education: "", role: "", password: "",
+    firstName: "", lastName: "", email: "", phone: "", education: "", role: "", password: "", userId: "",
     studentWhatsapp: "", parentWhatsapp: "",
     assignedSchedules: [] as string[],
   });
@@ -97,11 +88,25 @@ export default function MembersPage() {
     },
   });
 
+  const { data: orgDomains } = useQuery({
+    queryKey: ["/api/organizations/my/domains"],
+    queryFn: async () => {
+      const res = await fetch("/api/organizations/my/domains", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return { allowedEmailDomains: [] };
+      return res.json();
+    },
+    enabled: !!token,
+  });
+  const domains: string[] = orgDomains?.allowedEmailDomains || [];
+
   const createUser = useMutation({
     mutationFn: async (data: typeof form) => {
-      const payload = { ...data };
-      if (createPasswordMode === "auto") {
-        payload.password = "";
+      const payload: any = { ...data };
+      if (data.emailDomain && data.username) {
+        payload.emailDomain = data.emailDomain;
+        delete payload.email;
       }
       const res = await fetch("/api/users", {
         method: "POST",
@@ -115,13 +120,26 @@ export default function MembersPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       queryClient.invalidateQueries({ queryKey: ["/api/policy"] });
       setCreateOpen(false);
-      setCreatedMemberName(`${data.firstName} ${data.lastName}`);
-      setTempPassword(data.generatedPassword || "");
-      setCopiedPassword(false);
-      setCreatedPasswordOpen(true);
-      setForm({ firstName: "", lastName: "", email: "", phone: "", education: "", username: "", password: "", role: availableRoles[0]?.value || "employee", studentWhatsapp: "", parentWhatsapp: "", assignedSchedules: [] });
-      setShowCreatePassword(false);
-      setCreatePasswordMode("auto");
+      setForm({ firstName: "", lastName: "", email: "", emailDomain: "", phone: "", education: "", username: "", userId: "", role: availableRoles[0]?.value || "employee", studentWhatsapp: "", parentWhatsapp: "", assignedSchedules: [] });
+      setTempPwdState({ open: true, password: data.tempPassword, username: data.user?.username || "" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const resetPassword = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/users/${id}/reset-password`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) { const err = await res.json(); throw new Error(err.message); }
+      return res.json();
+    },
+    onSuccess: (data, id) => {
+      const member = (members || []).find((m: any) => m._id === id);
+      setResetPwdState({ open: true, password: data.tempPassword, username: member?.username || "" });
     },
     onError: (err: Error) => {
       toast({ title: "Error", description: err.message, variant: "destructive" });
@@ -165,41 +183,6 @@ export default function MembersPage() {
     },
   });
 
-  const resetPassword = useMutation({
-    mutationFn: async ({ id, password }: { id: string; password?: string }) => {
-      const res = await fetch(`/api/users/${id}/reset-password`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify(password ? { password } : {}),
-      });
-      if (!res.ok) { const err = await res.json(); throw new Error(err.message); }
-      return res.json();
-    },
-    onSuccess: (data) => {
-      setTempPassword(data.tempPassword);
-      setCopiedPassword(false);
-      setResetConfirmOpen(false);
-      setResetPasswordOpen(true);
-    },
-    onError: (err: Error) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-    },
-  });
-
-  const openResetDialog = (member: any) => {
-    setSelectedMember(member);
-    setResetMode("auto");
-    setResetManualPassword("");
-    setShowResetPassword(false);
-    setResetConfirmOpen(true);
-  };
-
-  const handleResetSubmit = () => {
-    if (!selectedMember) return;
-    const password = resetMode === "manual" ? resetManualPassword : undefined;
-    resetPassword.mutate({ id: selectedMember._id, password });
-  };
-
   const openEdit = (member: any) => {
     setSelectedMember(member);
     const memberSchedules = (policies || [])
@@ -216,6 +199,7 @@ export default function MembersPage() {
       education: member.education || "",
       role: member.role,
       password: "",
+      userId: member.userId || "",
       studentWhatsapp: member.studentWhatsapp || "",
       parentWhatsapp: member.parentWhatsapp || "",
       assignedSchedules: memberSchedules,
@@ -268,7 +252,6 @@ export default function MembersPage() {
                 <div><Label>First Name</Label><Input data-testid="input-member-first" value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} required /></div>
                 <div><Label>Last Name</Label><Input data-testid="input-member-last" value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} required /></div>
               </div>
-              <div><Label>Email</Label><Input type="email" data-testid="input-member-email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required /></div>
               <div><Label>Phone Number</Label><Input type="tel" data-testid="input-member-phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="e.g. +1 234 567 8900" /></div>
 
               <div>
@@ -287,7 +270,7 @@ export default function MembersPage() {
                 <div className="space-y-3 p-3 rounded-md border border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-950/20">
                   <p className="text-sm font-medium flex items-center gap-2 text-green-700 dark:text-green-400">
                     <MessageCircle className="w-4 h-4" />
-                    WhatsApp Numbers (Required)
+                    WhatsApp Numbers <span className="font-normal text-xs">(optional)</span>
                   </p>
                   <div>
                     <Label>{form.role === "student" ? "Student" : "Employee"} WhatsApp Number</Label>
@@ -297,7 +280,6 @@ export default function MembersPage() {
                       value={form.studentWhatsapp}
                       onChange={(e) => setForm({ ...form, studentWhatsapp: e.target.value })}
                       placeholder="e.g. +91 98765 43210"
-                      required
                     />
                   </div>
                   <div>
@@ -308,7 +290,6 @@ export default function MembersPage() {
                       value={form.parentWhatsapp}
                       onChange={(e) => setForm({ ...form, parentWhatsapp: e.target.value })}
                       placeholder="e.g. +91 98765 43210"
-                      required
                     />
                   </div>
                 </div>
@@ -345,43 +326,50 @@ export default function MembersPage() {
               )}
 
               <div><Label>Current Education</Label><Input data-testid="input-member-education" value={form.education} onChange={(e) => setForm({ ...form, education: e.target.value })} placeholder="e.g. BSc Computer Science" /></div>
-              <div><Label>Username</Label><Input data-testid="input-member-username" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} required /></div>
-              <div className="space-y-3 p-3 rounded-md border bg-muted/30">
-                <div className="flex items-center justify-between">
-                  <Label className="flex items-center gap-2">
-                    <Lock className="w-4 h-4" />
-                    Password
-                  </Label>
-                  <div className="flex items-center gap-2">
-                    <span className={`text-xs ${createPasswordMode === "auto" ? "text-foreground font-medium" : "text-muted-foreground"}`}>Auto-generate</span>
-                    <Switch
-                      checked={createPasswordMode === "manual"}
-                      onCheckedChange={(checked) => {
-                        setCreatePasswordMode(checked ? "manual" : "auto");
-                        if (!checked) setForm({ ...form, password: "" });
-                      }}
-                      data-testid="switch-create-password-mode"
+              <div className="space-y-1">
+                <Label>Username &amp; Email</Label>
+                <div className="flex gap-2">
+                  <Input
+                    data-testid="input-member-username"
+                    value={form.username}
+                    onChange={(e) => setForm({ ...form, username: e.target.value })}
+                    placeholder="username"
+                    required
+                    className="flex-1"
+                  />
+                  {domains.length > 0 ? (
+                    <Select value={form.emailDomain} onValueChange={(v) => setForm({ ...form, emailDomain: v })}>
+                      <SelectTrigger className="w-[185px]" data-testid="select-member-email-domain">
+                        <SelectValue placeholder="@domain.com" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {domains.map((d) => (
+                          <SelectItem key={d} value={d}>@{d}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Input
+                      data-testid="input-member-email-manual"
+                      value={form.email}
+                      onChange={(e) => setForm({ ...form, email: e.target.value })}
+                      placeholder="@domain.com or full email"
+                      className="w-[185px]"
                     />
-                    <span className={`text-xs ${createPasswordMode === "manual" ? "text-foreground font-medium" : "text-muted-foreground"}`}>Set manually</span>
-                  </div>
+                  )}
                 </div>
-                {createPasswordMode === "auto" ? (
-                  <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-                    <RefreshCw className="w-3 h-3" />
-                    A secure password will be auto-generated and shown after creation
-                  </p>
-                ) : (
-                  <div className="relative">
-                    <Input type={showCreatePassword ? "text" : "password"} data-testid="input-member-password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required minLength={6} className="pr-10" placeholder="Enter password (min 6 characters)" />
-                    <Button type="button" variant="ghost" size="icon" className="absolute right-0 top-0 h-full w-10 flex items-center justify-center" onClick={() => setShowCreatePassword(!showCreatePassword)} data-testid="button-toggle-create-password">
-                      {showCreatePassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </Button>
-                  </div>
+                {form.username && form.emailDomain && (
+                  <p className="text-xs text-muted-foreground">Email will be: {form.username}@{form.emailDomain}</p>
                 )}
-                <p className="text-xs text-muted-foreground">
-                  The member will be required to change their password on first login.
-                </p>
+                {domains.length === 0 && (
+                  <p className="text-xs text-muted-foreground">No domains configured — go to Settings to add email domains.</p>
+                )}
               </div>
+              <div><Label>User ID <span className="text-muted-foreground text-xs">(optional)</span></Label><Input data-testid="input-member-userid" value={form.userId} onChange={(e) => setForm({ ...form, userId: e.target.value })} placeholder="e.g. STU-001 or EMP-042" /></div>
+              <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                <KeyRound className="w-3 h-3" />
+                A temporary password will be auto-generated and shown after creation.
+              </p>
               <Button type="submit" className="w-full" disabled={createUser.isPending} data-testid="button-submit-member">
                 {createUser.isPending ? "Creating..." : "Create Member"}
               </Button>
@@ -449,7 +437,17 @@ export default function MembersPage() {
                         </Avatar>
                         <div>
                           <p className="font-medium text-sm">{m.firstName} {m.lastName}</p>
-                          <p className="text-xs text-muted-foreground">{m.email}</p>
+                          <div className="flex items-center gap-1">
+                            <p className="text-xs text-muted-foreground">{m.email}</p>
+                            <button
+                              className="text-muted-foreground hover:text-foreground opacity-60 hover:opacity-100"
+                              onClick={() => { navigator.clipboard.writeText(m.email); toast({ title: "Email copied" }); }}
+                              data-testid={`button-copy-email-${m._id}`}
+                              title="Copy email"
+                            >
+                              <Copy className="w-3 h-3" />
+                            </button>
+                          </div>
                           {m.phone && (
                             <p className="text-xs text-muted-foreground flex items-center gap-1"><Phone className="w-3 h-3" />{m.phone}</p>
                           )}
@@ -459,7 +457,19 @@ export default function MembersPage() {
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{m.username}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <span>{m.username}</span>
+                        <button
+                          className="text-muted-foreground hover:text-foreground opacity-60 hover:opacity-100"
+                          onClick={() => { navigator.clipboard.writeText(m.username); toast({ title: "Username copied" }); }}
+                          data-testid={`button-copy-username-${m._id}`}
+                          title="Copy username"
+                        >
+                          <Copy className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <span className={`text-xs px-2 py-1 rounded-md ${roleBadgeColors[m.role] || ""}`}>
                         {roleLabels[m.role] || m.role}
@@ -486,10 +496,14 @@ export default function MembersPage() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium border ${m.isActive ? "bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800" : "bg-muted text-muted-foreground border-border"}`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${m.isActive ? "bg-green-500" : "bg-muted-foreground"}`} />
-                        {m.isActive ? "Active" : "Inactive"}
-                      </span>
+                      <div className="inline-flex rounded-full border text-xs font-medium overflow-hidden">
+                        <span className={`px-2.5 py-1 transition-colors ${m.isActive ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>
+                          Active
+                        </span>
+                        <span className={`px-2.5 py-1 transition-colors ${!m.isActive ? "bg-secondary text-secondary-foreground" : "text-muted-foreground"}`}>
+                          Inactive
+                        </span>
+                      </div>
                     </TableCell>
                     <TableCell className="text-right">
                       {canManageRole(m.role) && (
@@ -497,15 +511,13 @@ export default function MembersPage() {
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(m)} data-testid={`button-edit-member-${m._id}`}>
                             <Pencil className="w-3.5 h-3.5" />
                           </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-amber-600" title="Reset Password" onClick={() => { if (confirm(`Reset password for ${m.firstName} ${m.lastName}?`)) resetPassword.mutate(m._id); }} data-testid={`button-reset-password-${m._id}`} disabled={resetPassword.isPending}>
+                            <KeyRound className="w-3.5 h-3.5" />
+                          </Button>
                           {["superadmin", "org_admin"].includes(user?.role || "") && (
-                            <>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-chart-3" onClick={() => openResetDialog(m)} data-testid={`button-reset-password-${m._id}`} title="Reset Password">
-                                <KeyRound className="w-3.5 h-3.5" />
-                              </Button>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => { if (confirm(`Delete ${m.firstName} ${m.lastName}?`)) deleteUser.mutate(m._id); }} data-testid={`button-delete-member-${m._id}`}>
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </Button>
-                            </>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => { if (confirm(`Delete ${m.firstName} ${m.lastName}?`)) deleteUser.mutate(m._id); }} data-testid={`button-delete-member-${m._id}`}>
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
                           )}
                         </div>
                       )}
@@ -517,6 +529,66 @@ export default function MembersPage() {
           </CardContent>
         </Card>
       )}
+
+      <Dialog open={tempPwdState.open} onOpenChange={(o) => { if (!o) { setTempPwdState({ open: false, password: "", username: "" }); setCopiedTemp(false); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><KeyRound className="w-5 h-5 text-primary" />Member Created</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              The account <strong>{tempPwdState.username}</strong> has been created. Share this temporary password with the member — they will be asked to change it on first login.
+            </p>
+            <div className="rounded-md border bg-muted/50 p-4 space-y-2">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Temporary Password</p>
+              <div className="flex items-center gap-2">
+                <code className="text-lg font-mono font-bold tracking-widest flex-1" data-testid="text-temp-password">{tempPwdState.password}</code>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => { navigator.clipboard.writeText(tempPwdState.password); setCopiedTemp(true); setTimeout(() => setCopiedTemp(false), 2000); }}
+                  data-testid="button-copy-temp-password"
+                >
+                  {copiedTemp ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                  {copiedTemp ? "Copied" : "Copy"}
+                </Button>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">This password will not be shown again. Make sure to save it.</p>
+            <Button className="w-full" onClick={() => { setTempPwdState({ open: false, password: "", username: "" }); setCopiedTemp(false); }} data-testid="button-close-temp-password">Done</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={resetPwdState.open} onOpenChange={(o) => { if (!o) { setResetPwdState({ open: false, password: "", username: "" }); setCopiedReset(false); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><KeyRound className="w-5 h-5 text-amber-600" />Password Reset</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Password for <strong>{resetPwdState.username}</strong> has been reset. Share this new temporary password — the member will be required to change it on next login.
+            </p>
+            <div className="rounded-md border bg-muted/50 p-4 space-y-2">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">New Temporary Password</p>
+              <div className="flex items-center gap-2">
+                <code className="text-lg font-mono font-bold tracking-widest flex-1" data-testid="text-reset-password">{resetPwdState.password}</code>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => { navigator.clipboard.writeText(resetPwdState.password); setCopiedReset(true); setTimeout(() => setCopiedReset(false), 2000); }}
+                  data-testid="button-copy-reset-password"
+                >
+                  {copiedReset ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                  {copiedReset ? "Copied" : "Copy"}
+                </Button>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">This password will not be shown again. Make sure to save it.</p>
+            <Button className="w-full" onClick={() => { setResetPwdState({ open: false, password: "", username: "" }); setCopiedReset(false); }} data-testid="button-close-reset-password">Done</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto">
@@ -591,6 +663,7 @@ export default function MembersPage() {
             )}
 
             <div><Label>Current Education</Label><Input data-testid="input-edit-education" value={editForm.education} onChange={(e) => setEditForm({ ...editForm, education: e.target.value })} placeholder="e.g. BSc Computer Science" /></div>
+            <div><Label>User ID <span className="text-muted-foreground text-xs">(optional)</span></Label><Input data-testid="input-edit-userid" value={editForm.userId} onChange={(e) => setEditForm({ ...editForm, userId: e.target.value })} placeholder="e.g. STU-001 or EMP-042" /></div>
             <div>
               <Label>Role</Label>
               <Select value={editForm.role} onValueChange={(v) => setEditForm({ ...editForm, role: v })}>
@@ -615,138 +688,6 @@ export default function MembersPage() {
               {updateUser.isPending ? "Updating..." : "Update Member"}
             </Button>
           </form>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={resetConfirmOpen} onOpenChange={setResetConfirmOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <KeyRound className="w-5 h-5 text-chart-3" />
-              Reset Password
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Reset password for <span className="font-medium text-foreground">{selectedMember?.firstName} {selectedMember?.lastName}</span>
-            </p>
-            <div className="space-y-3 p-3 rounded-md border bg-muted/30">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Password Method</span>
-                <div className="flex items-center gap-2">
-                  <span className={`text-xs ${resetMode === "auto" ? "text-foreground font-medium" : "text-muted-foreground"}`}>Auto-generate</span>
-                  <Switch
-                    checked={resetMode === "manual"}
-                    onCheckedChange={(checked) => {
-                      setResetMode(checked ? "manual" : "auto");
-                      if (!checked) setResetManualPassword("");
-                    }}
-                    data-testid="switch-reset-password-mode"
-                  />
-                  <span className={`text-xs ${resetMode === "manual" ? "text-foreground font-medium" : "text-muted-foreground"}`}>Set manually</span>
-                </div>
-              </div>
-              {resetMode === "auto" ? (
-                <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-                  <RefreshCw className="w-3 h-3" />
-                  A secure password will be auto-generated
-                </p>
-              ) : (
-                <div className="relative">
-                  <Input
-                    type={showResetPassword ? "text" : "password"}
-                    value={resetManualPassword}
-                    onChange={(e) => setResetManualPassword(e.target.value)}
-                    placeholder="Enter new password (min 6 characters)"
-                    minLength={6}
-                    className="pr-10"
-                    data-testid="input-reset-manual-password"
-                  />
-                  <Button type="button" variant="ghost" size="icon" className="absolute right-0 top-0 h-full w-10 flex items-center justify-center" onClick={() => setShowResetPassword(!showResetPassword)}>
-                    {showResetPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </Button>
-                </div>
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              The member will be required to change their password on their next login.
-            </p>
-            <div className="flex gap-2">
-              <Button variant="outline" className="flex-1" onClick={() => setResetConfirmOpen(false)} data-testid="button-cancel-reset">
-                Cancel
-              </Button>
-              <Button
-                className="flex-1"
-                onClick={handleResetSubmit}
-                disabled={resetPassword.isPending || (resetMode === "manual" && resetManualPassword.length < 6)}
-                data-testid="button-confirm-reset"
-              >
-                {resetPassword.isPending ? "Resetting..." : "Reset Password"}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={resetPasswordOpen} onOpenChange={setResetPasswordOpen}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Check className="w-5 h-5 text-chart-2" />
-              Password Reset Successful
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Password for <span className="font-medium text-foreground">{selectedMember?.firstName} {selectedMember?.lastName}</span> has been reset. Share this password with the member.
-            </p>
-            <div className="flex items-center gap-2 p-3 rounded-md bg-muted border">
-              <code className="flex-1 text-sm font-mono font-medium" data-testid="text-temp-password">{tempPassword}</code>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 shrink-0"
-                onClick={() => { navigator.clipboard.writeText(tempPassword); setCopiedPassword(true); setTimeout(() => setCopiedPassword(false), 2000); }}
-                data-testid="button-copy-temp-password"
-              >
-                {copiedPassword ? <Check className="w-4 h-4 text-chart-2" /> : <Copy className="w-4 h-4" />}
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              The member will be required to set a new password on their next login.
-            </p>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={createdPasswordOpen} onOpenChange={setCreatedPasswordOpen}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Check className="w-5 h-5 text-chart-2" />
-              Member Created Successfully
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              <span className="font-medium text-foreground">{createdMemberName}</span> has been created. Share the login credentials with the member.
-            </p>
-            <div className="flex items-center gap-2 p-3 rounded-md bg-muted border">
-              <code className="flex-1 text-sm font-mono font-medium" data-testid="text-created-password">{tempPassword}</code>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 shrink-0"
-                onClick={() => { navigator.clipboard.writeText(tempPassword); setCopiedPassword(true); setTimeout(() => setCopiedPassword(false), 2000); }}
-                data-testid="button-copy-created-password"
-              >
-                {copiedPassword ? <Check className="w-4 h-4 text-chart-2" /> : <Copy className="w-4 h-4" />}
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              The member will be required to change this password on their first login.
-            </p>
-          </div>
         </DialogContent>
       </Dialog>
     </div>

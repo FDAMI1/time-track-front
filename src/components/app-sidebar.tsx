@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth";
 import { useLocation, Link } from "wouter";
 import {
@@ -27,13 +28,7 @@ import {
   Briefcase,
   Timer,
   MessageCircle,
-  BookOpen,
-  Activity,
-  MessagesSquare,
-  FileText,
   Files,
-  ShieldCheck,
-  DollarSign,
 } from "lucide-react";
 
 const roleLabels: Record<string, string> = {
@@ -54,11 +49,29 @@ const roleBadgeVariants: Record<string, string> = {
   employee: "bg-chart-5/10 text-chart-5",
 };
 
+function getBranding() {
+  try {
+    const saved = localStorage.getItem("app_theme");
+    return saved ? JSON.parse(saved) : {};
+  } catch { return {}; }
+}
+
 export function AppSidebar() {
   const { user, logout } = useAuth();
   const [location] = useLocation();
+  const [branding, setBranding] = useState(getBranding());
+  useEffect(() => {
+    const handler = () => setBranding(getBranding());
+    window.addEventListener("brandingUpdated", handler);
+    return () => window.removeEventListener("brandingUpdated", handler);
+  }, []);
 
   if (!user) return null;
+
+  const appName = branding.appName || user.organizationId?.name || "";
+  const logoText = branding.logoText || "";
+  const logoType = branding.logoType || "text";
+  const logoUrl = branding.logoUrl || "";
 
   const initials = `${user.firstName[0]}${user.lastName[0]}`.toUpperCase();
   const orgType = user.organizationId?.type;
@@ -77,28 +90,20 @@ export function AppSidebar() {
       }
       items.push({ title: "Attendance", url: "/attendance", icon: CalendarCheck });
       items.push({ title: "Leave Requests", url: "/leaves", icon: CalendarOff });
-      if (["employee", "manager", "org_admin"].includes(user.role) && orgType === "company") {
+      if (["employee", "manager", "org_admin", "teacher"].includes(user.role)) {
         items.push({ title: "Time Tracking", url: "/time-tracking", icon: Timer });
       }
       if (["org_admin", "teacher", "manager"].includes(user.role)) {
-        items.push({ title: "Classes", url: "/classes", icon: BookOpen });
-      }
-      const chatEnabled = (user.organizationId as any)?.features?.chat !== false;
-      if (chatEnabled) {
-        items.push({ title: "Chat", url: "/chat", icon: MessageCircle });
-      }
-      // Chat disabled (placeholder kept for reference)
-      if (["org_admin", "teacher", "manager"].includes(user.role)) {
-        items.push({ title: "Activity Logs", url: "/activity-logs", icon: Activity });
-        items.push({ title: "WhatsApp", url: "/whatsapp", icon: MessageCircle });
-        items.push({ title: "Doc Templates", url: "/document-templates", icon: FileText });
-        if (user.role === "org_admin") {
-          items.push({ title: "Roles & Permissions", url: "/roles-permissions", icon: ShieldCheck });
-          items.push({ title: "Salary Setup", url: "/salary-setup", icon: DollarSign });
+        if (orgType !== "company") {
+          items.push({ title: "WhatsApp", url: "/whatsapp", icon: MessageCircle });
         }
         items.push({ title: "Settings", url: "/settings", icon: Settings });
       }
       items.push({ title: "Documents", url: "/documents", icon: Files });
+      const chatEnabled = (user.organizationId as any)?.features?.chat !== false;
+      if (chatEnabled) {
+        items.push({ title: "Chat", url: "/chat", icon: MessageCircle });
+      }
     }
 
     return items;
@@ -110,11 +115,16 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarHeader className="p-4 border-b border-sidebar-border">
         <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-9 h-9 rounded-md bg-primary text-primary-foreground">
-            <Shield className="w-5 h-5" />
+          <div className={`flex items-center justify-center w-9 h-9 rounded-md shrink-0 overflow-hidden ${logoType === "image" && logoUrl ? "bg-transparent" : "bg-primary text-primary-foreground"}`}>
+            {logoType === "image" && logoUrl
+              ? <img src={logoUrl} alt="Logo" className="h-9 w-auto object-contain bg-transparent" style={{ background: "transparent" }} />
+              : logoText
+                ? <span className="text-sm font-bold">{logoText}</span>
+                : <Shield className="w-5 h-5" />
+            }
           </div>
           <div className="flex flex-col min-w-0">
-            <span className="text-sm font-semibold truncate">Unified Governance</span>
+            <span className="text-sm font-semibold truncate">{appName}</span>
             <span className="text-xs text-muted-foreground truncate">
               {orgType === "academy" ? "Academy" : orgType === "company" ? "Company" : "Platform"}
             </span>
@@ -164,7 +174,9 @@ export function AppSidebar() {
           <div className="flex flex-col min-w-0 flex-1">
             <span className="text-sm font-medium truncate">{user.firstName} {user.lastName}</span>
             <span className={`text-xs px-1.5 py-0.5 rounded-sm w-fit ${roleBadgeVariants[user.role] || ""}`}>
-              {roleLabels[user.role]}
+              {user.role === "org_admin"
+                ? orgType === "academy" ? "Academic Admin" : "Company Admin"
+                : roleLabels[user.role]}
             </span>
           </div>
         </div>

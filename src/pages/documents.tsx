@@ -5,7 +5,6 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
@@ -15,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import { FilePlus2, Download, FileText, Loader2 } from "lucide-react";
 
 const PRESET_DOC_TYPES: Record<string, string> = {
@@ -29,13 +29,8 @@ interface Template {
   _id: string;
   title: string;
   documentType: string;
-  templateType: "html" | "docx" | "pdf";
+  templateType: "html" | "docx";
   templateHTML?: string;
-}
-
-function extractTemplateKeys(html: string): string[] {
-  const matches = html.match(/\{\{(\w+)\}\}/g) || [];
-  return [...new Set(matches.map((m) => m.replace(/\{\{|\}\}/g, "")))];
 }
 
 interface OrgUser {
@@ -62,6 +57,11 @@ function docTypeLabel(type: string) {
   return PRESET_DOC_TYPES[type] || type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+function extractTemplateKeys(html: string): string[] {
+  const matches = html.match(/\{\{(\w+)\}\}/g) || [];
+  return [...new Set(matches.map((m) => m.replace(/\{\{|\}\}/g, "")))];
+}
+
 function isSalarySlip(type: string) {
   return type === "salary_slip" || type.toLowerCase().includes("salary");
 }
@@ -82,7 +82,6 @@ export default function DocumentsPage() {
     salaryInputs: {} as Record<string, any>,
     autoFill: true,
   });
-
   const canGenerate = ["org_admin", "manager", "teacher"].includes(user?.role || "");
   const isEndUser = ["employee", "student"].includes(user?.role || "");
 
@@ -138,12 +137,12 @@ export default function DocumentsPage() {
     enabled: !!token && !!genForm.templateId,
   });
 
-  const templatePlaceholders: string[] = placeholderData?.placeholders || [];
-
   const selectedTemplate = templates.find((t) => t._id === genForm.templateId);
   const showSalaryFlow = selectedTemplate && isSalarySlip(selectedTemplate.documentType);
   const selectedStructure = salaryStructures.find((s) => s._id === genForm.salaryStructureId);
   const inputFields = inputConfig?.fields || [];
+
+  const templatePlaceholders: string[] = placeholderData?.placeholders || [];
 
   // Reset form data when template changes
   useEffect(() => {
@@ -169,6 +168,7 @@ export default function DocumentsPage() {
   async function handleGenerate() {
     if (!genForm.templateId || !genForm.userId) return;
 
+    // Frontend validation: when manual mode, check all placeholder fields are filled
     if (!genForm.autoFill && templatePlaceholders.length > 0) {
       const missing = templatePlaceholders.filter((k) => !genForm.extraData[k] || !genForm.extraData[k].trim());
       if (missing.length > 0) {
@@ -220,7 +220,7 @@ export default function DocumentsPage() {
       URL.revokeObjectURL(url);
 
       setGenerateOpen(false);
-      setGenForm({ templateId: "", userId: "", format: "html", extraData: {}, salaryStructureId: "", salaryInputs: {}, autoFill: true });
+      setGenForm({ templateId: "", userId: "", format: "html", extraData: {}, salaryStructureId: "", salaryInputs: {} });
       toast({ title: "Document generated and downloaded" });
     } catch (err: any) {
       toast({ title: "Generation failed", description: err.message, variant: "destructive" });
@@ -286,7 +286,7 @@ export default function DocumentsPage() {
                         <Button
                           size="sm"
                           onClick={() => {
-                            const preferredFormat = t.templateType === "docx" ? "docx" : t.templateType === "pdf" ? "pdf" : "html";
+                            const preferredFormat = t.templateType === "docx" ? "docx" : "html";
                             setGenForm({ templateId: t._id, userId: "", format: preferredFormat, extraData: {}, salaryStructureId: "", salaryInputs: {}, autoFill: true });
                             setGenerateOpen(true);
                           }}
@@ -322,7 +322,7 @@ export default function DocumentsPage() {
               <Label>Template</Label>
               <Select value={genForm.templateId} onValueChange={(v) => {
                 const tpl = templates.find((t) => t._id === v);
-                const preferredFormat = tpl?.templateType === "docx" ? "docx" : tpl?.templateType === "pdf" ? "pdf" : "html";
+                const preferredFormat = tpl?.templateType === "docx" ? "docx" : "html";
                 setGenForm({ ...genForm, templateId: v, format: preferredFormat, salaryStructureId: "", salaryInputs: {} });
               }}>
                 <SelectTrigger data-testid="select-gen-template">

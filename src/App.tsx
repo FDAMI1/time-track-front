@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider, useQuery } from "@tanstack/react-query";
@@ -10,7 +10,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Bell, X } from "lucide-react";
+import { Bell, X, LogOut, ShieldAlert } from "lucide-react";
 import LoginPage from "@/pages/login";
 import DashboardPage from "@/pages/dashboard";
 import OrganizationsPage from "@/pages/organizations";
@@ -22,13 +22,14 @@ import WhatsappNotificationsPage from "@/pages/whatsapp-notifications";
 import TimeTrackingPage from "@/pages/time-tracking";
 import ClassesPage from "@/pages/classes";
 import ActivityLogsPage from "@/pages/activity-logs";
-// import ChatPage from "@/pages/chat"; // Chat disabled
+import ChatPage from "@/pages/chat";
 import DocumentTemplatesPage from "@/pages/document-templates";
 import DocumentsPage from "@/pages/documents";
 import RolesPermissionsPage from "@/pages/roles-permissions";
 import SalarySetupPage from "@/pages/salary-setup";
 import NotFound from "@/pages/not-found";
 import ForcePasswordChange from "@/components/force-password-change";
+import { applyBrandingCss } from "@/lib/branding";
 
 function NotificationBell() {
   const { token } = useAuth();
@@ -129,14 +130,39 @@ function NotificationBell() {
   );
 }
 
+function ImpersonationBanner() {
+  const { isImpersonating, exitImpersonation, impersonatedOrgName, user } = useAuth();
+  if (!isImpersonating) return null;
+  return (
+    <div className="bg-amber-500 text-amber-950 px-4 py-2 flex items-center justify-between text-sm shrink-0" data-testid="banner-impersonation">
+      <div className="flex items-center gap-2">
+        <ShieldAlert className="w-4 h-4" />
+        <span>
+          Viewing as <strong>{user?.firstName} {user?.lastName}</strong> ({user?.role === "org_admin" ? "Admin" : user?.role}) — {impersonatedOrgName}
+        </span>
+      </div>
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-7 bg-amber-600 border-amber-700 text-amber-50 hover:bg-amber-700 hover:text-white"
+        onClick={exitImpersonation}
+        data-testid="button-exit-impersonation"
+      >
+        <LogOut className="w-3.5 h-3.5 mr-1" />
+        Back to Super Admin
+      </Button>
+    </div>
+  );
+}
+
 function AuthenticatedRouter() {
-  const { user } = useAuth();
+  const { user, isImpersonating } = useAuth();
   const orgType = user?.organizationId?.type;
 
   return (
     <Switch>
       <Route path="/" component={DashboardPage} />
-      {user?.role === "superadmin" && (
+      {(user?.role === "superadmin" && !isImpersonating) && (
         <Route path="/organizations" component={OrganizationsPage} />
       )}
       {["org_admin", "manager", "teacher"].includes(user?.role || "") && (
@@ -148,7 +174,7 @@ function AuthenticatedRouter() {
       {user?.role !== "superadmin" && (
         <Route path="/leaves" component={LeavesPage} />
       )}
-      {["employee", "manager", "org_admin"].includes(user?.role || "") && orgType === "company" && (
+      {["employee", "manager", "org_admin", "teacher"].includes(user?.role || "") && (
         <Route path="/time-tracking" component={TimeTrackingPage} />
       )}
       {["org_admin", "teacher", "manager"].includes(user?.role || "") && (
@@ -160,7 +186,7 @@ function AuthenticatedRouter() {
       {["org_admin", "teacher", "manager"].includes(user?.role || "") && (
         <Route path="/activity-logs" component={ActivityLogsPage} />
       )}
-      {/* Chat disabled */}
+      <Route path="/chat" component={ChatPage} />
       {["superadmin", "org_admin", "teacher", "manager"].includes(user?.role || "") && (
         <Route path="/settings" component={SettingsPage} />
       )}
@@ -182,7 +208,25 @@ function AuthenticatedRouter() {
 }
 
 function AppLayout() {
-  const { user, isLoading, mustChangePassword } = useAuth();
+  const { user, token, isLoading, mustChangePassword } = useAuth();
+
+  useEffect(() => {
+    const saved = localStorage.getItem("app_theme");
+    if (saved) {
+      try { applyBrandingCss(JSON.parse(saved)); } catch {}
+    }
+    if (token && user?.organizationId) {
+      fetch("/api/organizations/my/branding", { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (data && Object.keys(data).length > 0) {
+            localStorage.setItem("app_theme", JSON.stringify(data));
+            applyBrandingCss(data);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [user?._id, token]);
 
   if (isLoading) {
     return (
@@ -213,6 +257,7 @@ function AppLayout() {
       <div className="flex h-screen w-full">
         <AppSidebar />
         <div className="flex flex-col flex-1 min-w-0">
+          <ImpersonationBanner />
           <header className="flex items-center justify-between gap-2 p-2 border-b h-12 shrink-0">
             <SidebarTrigger data-testid="button-sidebar-toggle" />
             <NotificationBell />
@@ -240,3 +285,4 @@ function App() {
 }
 
 export default App;
+  

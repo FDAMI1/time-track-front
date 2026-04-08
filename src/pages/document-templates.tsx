@@ -31,7 +31,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Upload, Trash2, FileText, FileCode, File, Download } from "lucide-react";
+import { Upload, Trash2, Download, FileText, FileCode, File } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 
@@ -74,14 +74,13 @@ const DOCTYPE_BADGE_COLORS: Record<string, string> = {
 const TEMPLATE_TYPE_ICON: Record<string, any> = {
   html: FileCode,
   docx: FileText,
-  pdf: File,
 };
 
 interface Template {
   _id: string;
   documentType: string;
   title: string;
-  templateType: "html" | "docx" | "pdf";
+  templateType: "html" | "docx";
   templateFileUrl?: string;
   createdBy?: { firstName: string; lastName: string };
   createdAt: string;
@@ -167,7 +166,7 @@ export default function DocumentTemplatesPage() {
         <div>
           <h1 className="text-2xl font-bold" data-testid="text-page-title">Document Templates</h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Upload pre-designed templates (HTML, DOCX, PDF) with placeholders
+            Upload pre-designed templates (HTML or DOCX) — up to 10MB
           </p>
         </div>
         {canUpload && (
@@ -229,8 +228,22 @@ export default function DocumentTemplatesPage() {
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="h-7 px-2 text-muted-foreground"
-                        onClick={() => window.open(`/api/document-templates/${t._id}/download`, "_blank")}
+                        className="h-7 px-2 text-muted-foreground hover:text-foreground"
+                        onClick={async () => {
+                          const res = await fetch(`/api/document-templates/${t._id}/download`, {
+                            headers: { Authorization: `Bearer ${token}` },
+                          });
+                          if (!res.ok) { toast({ title: "Download failed", variant: "destructive" }); return; }
+                          const blob = await res.blob();
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement("a");
+                          a.href = url;
+                          const cd = res.headers.get("content-disposition") || "";
+                          const match = cd.match(/filename="([^"]+)"/);
+                          a.download = match ? match[1] : `${t.title}.${t.templateType}`;
+                          a.click();
+                          URL.revokeObjectURL(url);
+                        }}
                         data-testid={`button-download-template-${t._id}`}
                         title="Download template file"
                       >
@@ -313,15 +326,23 @@ export default function DocumentTemplatesPage() {
                   <div className="space-y-1">
                     <Upload className="w-8 h-8 mx-auto text-muted-foreground" />
                     <p className="text-sm font-medium">Click to select file</p>
-                    <p className="text-xs text-muted-foreground">HTML, DOCX, or PDF — max 5MB</p>
+                    <p className="text-xs text-muted-foreground">HTML or DOCX — max 10MB</p>
                   </div>
                 )}
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".html,.docx,.pdf"
+                  accept=".html,.docx"
                   className="hidden"
-                  onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] || null;
+                    if (file && file.size > 10 * 1024 * 1024) {
+                      toast({ title: "File too large", description: "File size must be less than 10MB.", variant: "destructive" });
+                      e.target.value = "";
+                      return;
+                    }
+                    setSelectedFile(file);
+                  }}
                   data-testid="input-template-file"
                 />
               </div>

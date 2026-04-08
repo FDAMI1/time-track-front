@@ -15,11 +15,16 @@ interface User {
 interface AuthContextType {
   user: User | null;
   token: string | null;
-  login: (username: string, password: string, isEmail?: boolean) => Promise<void>;
+  login: (credential: string, password: string, isEmail?: boolean) => Promise<void>;
   logout: () => void;
+  refreshUser: () => Promise<void>;
   isLoading: boolean;
   mustChangePassword: boolean;
   clearMustChangePassword: () => void;
+  isImpersonating: boolean;
+  impersonate: (userId: string) => Promise<void>;
+  exitImpersonation: () => void;
+  impersonatedOrgName: string | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -29,6 +34,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem("token"));
   const [isLoading, setIsLoading] = useState(true);
   const [mustChangePassword, setMustChangePassword] = useState(false);
+  const [isImpersonating, setIsImpersonating] = useState(() => !!localStorage.getItem("superadminToken"));
+  const [impersonatedOrgName, setImpersonatedOrgName] = useState<string | null>(() => localStorage.getItem("impersonatedOrgName"));
 
   const fetchUser = useCallback(async (authToken: string) => {
     try {
@@ -63,11 +70,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [token, fetchUser]);
 
-  const login = async (username: string, password: string) => {
+  const login = async (credential: string, password: string, isEmail?: boolean) => {
+    const body = isEmail
+      ? { email: credential, password }
+      : { username: credential, password };
     const res = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify(body),
     });
 
     if (!res.ok) {
@@ -88,9 +98,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = () => {
     localStorage.removeItem("token");
+    localStorage.removeItem("superadminToken");
+    localStorage.removeItem("impersonatedOrgName");
+    localStorage.removeItem("app_theme");
     setToken(null);
     setUser(null);
     setMustChangePassword(false);
+    setIsImpersonating(false);
+    setImpersonatedOrgName(null);
     window.history.replaceState(null, "", "/");
   };
 
@@ -98,8 +113,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setMustChangePassword(false);
   };
 
+  const impersonate = async (userId: string) => {
+    if (!token) return;
+    const res = await fetch(`/api/auth/impersonate/${userId}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!res.ok) {
+      const data = await res.json();
+      throw new Error(data.message || "Impersonation failed");
+    }
+
+    const data = await res.json();
+    const orgName = data.user?.organizationId?.name || "Organization";
+    localStorage.setItem("superadminToken", token);
+    localStorage.setItem("impersonatedOrgName", orgName);
+    localStorage.setItem("token", data.token);
+    setIsImpersonating(true);
+    setImpersonatedOrgName(orgName);
+    setToken(data.token);
+    setUser(data.user);
+    window.history.replaceState(null, "", "/");
+  };
+
+  const exitImpersonation = () => {
+    const savedToken = localStorage.getItem("superadminToken");
+    if (savedToken) {
+      localStorage.setItem("token", savedToken);
+      localStorage.removeItem("superadminToken");
+      localStorage.removeItem("impersonatedOrgName");
+      window.location.href = "/organizations";
+    }
+  };
+
+  const refreshUser = useCallback(async () => {
+    if (token) await fetchUser(token);
+  }, [token, fetchUser]);
+
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, isLoading, mustChangePassword, clearMustChangePassword }}>
+    <AuthContext.Provider value={{ user, token, login, logout, refreshUser, isLoading, mustChangePassword, clearMustChangePassword, isImpersonating, impersonate, exitImpersonation, impersonatedOrgName }}>
       {children}
     </AuthContext.Provider>
   );

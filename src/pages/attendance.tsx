@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { CalendarCheck, CheckCircle2, Clock, XCircle, Users, Bell, Check, X, UserCheck } from "lucide-react";
+import { CalendarCheck, CheckCircle2, Clock, XCircle, Users, Bell, Check, X, UserCheck, FileDown, Copy } from "lucide-react";
 
 const statusBadge: Record<string, { className: string; label: string }> = {
   present: { className: "bg-chart-2/10 text-chart-2", label: "Present" },
@@ -134,7 +134,12 @@ export default function AttendancePage() {
         {tabs.map((tab) => (
           <TabsContent key={tab.value} value={tab.value}>
             {tab.roleFilter ? (
-              <TeamAttendanceTab roleFilter={tab.roleFilter} token={token!} />
+              <TeamAttendanceTab
+                roleFilter={tab.roleFilter}
+                token={token!}
+                viewerRole={user?.role || ""}
+                orgType={orgType}
+              />
             ) : (
               <MyAttendanceTab records={myRecords} isLoading={myLoading} />
             )}
@@ -229,7 +234,7 @@ function openBulkWhatsappLinks(notifications: any[]) {
   }
 }
 
-function TeamAttendanceTab({ roleFilter, token }: { roleFilter: string; token: string }) {
+function TeamAttendanceTab({ roleFilter, token, viewerRole = "", orgType }: { roleFilter: string; token: string; viewerRole?: string; orgType?: string }) {
   const { toast } = useToast();
   const today = new Date().toISOString().split("T")[0];
   const [selectedPolicyId, setSelectedPolicyId] = useState<string>("");
@@ -345,8 +350,28 @@ function TeamAttendanceTab({ roleFilter, token }: { roleFilter: string; token: s
   });
 
   const members = data?.members || [];
+  const sortOrder: Record<string, number> = { pending: 0, not_marked: 1 };
+  const sortedMembers = [...members].sort((a: any, b: any) => (sortOrder[a.status] ?? 2) - (sortOrder[b.status] ?? 2));
   const unmarkedMembers = members.filter((m: any) => m.status === "not_marked");
   const pendingMembers = members.filter((m: any) => m.status === "pending");
+
+  async function downloadStudentReport(userId: string, name: string) {
+    try {
+      const res = await fetch(`/api/reports/user/${userId}?period=monthly&format=xlsx`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Failed");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${name.replace(/\s+/g, "-")}-report.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast({ title: "Report download failed", variant: "destructive" });
+    }
+  }
   const pendingCount = pendingMembers.length;
   const roleLabel = roleFilter === "student" ? "Students" : roleFilter === "teacher" ? "Teachers" : roleFilter === "manager" ? "Managers" : "Employees";
   const hasMultiplePolicies = policies && policies.length > 1;
@@ -429,11 +454,18 @@ function TeamAttendanceTab({ roleFilter, token }: { roleFilter: string; token: s
                 <TableHead>Name</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Check In</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                {viewerRole === "manager" && roleFilter === "employee" ? (
+                  <>
+                    <TableHead>Check Out</TableHead>
+                    <TableHead>Hours</TableHead>
+                  </>
+                ) : (
+                  <TableHead className="text-right">Actions</TableHead>
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {members.map((m: any) => {
+              {sortedMembers.map((m: any) => {
                 const sb = statusBadge[m.status] || statusBadge.not_marked;
                 const isPending = m.status === "pending";
                 const isNotMarked = m.status === "not_marked";
@@ -454,64 +486,154 @@ function TeamAttendanceTab({ roleFilter, token }: { roleFilter: string; token: s
                       <span className={`text-xs px-2 py-1 rounded-md ${sb.className}`}>{sb.label}</span>
                     </TableCell>
                     <TableCell className="text-muted-foreground">{m.checkInTime || "-"}</TableCell>
-                    <TableCell className="text-right">
-                      {isPending && (
-                        <div className="flex gap-1 justify-end">
+                    {viewerRole === "manager" && roleFilter === "employee" ? (
+                      <>
+                        <TableCell className="text-muted-foreground">{m.checkOutTime || "-"}</TableCell>
+                        <TableCell className="text-muted-foreground text-xs">
+                          {m.checkInTime && m.checkOutTime ? (() => {
+                            const [ih, im] = m.checkInTime.split(":").map(Number);
+                            const [oh, om] = m.checkOutTime.split(":").map(Number);
+                            const mins = (oh * 60 + om) - (ih * 60 + im);
+                            if (mins <= 0) return "-";
+                            return `${Math.floor(mins / 60)}h ${mins % 60}m`;
+                          })() : "-"}
+                        </TableCell>
+                      </>
+                    ) : (
+                      <TableCell className="text-right">
+                        {(roleFilter === "student" || roleFilter === "employee") && !isPending && !isNotMarked && (
                           <Button
                             size="sm"
-                            variant="default"
-                            onClick={() => approveAttendance.mutate({ id: m.attendanceId, status: "present" })}
-                            disabled={approveAttendance.isPending}
-                            data-testid={`button-confirm-${m._id}`}
+                            variant="ghost"
+                            className="h-7 px-2 text-muted-foreground hover:text-foreground"
+                            onClick={() => downloadStudentReport(m._id, `${m.firstName} ${m.lastName}`)}
+                            data-testid={`button-report-${m._id}`}
+                            title="Download monthly report"
                           >
-                            <Check className="w-3.5 h-3.5 mr-1" />
-                            Confirm
+                            <FileDown className="w-3.5 h-3.5 mr-1" />
+                            Report
                           </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => approveAttendance.mutate({ id: m.attendanceId, status: "absent" })}
-                            disabled={approveAttendance.isPending}
-                            data-testid={`button-decline-${m._id}`}
-                          >
-                            <X className="w-3.5 h-3.5 mr-1" />
-                            Decline
-                          </Button>
-                        </div>
-                      )}
-                      {!isPending && (
-                        <div className="flex gap-1 justify-end">
-                          <Button
-                            size="sm"
-                            variant={m.status === "present" || m.status === "late" ? "default" : "outline"}
-                            className={m.status === "present" || m.status === "late" ? "bg-chart-2 hover:bg-chart-2/90 text-white" : "border-chart-2/50 text-chart-2 hover:bg-chart-2/10"}
-                            onClick={() => markForUser.mutate({ userId: m._id, status: "present" })}
-                            disabled={markForUser.isPending || m.status === "present"}
-                            data-testid={`button-mark-present-${m._id}`}
-                          >
-                            <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
-                            Present
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant={m.status === "absent" ? "default" : "outline"}
-                            className={m.status === "absent" ? "bg-destructive hover:bg-destructive/90 text-white" : "border-destructive/50 text-destructive hover:bg-destructive/10"}
-                            onClick={() => markForUser.mutate({ userId: m._id, status: "absent" })}
-                            disabled={markForUser.isPending || m.status === "absent"}
-                            data-testid={`button-mark-absent-${m._id}`}
-                          >
-                            <XCircle className="w-3.5 h-3.5 mr-1" />
-                            Absent
-                          </Button>
-                        </div>
-                      )}
-                    </TableCell>
+                        )}
+                        {isPending && (
+                          <div className="flex gap-1 justify-end">
+                            <Button
+                              size="sm"
+                              variant="default"
+                              onClick={() => approveAttendance.mutate({ id: m.attendanceId, status: "present" })}
+                              disabled={approveAttendance.isPending}
+                              data-testid={`button-confirm-${m._id}`}
+                            >
+                              <Check className="w-3.5 h-3.5 mr-1" />
+                              Confirm
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => approveAttendance.mutate({ id: m.attendanceId, status: "absent" })}
+                              disabled={approveAttendance.isPending}
+                              data-testid={`button-decline-${m._id}`}
+                            >
+                              <X className="w-3.5 h-3.5 mr-1" />
+                              Decline
+                            </Button>
+                          </div>
+                        )}
+                        {!isPending && (
+                          <div className="flex gap-1 justify-end">
+                            <Button
+                              size="sm"
+                              variant={m.status === "present" || m.status === "late" ? "default" : "outline"}
+                              className={m.status === "present" || m.status === "late" ? "bg-chart-2 hover:bg-chart-2/90 text-white" : "border-chart-2/50 text-chart-2 hover:bg-chart-2/10"}
+                              onClick={() => markForUser.mutate({ userId: m._id, status: "present" })}
+                              disabled={markForUser.isPending || m.status === "present"}
+                              data-testid={`button-mark-present-${m._id}`}
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
+                              Present
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant={m.status === "absent" ? "default" : "outline"}
+                              className={m.status === "absent" ? "bg-destructive hover:bg-destructive/90 text-white" : "border-destructive/50 text-destructive hover:bg-destructive/10"}
+                              onClick={() => markForUser.mutate({ userId: m._id, status: "absent" })}
+                              disabled={markForUser.isPending || m.status === "absent"}
+                              data-testid={`button-mark-absent-${m._id}`}
+                            >
+                              <XCircle className="w-3.5 h-3.5 mr-1" />
+                              Absent
+                            </Button>
+                          </div>
+                        )}
+                      </TableCell>
+                    )}
                   </TableRow>
                 );
               })}
             </TableBody>
           </Table>
         )}
+        {roleFilter === "student" && orgType === "academy" && (() => {
+          const absentList = members.filter((m: any) => m.status === "absent");
+          if (absentList.length === 0) return null;
+          function copyText(text: string, label: string) {
+            navigator.clipboard.writeText(text).then(() => {
+              toast({ title: `${label} copied to clipboard` });
+            });
+          }
+          return (
+            <div className="border-t p-4 space-y-2">
+              <p className="text-sm font-medium text-destructive flex items-center gap-1">
+                <XCircle className="w-4 h-4" />
+                Absent Students ({absentList.length})
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs gap-1"
+                  onClick={() => {
+                    const phones = absentList.flatMap((m: any) => [m.phone, m.parentPhone].filter(Boolean)).join(", ");
+                    copyText(phones || "No phone numbers available", "Phone numbers");
+                  }}
+                  data-testid="button-copy-absent-phones"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                  Copy Phone Numbers
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs gap-1"
+                  onClick={() => {
+                    const names = absentList.map((m: any) => `${m.firstName} ${m.lastName}`).join(", ");
+                    copyText(`Absent today (${today}): ${names}`, "Absent list");
+                  }}
+                  data-testid="button-copy-absent-names"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                  Copy Absent Names
+                </Button>
+              </div>
+              <div className="space-y-1 max-h-36 overflow-y-auto">
+                {absentList.map((m: any) => (
+                  <div key={m._id} className="flex items-center justify-between text-xs py-1 px-2 rounded bg-destructive/5">
+                    <span className="font-medium">{m.firstName} {m.lastName}</span>
+                    {(m.phone || m.parentPhone) && (
+                      <button
+                        className="text-muted-foreground hover:text-foreground flex items-center gap-1"
+                        onClick={() => copyText(m.phone || m.parentPhone, `${m.firstName}'s number`)}
+                        data-testid={`button-copy-phone-${m._id}`}
+                      >
+                        <Copy className="w-3 h-3" />
+                        {m.phone || m.parentPhone}
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
       </CardContent>
     </Card>
   );

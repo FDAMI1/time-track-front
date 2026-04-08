@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
+import { applyBrandingCss, resetBrandingCss } from "@/lib/branding";
 import { queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,14 +14,171 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Settings, Clock, Shield, Palette, Eye, EyeOff, Globe, MessageCircle, Plus, Pencil, Trash2, Users, UserPlus, Lock, Timer, CalendarOff } from "lucide-react";
+import { Settings, Clock, Shield, Palette, Eye, EyeOff, Globe, MessageCircle, Plus, Pencil, Trash2, Users, UserPlus, Fingerprint, PenLine, Upload, X } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import DocumentTemplatesPage from "@/pages/document-templates";
+import RolesPermissionsPage from "@/pages/roles-permissions";
+import SalarySetupPage from "@/pages/salary-setup";
+
+function OrganizationAssetsCard({ token }: { token: string }) {
+  const { toast } = useToast();
+  const sigRef = useRef<HTMLInputElement>(null);
+  const stampRef = useRef<HTMLInputElement>(null);
+
+  const { data: assets, isLoading } = useQuery({
+    queryKey: ["/api/organization-assets"],
+    queryFn: async () => {
+      const res = await fetch("/api/organization-assets", { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    enabled: !!token,
+  });
+
+  async function uploadAsset(file: File, type: "signature" | "stamp") {
+    const formData = new FormData();
+    formData.append(type, file);
+    const res = await fetch(`/api/organization-assets/${type}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.message);
+    }
+    return res.json();
+  }
+
+  async function deleteAsset(type: "signature" | "stamp") {
+    const res = await fetch(`/api/organization-assets/${type}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error("Failed to delete");
+    return res.json();
+  }
+
+  async function handleUpload(file: File | undefined, type: "signature" | "stamp") {
+    if (!file) return;
+    try {
+      await uploadAsset(file, type);
+      const { queryClient: qc } = await import("@/lib/queryClient");
+      qc.invalidateQueries({ queryKey: ["/api/organization-assets"] });
+      toast({ title: `${type === "signature" ? "Signature" : "Stamp"} uploaded` });
+    } catch (err: any) {
+      toast({ title: "Upload failed", description: err.message, variant: "destructive" });
+    }
+  }
+
+  async function handleDelete(type: "signature" | "stamp") {
+    try {
+      await deleteAsset(type);
+      const { queryClient: qc } = await import("@/lib/queryClient");
+      qc.invalidateQueries({ queryKey: ["/api/organization-assets"] });
+      toast({ title: `${type === "signature" ? "Signature" : "Stamp"} removed` });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg flex items-center gap-2">
+          <PenLine className="w-5 h-5" />
+          Signature & Stamp
+        </CardTitle>
+        <CardDescription>
+          Upload your organization's digital signature and stamp. They auto-inject into documents using{" "}
+          <code className="text-xs bg-muted px-1 rounded">{"{{signature}}"}</code> and{" "}
+          <code className="text-xs bg-muted px-1 rounded">{"{{stamp}}"}</code> placeholders.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="grid md:grid-cols-2 gap-4">
+            <Skeleton className="h-36" />
+            <Skeleton className="h-36" />
+          </div>
+        ) : (
+          <div className="grid md:grid-cols-2 gap-4">
+            {(["signature", "stamp"] as const).map((type) => {
+              const url = type === "signature" ? assets?.signatureUrl : assets?.stampUrl;
+              const Icon = type === "signature" ? PenLine : Fingerprint;
+              const inputRef = type === "signature" ? sigRef : stampRef;
+              return (
+                <div key={type} className="border rounded-lg p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-sm font-medium capitalize">
+                      <Icon className="w-4 h-4" />
+                      {type === "signature" ? "Signature" : "Company Stamp"}
+                    </div>
+                    {url && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 w-7 p-0 text-destructive"
+                        onClick={() => handleDelete(type)}
+                        data-testid={`button-delete-${type}`}
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </Button>
+                    )}
+                  </div>
+                  {url ? (
+                    <div className="rounded-md border bg-muted/20 flex items-center justify-center p-3 min-h-[80px]">
+                      <img
+                        src={url}
+                        alt={type}
+                        className="max-h-20 max-w-full object-contain"
+                        data-testid={`img-${type}`}
+                      />
+                    </div>
+                  ) : (
+                    <div className="rounded-md border-2 border-dashed bg-muted/10 flex flex-col items-center justify-center p-4 min-h-[80px] text-muted-foreground">
+                      <Icon className="w-8 h-8 mb-1 opacity-30" />
+                      <p className="text-xs">No {type} uploaded</p>
+                    </div>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => inputRef.current?.click()}
+                    data-testid={`button-upload-${type}`}
+                  >
+                    <Upload className="w-3.5 h-3.5 mr-1.5" />
+                    {url ? "Replace" : "Upload"} {type === "signature" ? "Signature" : "Stamp"}
+                  </Button>
+                  <input
+                    ref={inputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => handleUpload(e.target.files?.[0], type)}
+                    data-testid={`input-file-${type}`}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        )}
+        <p className="text-xs text-muted-foreground mt-3">
+          Supported formats: JPG, PNG, GIF, WebP, SVG — max 2MB
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
 
 const defaultTheme = {
-  appName: "Unified Governance",
+  appName: "",
   primaryColor: "#2563eb",
   sidebarColor: "#1e293b",
   accentColor: "#3b82f6",
-  logoText: "UG",
+  buttonColor: "",
+  logoText: "",
 };
 
 const commonTimezones = [
@@ -72,8 +230,10 @@ export default function SettingsPage() {
   const { toast } = useToast();
   const isSuperAdmin = user?.role === "superadmin";
   const isOrgAdmin = user?.role === "org_admin";
+  const orgType = (user?.organizationId as any)?.type;
   const canManagePolicy = ["org_admin", "teacher", "manager"].includes(user?.role || "");
 
+  const [settingsTab, setSettingsTab] = useState("general");
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -82,6 +242,8 @@ export default function SettingsPage() {
     const saved = localStorage.getItem("app_theme");
     return saved ? { ...defaultTheme, ...JSON.parse(saved) } : defaultTheme;
   });
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   const [orgSettings, setOrgSettings] = useState({
     attendancePolicyEnabled: true,
@@ -91,6 +253,40 @@ export default function SettingsPage() {
   const [chatEnabled, setChatEnabled] = useState<boolean>(
     (user?.organizationId as any)?.features?.chat !== false
   );
+
+  const [newDomain, setNewDomain] = useState("");
+
+  const { data: orgDomainsData, refetch: refetchDomains } = useQuery({
+    queryKey: ["/api/organizations/my/domains"],
+    queryFn: async () => {
+      const res = await fetch("/api/organizations/my/domains", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return { allowedEmailDomains: [] };
+      return res.json();
+    },
+    enabled: !!token && isOrgAdmin,
+  });
+  const allowedDomains: string[] = orgDomainsData?.allowedEmailDomains || [];
+
+  const updateDomains = useMutation({
+    mutationFn: async (domains: string[]) => {
+      const res = await fetch("/api/organizations/my/domains", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ allowedEmailDomains: domains }),
+      });
+      if (!res.ok) { const err = await res.json(); throw new Error(err.message); }
+      return res.json();
+    },
+    onSuccess: () => {
+      refetchDomains();
+      toast({ title: "Email domains updated" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
 
   const [whatsappForm, setWhatsappForm] = useState({
     whatsappSenderNumber: "",
@@ -111,29 +307,6 @@ export default function SettingsPage() {
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [assigningPolicy, setAssigningPolicy] = useState<any>(null);
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
-
-  const [passwordPolicyForm, setPasswordPolicyForm] = useState({
-    passwordMinLength: 6,
-    passwordRequireUppercase: false,
-    passwordRequireNumbers: false,
-    passwordRequireSpecialChars: false,
-  });
-
-  const [overtimeForm, setOvertimeForm] = useState({
-    standardWorkingHours: 8,
-    overtimeThreshold: 0,
-  });
-
-  const [leavePolicyForm, setLeavePolicyForm] = useState({
-    sickLeaveLimit: 10,
-    casualLeaveLimit: 10,
-    annualLeaveLimit: 20,
-    maxConsecutiveDays: 5,
-    allowHalfDay: true,
-    requireApproval: true,
-    allowCarryForward: false,
-    carryForwardLimit: 5,
-  });
 
   const { data: policies, isLoading: policiesLoading } = useQuery({
     queryKey: ["/api/policy"],
@@ -169,42 +342,6 @@ export default function SettingsPage() {
       return res.json();
     },
     enabled: canManagePolicy,
-  });
-
-  const { data: passwordPolicyData } = useQuery({
-    queryKey: ["/api/organizations/my/password-policy"],
-    queryFn: async () => {
-      const res = await fetch("/api/organizations/my/password-policy", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error("Failed to fetch");
-      return res.json();
-    },
-    enabled: isOrgAdmin,
-  });
-
-  const { data: overtimeData } = useQuery({
-    queryKey: ["/api/organizations/my/overtime-settings"],
-    queryFn: async () => {
-      const res = await fetch("/api/organizations/my/overtime-settings", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error("Failed to fetch");
-      return res.json();
-    },
-    enabled: isOrgAdmin,
-  });
-
-  const { data: leavePolicyData } = useQuery({
-    queryKey: ["/api/leave-policy"],
-    queryFn: async () => {
-      const res = await fetch("/api/leave-policy", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error("Failed to fetch");
-      return res.json();
-    },
-    enabled: isOrgAdmin,
   });
 
   const updateAssignedMembers = useMutation({
@@ -255,41 +392,6 @@ export default function SettingsPage() {
       });
     }
   }, [orgSettingsData]);
-
-  useEffect(() => {
-    if (passwordPolicyData) {
-      setPasswordPolicyForm({
-        passwordMinLength: passwordPolicyData.passwordMinLength || 6,
-        passwordRequireUppercase: passwordPolicyData.passwordRequireUppercase || false,
-        passwordRequireNumbers: passwordPolicyData.passwordRequireNumbers || false,
-        passwordRequireSpecialChars: passwordPolicyData.passwordRequireSpecialChars || false,
-      });
-    }
-  }, [passwordPolicyData]);
-
-  useEffect(() => {
-    if (overtimeData) {
-      setOvertimeForm({
-        standardWorkingHours: overtimeData.standardWorkingHours || 8,
-        overtimeThreshold: overtimeData.overtimeThreshold || 0,
-      });
-    }
-  }, [overtimeData]);
-
-  useEffect(() => {
-    if (leavePolicyData) {
-      setLeavePolicyForm({
-        sickLeaveLimit: leavePolicyData.sickLeaveLimit ?? 10,
-        casualLeaveLimit: leavePolicyData.casualLeaveLimit ?? 10,
-        annualLeaveLimit: leavePolicyData.annualLeaveLimit ?? 20,
-        maxConsecutiveDays: leavePolicyData.maxConsecutiveDays ?? 5,
-        allowHalfDay: leavePolicyData.allowHalfDay ?? true,
-        requireApproval: leavePolicyData.requireApproval ?? true,
-        allowCarryForward: leavePolicyData.allowCarryForward ?? false,
-        carryForwardLimit: leavePolicyData.carryForwardLimit ?? 5,
-      });
-    }
-  }, [leavePolicyData]);
 
   const updateOrgSettings = useMutation({
     mutationFn: async (data: typeof orgSettings) => {
@@ -373,63 +475,6 @@ export default function SettingsPage() {
     },
   });
 
-  const savePasswordPolicy = useMutation({
-    mutationFn: async (data: typeof passwordPolicyForm) => {
-      const res = await fetch("/api/organizations/my/password-policy", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) throw new Error("Failed to update");
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/organizations/my/password-policy"] });
-      toast({ title: "Password policy updated" });
-    },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to update password policy", variant: "destructive" });
-    },
-  });
-
-  const saveOvertimeSettings = useMutation({
-    mutationFn: async (data: typeof overtimeForm) => {
-      const res = await fetch("/api/organizations/my/overtime-settings", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) throw new Error("Failed to update");
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/organizations/my/overtime-settings"] });
-      toast({ title: "Overtime settings updated" });
-    },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to update overtime settings", variant: "destructive" });
-    },
-  });
-
-  const saveLeavePolicy = useMutation({
-    mutationFn: async (data: typeof leavePolicyForm) => {
-      const res = await fetch("/api/leave-policy", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) throw new Error("Failed to update");
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/leave-policy"] });
-      toast({ title: "Leave policy updated" });
-    },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to update leave policy", variant: "destructive" });
-    },
-  });
-
   const saveWhatsappConfig = useMutation({
     mutationFn: async (data: typeof whatsappForm) => {
       const res = await fetch("/api/whatsapp/config", {
@@ -501,20 +546,74 @@ export default function SettingsPage() {
     changePassword.mutate(passwordForm);
   };
 
-  const saveTheme = () => {
+  useEffect(() => {
+    if (!isOrgAdmin || !token) return;
+    fetch("/api/organizations/my/branding", { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data && Object.keys(data).length > 0) {
+          const merged = { ...defaultTheme, ...data };
+          setThemeForm(merged);
+          localStorage.setItem("app_theme", JSON.stringify(merged));
+          applyBrandingCss(merged);
+        }
+      })
+      .catch(() => {});
+  }, [isOrgAdmin, token]);
+
+  const saveTheme = async () => {
     localStorage.setItem("app_theme", JSON.stringify(themeForm));
-    document.documentElement.style.setProperty("--theme-primary", themeForm.primaryColor);
-    document.documentElement.style.setProperty("--theme-sidebar", themeForm.sidebarColor);
-    document.documentElement.style.setProperty("--theme-accent", themeForm.accentColor);
+    applyBrandingCss(themeForm);
+
+    if (logoFile) {
+      try {
+        const fd = new FormData();
+        fd.append("logo", logoFile);
+        const r = await fetch("/api/organizations/my/logo", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: fd,
+        });
+        if (r.ok) {
+          const { logoUrl } = await r.json();
+          const updated = { ...themeForm, logoUrl, logoType: "image" as const };
+          setThemeForm(updated);
+          localStorage.setItem("app_theme", JSON.stringify(updated));
+          applyBrandingCss(updated);
+          setLogoFile(null);
+          if (isOrgAdmin) {
+            try {
+              await fetch("/api/organizations/my/branding", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                body: JSON.stringify(updated),
+              });
+            } catch {}
+          }
+          toast({ title: "Theme settings saved" });
+          return;
+        }
+      } catch {}
+    }
+
+    if (isOrgAdmin) {
+      try {
+        await fetch("/api/organizations/my/branding", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify(themeForm),
+        });
+      } catch {}
+    }
+
     toast({ title: "Theme settings saved" });
   };
 
   const resetTheme = () => {
     setThemeForm(defaultTheme);
+    setLogoFile(null);
     localStorage.removeItem("app_theme");
-    document.documentElement.style.removeProperty("--theme-primary");
-    document.documentElement.style.removeProperty("--theme-sidebar");
-    document.documentElement.style.removeProperty("--theme-accent");
+    resetBrandingCss();
     toast({ title: "Theme reset to defaults" });
   };
 
@@ -560,12 +659,28 @@ export default function SettingsPage() {
         </p>
       </div>
 
-      {isSuperAdmin && (
+      <Tabs value={settingsTab} onValueChange={setSettingsTab}>
+        <TabsList>
+          <TabsTrigger value="general" data-testid="tab-settings-general">General</TabsTrigger>
+          {(isOrgAdmin || user?.role === "manager") && (
+            <TabsTrigger value="doc-templates" data-testid="tab-settings-doc-templates">{orgType === "academy" ? "Certificate Templates" : "Doc Templates"}</TabsTrigger>
+          )}
+          {isOrgAdmin && (
+            <>
+              <TabsTrigger value="roles-permissions" data-testid="tab-settings-roles">Roles & Permissions</TabsTrigger>
+              {orgType !== "academy" && <TabsTrigger value="salary-setup" data-testid="tab-settings-salary">Salary Setup</TabsTrigger>}
+            </>
+          )}
+        </TabsList>
+
+        <TabsContent value="general" className="space-y-6 mt-4">
+
+      {(isSuperAdmin || isOrgAdmin) && (
         <Card>
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
               <Palette className="w-5 h-5" />
-              Platform Customization
+              {isSuperAdmin ? "Platform Customization" : "Organization Branding"}
             </CardTitle>
             <CardDescription>Customize the look and feel of the platform</CardDescription>
           </CardHeader>
@@ -576,12 +691,39 @@ export default function SettingsPage() {
                 <Input data-testid="input-app-name" value={themeForm.appName} onChange={(e) => setThemeForm({ ...themeForm, appName: e.target.value })} />
               </div>
               <div>
-                <Label>Logo Text (Initials)</Label>
-                <Input data-testid="input-logo-text" value={themeForm.logoText} onChange={(e) => setThemeForm({ ...themeForm, logoText: e.target.value })} maxLength={3} />
+                <Label>Logo</Label>
+                <div className="flex gap-2 mt-1">
+                  <select
+                    className="border rounded px-2 py-1 text-sm bg-background"
+                    value={themeForm.logoType || "text"}
+                    onChange={(e) => setThemeForm({ ...themeForm, logoType: e.target.value as "text" | "image" })}
+                    data-testid="select-logo-type"
+                  >
+                    <option value="text">Logo Text</option>
+                    <option value="image">Upload Image</option>
+                  </select>
+                  {(themeForm.logoType || "text") === "text" ? (
+                    <Input data-testid="input-logo-text" value={themeForm.logoText} onChange={(e) => setThemeForm({ ...themeForm, logoText: e.target.value })} maxLength={3} placeholder="e.g. UG" />
+                  ) : (
+                    <div className="flex items-center gap-2 flex-1">
+                      {(themeForm.logoUrl || logoFile) && (
+                        <img src={logoFile ? URL.createObjectURL(logoFile) : themeForm.logoUrl} alt="Logo" className="h-10 w-auto object-contain bg-transparent" style={{ background: "transparent" }} />
+                      )}
+                      <Button type="button" size="sm" variant="outline" onClick={() => logoInputRef.current?.click()} data-testid="button-upload-logo">
+                        <Upload className="w-3.5 h-3.5 mr-1" />
+                        {logoFile ? logoFile.name.slice(0, 15) + "…" : "Choose file"}
+                      </Button>
+                      <input ref={logoInputRef} type="file" accept="image/png,image/jpeg" className="hidden" onChange={(e) => setLogoFile(e.target.files?.[0] || null)} data-testid="input-logo-file" />
+                      {logoFile && logoFile.type === "image/jpeg" && (
+                        <p className="text-xs text-amber-600 mt-1">Tip: PNG works best for transparent backgrounds</p>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
                 <Label>Primary Color</Label>
                 <div className="flex gap-2 items-center mt-1">
@@ -603,6 +745,13 @@ export default function SettingsPage() {
                   <Input value={themeForm.accentColor} onChange={(e) => setThemeForm({ ...themeForm, accentColor: e.target.value })} className="flex-1" />
                 </div>
               </div>
+              <div>
+                <Label>Button Color <span className="text-xs text-muted-foreground">(defaults to Primary)</span></Label>
+                <div className="flex gap-2 items-center mt-1">
+                  <input type="color" value={themeForm.buttonColor || themeForm.primaryColor} onChange={(e) => setThemeForm({ ...themeForm, buttonColor: e.target.value })} className="w-10 h-10 rounded border cursor-pointer" data-testid="input-button-color" />
+                  <Input value={themeForm.buttonColor} placeholder={themeForm.primaryColor} onChange={(e) => setThemeForm({ ...themeForm, buttonColor: e.target.value })} className="flex-1" />
+                </div>
+              </div>
             </div>
 
             <div className="p-4 rounded-lg border bg-muted/30">
@@ -611,7 +760,8 @@ export default function SettingsPage() {
                 <div className="w-9 h-9 rounded-md flex items-center justify-center text-white text-sm font-bold" style={{ backgroundColor: themeForm.primaryColor }}>
                   {themeForm.logoText}
                 </div>
-                <span className="text-white text-sm font-semibold">{themeForm.appName}</span>
+                <span className="text-white text-sm font-semibold flex-1">{themeForm.appName}</span>
+                <span className="px-3 py-1 rounded text-white text-xs font-medium" style={{ backgroundColor: themeForm.buttonColor || themeForm.primaryColor }}>Button</span>
               </div>
             </div>
 
@@ -907,220 +1057,72 @@ export default function SettingsPage() {
         </Card>
       )}
 
-      {isOrgAdmin && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Lock className="w-5 h-5" />
-              Password Policy
-            </CardTitle>
-            <CardDescription>Set password requirements for your organization</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={(e) => { e.preventDefault(); savePasswordPolicy.mutate(passwordPolicyForm); }} className="space-y-4 max-w-md">
-              <div>
-                <Label>Minimum Password Length</Label>
-                <Input
-                  type="number"
-                  min={6}
-                  max={32}
-                  data-testid="input-password-min-length"
-                  value={passwordPolicyForm.passwordMinLength}
-                  onChange={(e) => setPasswordPolicyForm({ ...passwordPolicyForm, passwordMinLength: parseInt(e.target.value) || 6 })}
-                />
-              </div>
-              <div className="flex items-center justify-between p-3 rounded-md border bg-card">
-                <div>
-                  <p className="text-sm font-medium">Require Uppercase Letter</p>
-                  <p className="text-xs text-muted-foreground">At least one uppercase letter (A-Z)</p>
-                </div>
-                <Switch
-                  checked={passwordPolicyForm.passwordRequireUppercase}
-                  onCheckedChange={(v) => setPasswordPolicyForm({ ...passwordPolicyForm, passwordRequireUppercase: v })}
-                  data-testid="switch-require-uppercase"
-                />
-              </div>
-              <div className="flex items-center justify-between p-3 rounded-md border bg-card">
-                <div>
-                  <p className="text-sm font-medium">Require Numbers</p>
-                  <p className="text-xs text-muted-foreground">At least one number (0-9)</p>
-                </div>
-                <Switch
-                  checked={passwordPolicyForm.passwordRequireNumbers}
-                  onCheckedChange={(v) => setPasswordPolicyForm({ ...passwordPolicyForm, passwordRequireNumbers: v })}
-                  data-testid="switch-require-numbers"
-                />
-              </div>
-              <div className="flex items-center justify-between p-3 rounded-md border bg-card">
-                <div>
-                  <p className="text-sm font-medium">Require Special Characters</p>
-                  <p className="text-xs text-muted-foreground">At least one special character (!@#$%^&*)</p>
-                </div>
-                <Switch
-                  checked={passwordPolicyForm.passwordRequireSpecialChars}
-                  onCheckedChange={(v) => setPasswordPolicyForm({ ...passwordPolicyForm, passwordRequireSpecialChars: v })}
-                  data-testid="switch-require-special"
-                />
-              </div>
-              <Button type="submit" disabled={savePasswordPolicy.isPending} data-testid="button-save-password-policy">
-                {savePasswordPolicy.isPending ? "Saving..." : "Save Password Policy"}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      )}
+      {isOrgAdmin && <OrganizationAssetsCard token={token!} />}
 
       {isOrgAdmin && (
         <Card>
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
-              <Timer className="w-5 h-5" />
-              Overtime Settings
+              <Globe className="w-5 h-5" />
+              Email Domains
             </CardTitle>
-            <CardDescription>Configure overtime calculation parameters</CardDescription>
+            <CardDescription>Manage allowed email domains for member account creation</CardDescription>
           </CardHeader>
-          <CardContent>
-            <form onSubmit={(e) => { e.preventDefault(); saveOvertimeSettings.mutate(overtimeForm); }} className="space-y-4 max-w-md">
-              <div>
-                <Label>Standard Working Hours (per day)</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  max={24}
-                  step={0.5}
-                  data-testid="input-standard-hours"
-                  value={overtimeForm.standardWorkingHours}
-                  onChange={(e) => setOvertimeForm({ ...overtimeForm, standardWorkingHours: parseFloat(e.target.value) || 8 })}
-                />
-                <p className="text-xs text-muted-foreground mt-1">Hours worked beyond this are considered overtime</p>
-              </div>
-              <div>
-                <Label>Overtime Threshold (minutes)</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  max={120}
-                  data-testid="input-overtime-threshold"
-                  value={overtimeForm.overtimeThreshold}
-                  onChange={(e) => setOvertimeForm({ ...overtimeForm, overtimeThreshold: parseInt(e.target.value) || 0 })}
-                />
-                <p className="text-xs text-muted-foreground mt-1">Minimum extra minutes after standard hours before overtime counts (0 = immediate)</p>
-              </div>
-              <Button type="submit" disabled={saveOvertimeSettings.isPending} data-testid="button-save-overtime">
-                {saveOvertimeSettings.isPending ? "Saving..." : "Save Overtime Settings"}
+          <CardContent className="space-y-4">
+            <div className="flex gap-2">
+              <Input
+                data-testid="input-new-domain"
+                placeholder="e.g. company.com"
+                value={newDomain}
+                onChange={(e) => setNewDomain(e.target.value.replace(/^@/, "").toLowerCase())}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    const d = newDomain.trim().replace(/^@/, "").toLowerCase();
+                    if (d && !allowedDomains.includes(d)) {
+                      updateDomains.mutate([...allowedDomains, d]);
+                      setNewDomain("");
+                    }
+                  }
+                }}
+              />
+              <Button
+                type="button"
+                data-testid="button-add-domain"
+                disabled={updateDomains.isPending || !newDomain.trim()}
+                onClick={() => {
+                  const d = newDomain.trim().replace(/^@/, "").toLowerCase();
+                  if (d && !allowedDomains.includes(d)) {
+                    updateDomains.mutate([...allowedDomains, d]);
+                    setNewDomain("");
+                  }
+                }}
+              >
+                <Plus className="w-4 h-4 mr-1" />
+                Add
               </Button>
-            </form>
-          </CardContent>
-        </Card>
-      )}
-
-      {isOrgAdmin && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <CalendarOff className="w-5 h-5" />
-              Leave Policy
-            </CardTitle>
-            <CardDescription>Configure leave limits and rules for your organization</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={(e) => { e.preventDefault(); saveLeavePolicy.mutate(leavePolicyForm); }} className="space-y-4 max-w-lg">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <Label>Sick Leave Limit</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    data-testid="input-sick-leave-limit"
-                    value={leavePolicyForm.sickLeaveLimit}
-                    onChange={(e) => setLeavePolicyForm({ ...leavePolicyForm, sickLeaveLimit: parseInt(e.target.value) || 0 })}
-                  />
-                </div>
-                <div>
-                  <Label>Casual Leave Limit</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    data-testid="input-casual-leave-limit"
-                    value={leavePolicyForm.casualLeaveLimit}
-                    onChange={(e) => setLeavePolicyForm({ ...leavePolicyForm, casualLeaveLimit: parseInt(e.target.value) || 0 })}
-                  />
-                </div>
-                <div>
-                  <Label>Annual Leave Limit</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    data-testid="input-annual-leave-limit"
-                    value={leavePolicyForm.annualLeaveLimit}
-                    onChange={(e) => setLeavePolicyForm({ ...leavePolicyForm, annualLeaveLimit: parseInt(e.target.value) || 0 })}
-                  />
-                </div>
+            </div>
+            {allowedDomains.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No domains added yet. Add a domain above to enable domain-based email creation.</p>
+            ) : (
+              <div className="space-y-2">
+                {allowedDomains.map((d) => (
+                  <div key={d} className="flex items-center justify-between px-3 py-2 rounded-md border bg-muted/30" data-testid={`domain-item-${d}`}>
+                    <span className="text-sm font-mono">@{d}</span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-destructive hover:text-destructive"
+                      data-testid={`button-delete-domain-${d}`}
+                      disabled={updateDomains.isPending}
+                      onClick={() => updateDomains.mutate(allowedDomains.filter((x) => x !== d))}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                ))}
               </div>
-              <div>
-                <Label>Max Consecutive Days</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  max={30}
-                  data-testid="input-max-consecutive"
-                  value={leavePolicyForm.maxConsecutiveDays}
-                  onChange={(e) => setLeavePolicyForm({ ...leavePolicyForm, maxConsecutiveDays: parseInt(e.target.value) || 5 })}
-                />
-                <p className="text-xs text-muted-foreground mt-1">Maximum number of consecutive leave days allowed</p>
-              </div>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between p-3 rounded-md border bg-card">
-                  <div>
-                    <p className="text-sm font-medium">Allow Half-Day Leave</p>
-                    <p className="text-xs text-muted-foreground">Members can request morning or afternoon half-day</p>
-                  </div>
-                  <Switch
-                    checked={leavePolicyForm.allowHalfDay}
-                    onCheckedChange={(v) => setLeavePolicyForm({ ...leavePolicyForm, allowHalfDay: v })}
-                    data-testid="switch-allow-half-day"
-                  />
-                </div>
-                <div className="flex items-center justify-between p-3 rounded-md border bg-card">
-                  <div>
-                    <p className="text-sm font-medium">Require Approval</p>
-                    <p className="text-xs text-muted-foreground">Leave requests need manager/admin approval</p>
-                  </div>
-                  <Switch
-                    checked={leavePolicyForm.requireApproval}
-                    onCheckedChange={(v) => setLeavePolicyForm({ ...leavePolicyForm, requireApproval: v })}
-                    data-testid="switch-require-approval"
-                  />
-                </div>
-                <div className="flex items-center justify-between p-3 rounded-md border bg-card">
-                  <div>
-                    <p className="text-sm font-medium">Allow Carry Forward</p>
-                    <p className="text-xs text-muted-foreground">Unused leaves carry over to next year</p>
-                  </div>
-                  <Switch
-                    checked={leavePolicyForm.allowCarryForward}
-                    onCheckedChange={(v) => setLeavePolicyForm({ ...leavePolicyForm, allowCarryForward: v })}
-                    data-testid="switch-carry-forward"
-                  />
-                </div>
-                {leavePolicyForm.allowCarryForward && (
-                  <div className="pl-4">
-                    <Label>Carry Forward Limit (days)</Label>
-                    <Input
-                      type="number"
-                      min={0}
-                      max={30}
-                      data-testid="input-carry-forward-limit"
-                      value={leavePolicyForm.carryForwardLimit}
-                      onChange={(e) => setLeavePolicyForm({ ...leavePolicyForm, carryForwardLimit: parseInt(e.target.value) || 0 })}
-                    />
-                  </div>
-                )}
-              </div>
-              <Button type="submit" disabled={saveLeavePolicy.isPending} data-testid="button-save-leave-policy">
-                {saveLeavePolicy.isPending ? "Saving..." : "Save Leave Policy"}
-              </Button>
-            </form>
+            )}
           </CardContent>
         </Card>
       )}
@@ -1193,6 +1195,31 @@ export default function SettingsPage() {
           </form>
         </CardContent>
       </Card>
+
+        </TabsContent>
+
+        {isOrgAdmin && (
+          <>
+            <TabsContent value="doc-templates">
+              <div className="-mx-6 -mb-6">
+                <DocumentTemplatesPage />
+              </div>
+            </TabsContent>
+            <TabsContent value="roles-permissions">
+              <div className="-mx-6 -mb-6">
+                <RolesPermissionsPage />
+              </div>
+            </TabsContent>
+            {orgType !== "academy" && (
+              <TabsContent value="salary-setup">
+                <div className="-mx-6 -mb-6">
+                  <SalarySetupPage />
+                </div>
+              </TabsContent>
+            )}
+          </>
+        )}
+      </Tabs>
 
       <Dialog open={sessionDialogOpen} onOpenChange={setSessionDialogOpen}>
         <DialogContent className="sm:max-w-md">
