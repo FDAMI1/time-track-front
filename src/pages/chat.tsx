@@ -251,15 +251,17 @@ export default function ChatPage() {
   };
 
   const getSenderName = (msg: any) => {
-    if (msg.sender && typeof msg.sender === "object") {
-      return `${msg.sender.firstName} ${msg.sender.lastName}`;
+    const sender = msg.senderId || msg.sender;
+    if (sender && typeof sender === "object") {
+      return `${sender.firstName} ${sender.lastName}`;
     }
     return "Unknown";
   };
 
   const getSenderId = (msg: any) => {
-    if (msg.sender && typeof msg.sender === "object") return msg.sender._id;
-    return msg.sender;
+    const sender = msg.senderId || msg.sender;
+    if (sender && typeof sender === "object") return sender._id;
+    return sender;
   };
 
   const isOwnMessage = (msg: any) => getSenderId(msg) === user?._id;
@@ -524,8 +526,8 @@ export default function ChatPage() {
                           <div
                             className={`rounded-md p-2.5 ${
                               own
-                                ? "bg-primary text-primary-foreground"
-                                : "bg-muted"
+                                ? "bg-black text-white"
+                                : "bg-white text-black border"
                             }`}
                           >
                             {isEditing ? (
