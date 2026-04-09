@@ -1,27 +1,12 @@
 {
-  "headers": [
-    {
-      "source": "/",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "no-store, no-cache, must-revalidate, proxy-revalidate"
-        }
-      ]
-    }
-  ],
   "rewrites": [
     {
       "source": "/api/(.*)",
       "destination": "https://time-track-back.onrender.com/api/$1"
     },
     {
-      "source": "/(.*\\.(js|css|png|jpg|jpeg|svg|ico|json))",
-      "destination": "/$1"
-    },
-    {
       "source": "/(.*)",
-      "destination": "/"
+      "destination": "/index.html"
     }
   ]
 }
