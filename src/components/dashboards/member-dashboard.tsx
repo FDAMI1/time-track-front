@@ -155,8 +155,10 @@ export default function MemberDashboard() {
 
   const isTeamLead = user?.role === "teacher" || user?.role === "manager" || user?.role === "org_admin";
 
-  const canMarkAttendance = data?.todayStatus === "not_marked";
-  const canCheckOut = ["present", "late", "pending"].includes(data?.todayStatus) && !data?.todayCheckOut;
+  const isStudent = user?.role === "student";
+  const canMarkPresent = isStudent && data?.todayStatus === "not_marked";
+  const canMarkAttendance = !isStudent && !data?.hasActiveSession;
+  const canCheckOut = !isStudent && !!data?.hasActiveSession;
 
   const pLabel = periodLabels[period] || "Today";
 
@@ -314,6 +316,16 @@ export default function MemberDashboard() {
               </div>
             </div>
             <div className="flex gap-2">
+              {canMarkPresent && (
+                <Button
+                  onClick={() => markAttendance.mutate()}
+                  disabled={markAttendance.isPending}
+                  data-testid="button-mark-present"
+                >
+                  <CheckCircle2 className="w-4 h-4 mr-2" />
+                  {markAttendance.isPending ? "Marking..." : "Mark Present"}
+                </Button>
+              )}
               {canMarkAttendance && (
                 <Button
                   onClick={() => markAttendance.mutate()}
@@ -321,7 +333,7 @@ export default function MemberDashboard() {
                   data-testid="button-mark-attendance"
                 >
                   <LogIn className="w-4 h-4 mr-2" />
-                  {markAttendance.isPending ? "Marking..." : "Mark Present"}
+                  {markAttendance.isPending ? "Checking in..." : "Check In"}
                 </Button>
               )}
               {canCheckOut && (
