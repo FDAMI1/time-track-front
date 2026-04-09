@@ -41,13 +41,15 @@ export default function LoginPage() {
     }
   };
 
+  const BASE_URL = import.meta.env.VITE_API_URL;
+
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
             {logoType === "image" && logoUrl
-              ? <img src={logoUrl} alt="Logo" className="h-16 w-auto object-contain bg-transparent" style={{ background: "transparent" }} />
+              ? <img src={`${BASE_URL}${logoUrl}`}  alt="Logo" className="h-16 w-auto object-contain bg-transparent" style={{ background: "transparent" }} />
               : logoText
                 ? <span className="text-2xl font-bold text-primary">{logoText}</span>
                 : <Shield className="w-8 h-8 text-primary" />
