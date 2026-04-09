@@ -5,6 +5,14 @@
       "destination": "https://time-track-back.onrender.com/api/$1"
     },
     {
+      "source": "/assets/(.*)",
+      "destination": "/assets/$1"
+    },
+    {
+      "source": "/icons/(.*)",
+      "destination": "/icons/$1"
+    },
+    {
       "source": "/(.*)",
       "destination": "/"
     }
