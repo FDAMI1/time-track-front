@@ -3,10 +3,6 @@
     {
       "source": "/api/(.*)",
       "destination": "https://time-track-back.onrender.com/api/$1"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/"
     }
   ]
 }
