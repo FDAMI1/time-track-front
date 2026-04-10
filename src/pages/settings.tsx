@@ -235,7 +235,6 @@ L.Icon.Default.mergeOptions({
 });
 
 function LocationSetupCard({ token }: { token: string }) {
-  const { user } = useAuth();
   const { toast } = useToast();
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
@@ -247,8 +246,8 @@ function LocationSetupCard({ token }: { token: string }) {
   const [search, setSearch] = useState("");
   const [saving, setSaving] = useState(false);
   const [mapReady, setMapReady] = useState(false);
-
-  const orgId = (user?.organizationId as any)?._id;
+  const [isLocationRestrictionEnabled, setIsLocationRestrictionEnabled] = useState(false);
+  const [isManualAttendanceApproval, setIsManualAttendanceApproval] = useState(false);
 
   const { data: orgData } = useQuery({
     queryKey: ["/api/organizations/my"],
@@ -259,9 +258,27 @@ function LocationSetupCard({ token }: { token: string }) {
     enabled: !!token,
   });
 
+  useEffect(() => {
+    if (!orgData) return;
+    setIsLocationRestrictionEnabled(orgData.isLocationRestrictionEnabled ?? false);
+    setIsManualAttendanceApproval(orgData.isManualAttendanceApproval ?? false);
+    if (orgData.allowedRadius) setRadius(orgData.allowedRadius);
+    if (orgData.location?.latitude) setPin({ lat: orgData.location.latitude, lng: orgData.location.longitude });
+  }, [orgData]);
+
   useEffect(() => { radiusRef.current = radius; }, [radius]);
 
   useEffect(() => {
+    if (!isLocationRestrictionEnabled) {
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+        markerRef.current = null;
+        circleRef.current = null;
+        setMapReady(false);
+      }
+      return;
+    }
     if (!mapContainer.current || mapRef.current) return;
     const map = L.map(mapContainer.current).setView([20, 0], 2);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -285,15 +302,13 @@ function LocationSetupCard({ token }: { token: string }) {
       circleRef.current = null;
       setMapReady(false);
     };
-  }, []);
+  }, [isLocationRestrictionEnabled]);
 
   useEffect(() => {
     if (!orgData?.location?.latitude || !mapReady || !mapRef.current) return;
     const lat = orgData.location.latitude;
     const lng = orgData.location.longitude;
     const r = orgData.allowedRadius ?? 100;
-    setRadius(r);
-    setPin({ lat, lng });
     mapRef.current.setView([lat, lng], 14);
     if (!markerRef.current) markerRef.current = L.marker([lat, lng]).addTo(mapRef.current);
     else markerRef.current.setLatLng([lat, lng]);
@@ -325,17 +340,21 @@ function LocationSetupCard({ token }: { token: string }) {
   };
 
   const handleSave = async () => {
-    if (!pin) return toast({ title: "Error", description: "Click on the map to place a pin first", variant: "destructive" });
+    if (isLocationRestrictionEnabled && !pin) {
+      return toast({ title: "Error", description: "Click on the map to place a pin first", variant: "destructive" });
+    }
     setSaving(true);
     try {
+      const body: any = { isLocationRestrictionEnabled, isManualAttendanceApproval, allowedRadius: radius };
+      if (pin) { body.latitude = pin.lat; body.longitude = pin.lng; }
       const res = await fetch(`/api/organizations/my/location`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ latitude: pin.lat, longitude: pin.lng, allowedRadius: radius }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error((await res.json()).message);
-      console.log("Saved location:", pin.lat, pin.lng, "radius:", radius, "m");
-      toast({ title: "Location saved", description: `Students must be within ${radius}m to login` });
+      if (pin) console.log("Saved location:", pin.lat, pin.lng, "radius:", radius, "m");
+      toast({ title: "Settings saved", description: "Attendance settings updated successfully" });
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
@@ -348,54 +367,54 @@ function LocationSetupCard({ token }: { token: string }) {
       <CardHeader>
         <CardTitle className="text-lg flex items-center gap-2">
           <MapPin className="w-5 h-5" />
-          Student Login Location
+          Attendance & Location Settings
         </CardTitle>
-        <CardDescription>Set the allowed area for student logins. Students outside this radius will be blocked.</CardDescription>
+        <CardDescription>Control location restriction and approval workflow for student attendance.</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex gap-2 flex-wrap">
-          <Input
-            placeholder="Search for a location..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-            className="flex-1 min-w-[180px]"
-            data-testid="input-location-search"
-          />
-          <Button type="button" variant="secondary" onClick={handleSearch} data-testid="button-search-location">Search</Button>
-          <Button type="button" variant="outline" onClick={handleCurrentLocation} data-testid="button-use-current-location">Use Current Location</Button>
+      <CardContent className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <Label className="text-sm font-medium">Location Restriction</Label>
+            <p className="text-xs text-muted-foreground">Students must be within the set radius to login</p>
+          </div>
+          <Switch checked={isLocationRestrictionEnabled} onCheckedChange={setIsLocationRestrictionEnabled} data-testid="switch-location-restriction" />
         </div>
-        <div
-          ref={mapContainer}
-          style={{ height: "320px", width: "100%", borderRadius: "8px", border: "1px solid hsl(var(--border))", zIndex: 0 }}
-          data-testid="map-location-picker"
-        />
-        <div className="flex items-center gap-3 flex-wrap">
-          <Label className="min-w-max text-sm">Radius: <strong>{radius}m</strong></Label>
-          <input
-            type="range"
-            min={1}
-            max={1000}
-            value={radius}
-            onChange={(e) => setRadius(Number(e.target.value))}
-            className="flex-1 min-w-[120px]"
-            data-testid="slider-radius"
-          />
-          <Input
-            type="number"
-            min={1}
-            max={1000}
-            value={radius}
-            onChange={(e) => setRadius(Math.min(1000, Math.max(1, Number(e.target.value) || 1)))}
-            className="w-20"
-            data-testid="input-radius"
-          />
-        </div>
-        {pin && (
-          <p className="text-xs text-muted-foreground">📍 {pin.lat.toFixed(6)}, {pin.lng.toFixed(6)}</p>
+        {isLocationRestrictionEnabled && (
+          <div className="space-y-4 border rounded-lg p-4">
+            <div className="flex gap-2 flex-wrap">
+              <Input
+                placeholder="Search for a location..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                className="flex-1 min-w-[180px]"
+                data-testid="input-location-search"
+              />
+              <Button type="button" variant="secondary" onClick={handleSearch} data-testid="button-search-location">Search</Button>
+              <Button type="button" variant="outline" onClick={handleCurrentLocation} data-testid="button-use-current-location">Use Current Location</Button>
+            </div>
+            <div
+              ref={mapContainer}
+              style={{ height: "320px", width: "100%", borderRadius: "8px", border: "1px solid hsl(var(--border))", zIndex: 0 }}
+              data-testid="map-location-picker"
+            />
+            <div className="flex items-center gap-3 flex-wrap">
+              <Label className="min-w-max text-sm">Radius: <strong>{radius}m</strong></Label>
+              <input type="range" min={1} max={1000} value={radius} onChange={(e) => setRadius(Number(e.target.value))} className="flex-1 min-w-[120px]" data-testid="slider-radius" />
+              <Input type="number" min={1} max={1000} value={radius} onChange={(e) => setRadius(Math.min(1000, Math.max(1, Number(e.target.value) || 1)))} className="w-20" data-testid="input-radius" />
+            </div>
+            {pin && <p className="text-xs text-muted-foreground">📍 {pin.lat.toFixed(6)}, {pin.lng.toFixed(6)}</p>}
+          </div>
         )}
-        <Button onClick={handleSave} disabled={saving || !pin} data-testid="button-save-location">
-          {saving ? "Saving..." : "Save Location"}
+        <div className="flex items-center justify-between">
+          <div>
+            <Label className="text-sm font-medium">Manual Attendance Approval</Label>
+            <p className="text-xs text-muted-foreground">Student attendance requires teacher/manager approval before being marked present</p>
+          </div>
+          <Switch checked={isManualAttendanceApproval} onCheckedChange={setIsManualAttendanceApproval} data-testid="switch-manual-approval" />
+        </div>
+        <Button onClick={handleSave} disabled={saving} data-testid="button-save-location">
+          {saving ? "Saving..." : "Save Settings"}
         </Button>
       </CardContent>
     </Card>
