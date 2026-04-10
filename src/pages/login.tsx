@@ -33,13 +33,27 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       const isEmail = credential.includes("@");
-      await login(credential.trim(), password, isEmail);
+      const coords = await new Promise<{ latitude: number; longitude: number } | null>((resolve) => {
+        if (!navigator.geolocation) { resolve(null); return; }
+        navigator.geolocation.getCurrentPosition(
+          (pos) => resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
+          () => resolve(null),
+          { timeout: 8000 }
+        );
+      });
+      if (!coords) {
+        setError("Location permission is required to login");
+        setIsLoading(false);
+        return;
+      }
+      await login(credential.trim(), password, isEmail, coords);
     } catch (err: any) {
       setError(err.message || "Login failed");
     } finally {
       setIsLoading(false);
     }
   };
+
   const BASE_URL = import.meta.env.VITE_API_URL;
 
   return (
@@ -48,7 +62,7 @@ export default function LoginPage() {
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
             {logoType === "image" && logoUrl
-              ? <img src={`${BASE_URL}${logoUrl}`}  alt="Logo" className="h-16 w-auto object-contain bg-transparent" style={{ background: "transparent" }} />
+              ? <img src={`${BASE_URL}${logoUrl}`} alt="Logo" className="h-16 w-auto object-contain bg-transparent" style={{ background: "transparent" }} />
               : logoText
                 ? <span className="text-2xl font-bold text-primary">{logoText}</span>
                 : <Shield className="w-8 h-8 text-primary" />

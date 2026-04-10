@@ -14,7 +14,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Settings, Clock, Shield, Palette, Eye, EyeOff, Globe, MessageCircle, Plus, Pencil, Trash2, Users, UserPlus, Fingerprint, PenLine, Upload, X } from "lucide-react";
+import { Settings, Clock, Shield, Palette, Eye, EyeOff, Globe, MessageCircle, Plus, Pencil, Trash2, Users, UserPlus, Fingerprint, PenLine, Upload, X, MapPin } from "lucide-react";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DocumentTemplatesPage from "@/pages/document-templates";
 import RolesPermissionsPage from "@/pages/roles-permissions";
@@ -224,6 +226,181 @@ const emptySession = {
   autoApprovalTime: "17:00",
   autoAbsentEnabled: true,
 };
+
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+});
+
+function LocationSetupCard({ token }: { token: string }) {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const mapContainer = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<any>(null);
+  const markerRef = useRef<any>(null);
+  const circleRef = useRef<any>(null);
+  const radiusRef = useRef(100);
+  const [pin, setPin] = useState<{ lat: number; lng: number } | null>(null);
+  const [radius, setRadius] = useState(100);
+  const [search, setSearch] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
+
+  const orgId = (user?.organizationId as any)?._id;
+
+  const { data: orgData } = useQuery({
+    queryKey: ["/api/organizations/my"],
+    queryFn: async () => {
+      const res = await fetch("/api/organizations/my", { headers: { Authorization: `Bearer ${token}` } });
+      return res.json();
+    },
+    enabled: !!token,
+  });
+
+  useEffect(() => { radiusRef.current = radius; }, [radius]);
+
+  useEffect(() => {
+    if (!mapContainer.current || mapRef.current) return;
+    const map = L.map(mapContainer.current).setView([20, 0], 2);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "© OpenStreetMap contributors",
+    }).addTo(map);
+    map.on("click", (e: any) => {
+      const { lat, lng } = e.latlng;
+      setPin({ lat, lng });
+      console.log("Selected location:", lat, lng);
+      if (markerRef.current) markerRef.current.setLatLng([lat, lng]);
+      else markerRef.current = L.marker([lat, lng]).addTo(map);
+      if (circleRef.current) circleRef.current.setLatLng([lat, lng]);
+      else circleRef.current = L.circle([lat, lng], { radius: radiusRef.current, color: "#3b82f6", fillOpacity: 0.15 }).addTo(map);
+    });
+    mapRef.current = map;
+    setMapReady(true);
+    return () => {
+      map.remove();
+      mapRef.current = null;
+      markerRef.current = null;
+      circleRef.current = null;
+      setMapReady(false);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!orgData?.location?.latitude || !mapReady || !mapRef.current) return;
+    const lat = orgData.location.latitude;
+    const lng = orgData.location.longitude;
+    const r = orgData.allowedRadius ?? 100;
+    setRadius(r);
+    setPin({ lat, lng });
+    mapRef.current.setView([lat, lng], 14);
+    if (!markerRef.current) markerRef.current = L.marker([lat, lng]).addTo(mapRef.current);
+    else markerRef.current.setLatLng([lat, lng]);
+    if (!circleRef.current) circleRef.current = L.circle([lat, lng], { radius: r, color: "#3b82f6", fillOpacity: 0.15 }).addTo(mapRef.current);
+    else { circleRef.current.setLatLng([lat, lng]); circleRef.current.setRadius(r); }
+  }, [orgData, mapReady]);
+
+  useEffect(() => {
+    if (circleRef.current) {
+      circleRef.current.setRadius(radius);
+      console.log("Radius updated:", radius, "m");
+    }
+  }, [radius]);
+
+  const handleSearch = async () => {
+    if (!search.trim() || !mapRef.current) return;
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(search)}&limit=1`);
+      const data = await res.json();
+      if (data.length > 0) mapRef.current.setView([parseFloat(data[0].lat), parseFloat(data[0].lon)], 15);
+    } catch {}
+  };
+
+  const handleCurrentLocation = () => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(({ coords }) => {
+      if (mapRef.current) mapRef.current.setView([coords.latitude, coords.longitude], 15);
+    });
+  };
+
+  const handleSave = async () => {
+    if (!pin) return toast({ title: "Error", description: "Click on the map to place a pin first", variant: "destructive" });
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/organizations/my/location`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ latitude: pin.lat, longitude: pin.lng, allowedRadius: radius }),
+      });
+      if (!res.ok) throw new Error((await res.json()).message);
+      console.log("Saved location:", pin.lat, pin.lng, "radius:", radius, "m");
+      toast({ title: "Location saved", description: `Students must be within ${radius}m to login` });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg flex items-center gap-2">
+          <MapPin className="w-5 h-5" />
+          Student Login Location
+        </CardTitle>
+        <CardDescription>Set the allowed area for student logins. Students outside this radius will be blocked.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex gap-2 flex-wrap">
+          <Input
+            placeholder="Search for a location..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+            className="flex-1 min-w-[180px]"
+            data-testid="input-location-search"
+          />
+          <Button type="button" variant="secondary" onClick={handleSearch} data-testid="button-search-location">Search</Button>
+          <Button type="button" variant="outline" onClick={handleCurrentLocation} data-testid="button-use-current-location">Use Current Location</Button>
+        </div>
+        <div
+          ref={mapContainer}
+          style={{ height: "320px", width: "100%", borderRadius: "8px", border: "1px solid hsl(var(--border))", zIndex: 0 }}
+          data-testid="map-location-picker"
+        />
+        <div className="flex items-center gap-3 flex-wrap">
+          <Label className="min-w-max text-sm">Radius: <strong>{radius}m</strong></Label>
+          <input
+            type="range"
+            min={1}
+            max={1000}
+            value={radius}
+            onChange={(e) => setRadius(Number(e.target.value))}
+            className="flex-1 min-w-[120px]"
+            data-testid="slider-radius"
+          />
+          <Input
+            type="number"
+            min={1}
+            max={1000}
+            value={radius}
+            onChange={(e) => setRadius(Math.min(1000, Math.max(1, Number(e.target.value) || 1)))}
+            className="w-20"
+            data-testid="input-radius"
+          />
+        </div>
+        {pin && (
+          <p className="text-xs text-muted-foreground">📍 {pin.lat.toFixed(6)}, {pin.lng.toFixed(6)}</p>
+        )}
+        <Button onClick={handleSave} disabled={saving || !pin} data-testid="button-save-location">
+          {saving ? "Saving..." : "Save Location"}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function SettingsPage() {
   const { token, user } = useAuth();
@@ -1126,6 +1303,8 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
       )}
+
+      {isOrgAdmin && <LocationSetupCard token={token!} />}
 
       <Card>
         <CardHeader>
