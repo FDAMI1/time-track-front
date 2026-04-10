@@ -15,7 +15,6 @@ import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Settings, Clock, Shield, Palette, Eye, EyeOff, Globe, MessageCircle, Plus, Pencil, Trash2, Users, UserPlus, Fingerprint, PenLine, Upload, X, MapPin } from "lucide-react";
-import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DocumentTemplatesPage from "@/pages/document-templates";
@@ -227,13 +226,6 @@ const emptySession = {
   autoAbsentEnabled: true,
 };
 
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-});
-
 function LocationSetupCard({ token }: { token: string }) {
   const { toast } = useToast();
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -241,6 +233,7 @@ function LocationSetupCard({ token }: { token: string }) {
   const markerRef = useRef<any>(null);
   const circleRef = useRef<any>(null);
   const radiusRef = useRef(100);
+  const lRef = useRef<any>(null);
   const [pin, setPin] = useState<{ lat: number; lng: number } | null>(null);
   const [radius, setRadius] = useState(100);
   const [search, setSearch] = useState("");
@@ -275,40 +268,56 @@ function LocationSetupCard({ token }: { token: string }) {
         mapRef.current = null;
         markerRef.current = null;
         circleRef.current = null;
+        lRef.current = null;
         setMapReady(false);
       }
       return;
     }
-    if (!mapContainer.current || mapRef.current) return;
-    const map = L.map(mapContainer.current).setView([20, 0], 2);
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: "© OpenStreetMap contributors",
-    }).addTo(map);
-    map.on("click", (e: any) => {
-      const { lat, lng } = e.latlng;
-      setPin({ lat, lng });
-      console.log("Selected location:", lat, lng);
-      if (markerRef.current) markerRef.current.setLatLng([lat, lng]);
-      else markerRef.current = L.marker([lat, lng]).addTo(map);
-      if (circleRef.current) circleRef.current.setLatLng([lat, lng]);
-      else circleRef.current = L.circle([lat, lng], { radius: radiusRef.current, color: "#3b82f6", fillOpacity: 0.15 }).addTo(map);
-    });
-    mapRef.current = map;
-    setMapReady(true);
+    const loadMap = async () => {
+      const L = await import("leaflet");
+      lRef.current = L;
+      if (!mapContainer.current || mapRef.current) return;
+      delete (L.Icon.Default.prototype as any)._getIconUrl;
+      L.Icon.Default.mergeOptions({
+        iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+        iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+        shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+      });
+      const map = L.map(mapContainer.current).setView([20, 0], 2);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "© OpenStreetMap contributors",
+      }).addTo(map);
+      map.on("click", (e: any) => {
+        const { lat, lng } = e.latlng;
+        setPin({ lat, lng });
+        console.log("Selected location:", lat, lng);
+        if (markerRef.current) markerRef.current.setLatLng([lat, lng]);
+        else markerRef.current = L.marker([lat, lng]).addTo(map);
+        if (circleRef.current) circleRef.current.setLatLng([lat, lng]);
+        else circleRef.current = L.circle([lat, lng], { radius: radiusRef.current, color: "#3b82f6", fillOpacity: 0.15 }).addTo(map);
+      });
+      mapRef.current = map;
+      setMapReady(true);
+    };
+    loadMap();
     return () => {
-      map.remove();
-      mapRef.current = null;
-      markerRef.current = null;
-      circleRef.current = null;
-      setMapReady(false);
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+        markerRef.current = null;
+        circleRef.current = null;
+        lRef.current = null;
+        setMapReady(false);
+      }
     };
   }, [isLocationRestrictionEnabled]);
 
   useEffect(() => {
-    if (!orgData?.location?.latitude || !mapReady || !mapRef.current) return;
+    if (!orgData?.location?.latitude || !mapReady || !mapRef.current || !lRef.current) return;
     const lat = orgData.location.latitude;
     const lng = orgData.location.longitude;
     const r = orgData.allowedRadius ?? 100;
+    const L = lRef.current;
     mapRef.current.setView([lat, lng], 14);
     if (!markerRef.current) markerRef.current = L.marker([lat, lng]).addTo(mapRef.current);
     else markerRef.current.setLatLng([lat, lng]);

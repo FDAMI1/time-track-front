@@ -72,6 +72,7 @@ export function AppSidebar() {
   const logoText = branding.logoText || "";
   const logoType = branding.logoType || "text";
   const logoUrl = branding.logoUrl || "";
+  const BASE_URL = import.meta.env.VITE_API_URL || "";
 
   const initials = `${user.firstName[0]}${user.lastName[0]}`.toUpperCase();
   const orgType = user.organizationId?.type;
@@ -110,7 +111,6 @@ export function AppSidebar() {
   };
 
   const navItems = getNavItems();
-  const BASE_URL = import.meta.env.VITE_API_URL;
 
   return (
     <Sidebar>

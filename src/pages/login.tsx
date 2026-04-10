@@ -22,6 +22,7 @@ export default function LoginPage() {
   const logoType = branding.logoType || "text";
   const logoText = branding.logoText || "";
   const logoUrl = branding.logoUrl || "";
+  const BASE_URL = import.meta.env.VITE_API_URL || "";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,8 +54,6 @@ export default function LoginPage() {
       setIsLoading(false);
     }
   };
-
-  const BASE_URL = import.meta.env.VITE_API_URL;
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
