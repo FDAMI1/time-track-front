@@ -173,23 +173,44 @@ function MyAttendanceTab({ records, isLoading }: { records: any[]; isLoading: bo
               </TableRow>
             </TableHeader>
             <TableBody>
-              {(records || []).slice(0, 30).map((r: any) => {
+              {(records || []).slice(0, 30).flatMap((r: any) => {
                 const sb = statusBadge[r.status] || statusBadge.pending;
-                return (
+                const sessions = (r.sessions || []).filter((s: any) => s.checkIn);
+                const fmtTime = (d?: any) => {
+                  if (!d) return "-";
+                  const dt = new Date(d);
+                  return `${String(dt.getHours()).padStart(2, "0")}:${String(dt.getMinutes()).padStart(2, "0")}`;
+                };
+                if (sessions.length > 0) {
+                  return sessions.map((s: any, si: number) => (
+                    <TableRow key={`${r._id}-${si}`}>
+                      <TableCell className="font-medium">
+                        {si === 0 ? new Date(r.date).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }) : ""}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-xs">
+                        {si === 0 ? r.policyId?.name || "—" : ""}
+                      </TableCell>
+                      <TableCell>
+                        {si === 0 && <span className={`text-xs px-2 py-1 rounded-md ${sb.className}`}>{sb.label}</span>}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">{fmtTime(s.checkIn)}</TableCell>
+                      <TableCell className="text-muted-foreground">{fmtTime(s.checkOut)}</TableCell>
+                    </TableRow>
+                  ));
+                }
+                return [(
                   <TableRow key={r._id}>
                     <TableCell className="font-medium">
                       {new Date(r.date).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
                     </TableCell>
-                    <TableCell className="text-muted-foreground text-xs">
-                      {r.policyId?.name || "—"}
-                    </TableCell>
+                    <TableCell className="text-muted-foreground text-xs">{r.policyId?.name || "—"}</TableCell>
                     <TableCell>
                       <span className={`text-xs px-2 py-1 rounded-md ${sb.className}`}>{sb.label}</span>
                     </TableCell>
                     <TableCell className="text-muted-foreground">{r.checkInTime || "-"}</TableCell>
                     <TableCell className="text-muted-foreground">{r.checkOutTime || "-"}</TableCell>
                   </TableRow>
-                );
+                )];
               })}
             </TableBody>
           </Table>

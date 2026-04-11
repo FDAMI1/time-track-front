@@ -363,6 +363,7 @@ function LocationSetupCard({ token }: { token: string }) {
       });
       if (!res.ok) throw new Error((await res.json()).message);
       if (pin) console.log("Saved location:", pin.lat, pin.lng, "radius:", radius, "m");
+      queryClient.invalidateQueries({ queryKey: ["/api/organizations/my"] });
       toast({ title: "Settings saved", description: "Attendance settings updated successfully" });
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });

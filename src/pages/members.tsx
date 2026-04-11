@@ -200,6 +200,35 @@ export default function MembersPage() {
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
+  const { data: teachersList } = useQuery({
+    queryKey: ["/api/users", "teachers"],
+    queryFn: async () => {
+      const res = await fetch("/api/users?role=teacher", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: ["superadmin", "org_admin"].includes(user?.role || ""),
+  });
+
+  const assignTeacher = useMutation({
+    mutationFn: async ({ id, teacherId }: { id: string; teacherId: string | null }) => {
+      const res = await fetch(`/api/users/${id}/assign-teacher`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ teacherId }),
+      });
+      if (!res.ok) throw new Error("Failed to assign teacher");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      toast({ title: "Teacher assigned" });
+    },
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
   const openEdit = (member: any) => {
     setSelectedMember(member);
     const memberSchedules = (policies || [])
@@ -440,6 +469,9 @@ export default function MembersPage() {
                   <TableHead>WhatsApp</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Location</TableHead>
+                  {["superadmin", "org_admin"].includes(user?.role || "") && orgType === "academy" && (
+                    <TableHead>Teacher</TableHead>
+                  )}
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -541,6 +573,29 @@ export default function MembersPage() {
                         </Select>
                       ) : <span className="text-xs text-muted-foreground">—</span>}
                     </TableCell>
+                    {["superadmin", "org_admin"].includes(user?.role || "") && orgType === "academy" && (
+                      <TableCell>
+                        {m.role === "student" ? (
+                          <Select
+                            value={m.assignedTeacher?._id || m.assignedTeacher || "none"}
+                            onValueChange={(v) => assignTeacher.mutate({ id: m._id, teacherId: v === "none" ? null : v })}
+                            data-testid={`select-teacher-${m._id}`}
+                          >
+                            <SelectTrigger className="h-7 w-36 text-xs" data-testid={`trigger-teacher-${m._id}`}>
+                              <SelectValue placeholder="Assign teacher" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">— Unassigned —</SelectItem>
+                              {(teachersList || []).map((t: any) => (
+                                <SelectItem key={t._id} value={t._id}>{t.firstName} {t.lastName}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                    )}
                     <TableCell className="text-right">
                       {canManageRole(m.role) && (
                         <div className="flex gap-1 justify-end">
