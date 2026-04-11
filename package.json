@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "leaflet": "^1.9.4",
-    "react-leaflet": "^4.2.1",
+  "react-leaflet": "^4.2.1",
     "@capacitor/android": "^8.3.0",
     "@capacitor/cli": "^8.3.0",
     "@hookform/resolvers": "^3.9.1",

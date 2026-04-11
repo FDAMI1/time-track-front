@@ -183,6 +183,23 @@ export default function MembersPage() {
     },
   });
 
+  const locationOverride = useMutation({
+    mutationFn: async ({ id, value }: { id: string; value: boolean | null }) => {
+      const res = await fetch(`/api/users/${id}/location-override`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ locationRestrictionEnabled: value }),
+      });
+      if (!res.ok) throw new Error("Failed to update location setting");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      toast({ title: "Location setting updated" });
+    },
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
   const openEdit = (member: any) => {
     setSelectedMember(member);
     const memberSchedules = (policies || [])
@@ -422,6 +439,7 @@ export default function MembersPage() {
                   <TableHead>Role</TableHead>
                   <TableHead>WhatsApp</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Location</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -504,6 +522,24 @@ export default function MembersPage() {
                           Inactive
                         </span>
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      {canManageRole(m.role) ? (
+                        <Select
+                          value={m.locationRestrictionEnabled === null || m.locationRestrictionEnabled === undefined ? "default" : m.locationRestrictionEnabled ? "on" : "off"}
+                          onValueChange={(v) => locationOverride.mutate({ id: m._id, value: v === "default" ? null : v === "on" })}
+                          data-testid={`select-location-${m._id}`}
+                        >
+                          <SelectTrigger className="h-7 w-24 text-xs" data-testid={`trigger-location-${m._id}`}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="default">Default</SelectItem>
+                            <SelectItem value="on">ON</SelectItem>
+                            <SelectItem value="off">OFF</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : <span className="text-xs text-muted-foreground">—</span>}
                     </TableCell>
                     <TableCell className="text-right">
                       {canManageRole(m.role) && (
