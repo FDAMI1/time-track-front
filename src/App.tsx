@@ -1,3 +1,4 @@
+import { apiFetch } from "@/lib/api";
 import { useState, useEffect } from "react";
 import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
@@ -38,7 +39,7 @@ function NotificationBell() {
   const { data: notifResponse } = useQuery({
     queryKey: ["/api/notifications"],
     queryFn: async () => {
-      const res = await fetch("/api/notifications", {
+      const res = await apiFetch("/api/notifications", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) return { notifications: [], total: 0, unreadCount: 0 };
@@ -53,7 +54,7 @@ function NotificationBell() {
   const unreadCount = notifResponse?.unreadCount ?? (notifications || []).filter((n: any) => !n.isRead).length;
 
   const markRead = async (id: string) => {
-    await fetch(`/api/notifications/${id}/read`, {
+    await apiFetch(`/api/notifications/${id}/read`, {
       method: "PUT",
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -61,7 +62,7 @@ function NotificationBell() {
   };
 
   const markAllRead = async () => {
-    await fetch("/api/notifications/read-all", {
+    await apiFetch("/api/notifications/read-all", {
       method: "PUT",
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -216,7 +217,7 @@ function AppLayout() {
       try { applyBrandingCss(JSON.parse(saved)); } catch {}
     }
     if (token && user?.organizationId) {
-      fetch("/api/organizations/my/branding", { headers: { Authorization: `Bearer ${token}` } })
+      apiFetch("/api/organizations/my/branding", { headers: { Authorization: `Bearer ${token}` } })
         .then(r => r.ok ? r.json() : null)
         .then(data => {
           if (data && Object.keys(data).length > 0) {

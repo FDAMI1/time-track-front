@@ -1,3 +1,4 @@
+import { apiFetch } from "@/lib/api";
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
@@ -185,7 +186,7 @@ export default function RolesPermissionsPage() {
   const { data: roles = [], isLoading: loadingRoles } = useQuery<Role[]>({
     queryKey: ["/api/roles"],
     queryFn: async () => {
-      const res = await fetch("/api/roles", { headers: { Authorization: `Bearer ${token}` } });
+      const res = await apiFetch("/api/roles", { headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) throw new Error("Failed to load roles");
       return res.json();
     },
@@ -195,7 +196,7 @@ export default function RolesPermissionsPage() {
   const { data: permsData } = useQuery<{ permissions: Permission[]; grouped: Record<string, string[]> }>({
     queryKey: ["/api/permissions"],
     queryFn: async () => {
-      const res = await fetch("/api/permissions", { headers: { Authorization: `Bearer ${token}` } });
+      const res = await apiFetch("/api/permissions", { headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) throw new Error("Failed to load permissions");
       return res.json();
     },
@@ -207,7 +208,7 @@ export default function RolesPermissionsPage() {
 
   const createMutation = useMutation({
     mutationFn: async (data: { roleName: string; description: string; permissionIds: string[] }) => {
-      const res = await fetch("/api/roles", {
+      const res = await apiFetch("/api/roles", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(data),
@@ -230,7 +231,7 @@ export default function RolesPermissionsPage() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: any }) => {
-      const res = await fetch(`/api/roles/${id}`, {
+      const res = await apiFetch(`/api/roles/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(data),
@@ -252,7 +253,7 @@ export default function RolesPermissionsPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const res = await fetch(`/api/roles/${id}`, {
+      const res = await apiFetch(`/api/roles/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });

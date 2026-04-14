@@ -1,3 +1,4 @@
+import { apiFetch } from "@/lib/api";
 import { useState, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
@@ -99,7 +100,7 @@ export default function DocumentTemplatesPage() {
   const { data: templates = [], isLoading } = useQuery<Template[]>({
     queryKey: ["/api/document-templates"],
     queryFn: async () => {
-      const res = await fetch("/api/document-templates", {
+      const res = await apiFetch("/api/document-templates", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Failed to load templates");
@@ -118,7 +119,7 @@ export default function DocumentTemplatesPage() {
         ? uploadForm.customType.trim().toLowerCase().replace(/\s+/g, "_")
         : uploadForm.documentType;
       formData.append("documentType", finalType);
-      const res = await fetch("/api/document-templates", {
+      const res = await apiFetch("/api/document-templates", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
@@ -141,7 +142,7 @@ export default function DocumentTemplatesPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const res = await fetch(`/api/document-templates/${id}`, {
+      const res = await apiFetch(`/api/document-templates/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -230,7 +231,7 @@ export default function DocumentTemplatesPage() {
                         variant="ghost"
                         className="h-7 px-2 text-muted-foreground hover:text-foreground"
                         onClick={async () => {
-                          const res = await fetch(`/api/document-templates/${t._id}/download`, {
+                          const res = await apiFetch(`/api/document-templates/${t._id}/download`, {
                             headers: { Authorization: `Bearer ${token}` },
                           });
                           if (!res.ok) { toast({ title: "Download failed", variant: "destructive" }); return; }

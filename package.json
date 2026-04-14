@@ -1,7 +1,7 @@
 {
-  "name": "time-front",
+  "name": "track-front",
   "version": "1.0.0",
-  "description": "NFskills - Frontend",
+  "description": "Unified Governance - Frontend",
   "type": "module",
   "scripts": {
     "dev": "vite --port 3000",
@@ -9,6 +9,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "leaflet": "^1.9.4",
+    "react-leaflet": "^4.2.1",
     "@capacitor/android": "^8.3.0",
     "@capacitor/cli": "^8.3.0",
     "@hookform/resolvers": "^3.9.1",

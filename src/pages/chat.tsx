@@ -1,3 +1,4 @@
+import { apiFetch, safeJson } from "@/lib/api";
 import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
@@ -70,7 +71,7 @@ export default function ChatPage() {
   const { data: conversations, isLoading: convsLoading } = useQuery({
     queryKey: ["/api/chat/conversations"],
     queryFn: async () => {
-      const res = await fetch("/api/chat/conversations", {
+      const res = await apiFetch("/api/chat/conversations", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Failed to fetch conversations");
@@ -82,7 +83,7 @@ export default function ChatPage() {
   const { data: users } = useQuery({
     queryKey: ["/api/users"],
     queryFn: async () => {
-      const res = await fetch("/api/users", {
+      const res = await apiFetch("/api/users", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Failed to fetch users");
@@ -94,12 +95,12 @@ export default function ChatPage() {
     queryKey: ["/api/chat/conversations", selectedConversation?._id, "messages"],
     queryFn: async () => {
       if (!selectedConversation?._id) return [];
-      const res = await fetch(
+      const res = await apiFetch(
         `/api/chat/conversations/${selectedConversation._id}/messages?page=1&limit=50`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       if (!res.ok) throw new Error("Failed to fetch messages");
-      return res.json();
+      return safeJson(res);
     },
     enabled: !!selectedConversation?._id,
     refetchInterval: 5000,
@@ -113,7 +114,7 @@ export default function ChatPage() {
     mutationFn: async () => {
       const body: any = { type: convType, participantIds: selectedParticipants };
       if (convType === "group" && convName) body.name = convName;
-      const res = await fetch("/api/chat/conversations", {
+      const res = await apiFetch("/api/chat/conversations", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(body),
@@ -140,7 +141,7 @@ export default function ChatPage() {
 
   const sendMessage = useMutation({
     mutationFn: async (content: string) => {
-      const res = await fetch(
+      const res = await apiFetch(
         `/api/chat/conversations/${selectedConversation._id}/messages`,
         {
           method: "POST",
@@ -149,7 +150,7 @@ export default function ChatPage() {
         }
       );
       if (!res.ok) throw new Error("Failed to send message");
-      return res.json();
+      return safeJson(res);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -165,7 +166,7 @@ export default function ChatPage() {
 
   const editMessage = useMutation({
     mutationFn: async ({ id, content }: { id: string; content: string }) => {
-      const res = await fetch(`/api/chat/messages/${id}`, {
+      const res = await apiFetch(`/api/chat/messages/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ content }),
@@ -187,7 +188,7 @@ export default function ChatPage() {
 
   const deleteMessage = useMutation({
     mutationFn: async (id: string) => {
-      const res = await fetch(`/api/chat/messages/${id}`, {
+      const res = await apiFetch(`/api/chat/messages/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -207,7 +208,7 @@ export default function ChatPage() {
 
   const toggleReaction = useMutation({
     mutationFn: async ({ messageId, emoji }: { messageId: string; emoji: string }) => {
-      const res = await fetch(`/api/chat/messages/${messageId}/reactions`, {
+      const res = await apiFetch(`/api/chat/messages/${messageId}/reactions`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ emoji }),

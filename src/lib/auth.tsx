@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { apiFetch, postJson, safeJson } from "./api";
 
 interface User {
   _id: string;
@@ -15,7 +16,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   token: string | null;
-  login: (credential: string, password: string, isEmail?: boolean) => Promise<void>;
+  login: (credential: string, password: string, isEmail?: boolean, extras?: Record<string, number>) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
   isLoading: boolean;
@@ -39,21 +40,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchUser = useCallback(async (authToken: string) => {
     try {
-      const res = await fetch("/api/auth/me", {
+      console.log("[auth] fetchUser →", "/api/auth/me");
+      const res = await apiFetch("/api/auth/me", {
         headers: { Authorization: `Bearer ${authToken}` },
       });
+      console.log("[auth] fetchUser status:", res.status);
       if (res.ok) {
-        const userData = await res.json();
+        const userData = await safeJson<User>(res);
         setUser(userData);
         if (userData.mustChangePassword) {
           setMustChangePassword(true);
         }
       } else {
+        console.warn("[auth] fetchUser failed — clearing token");
         localStorage.removeItem("token");
         setToken(null);
         setUser(null);
       }
-    } catch {
+    } catch (err) {
+      console.error("[auth] fetchUser error:", err);
       localStorage.removeItem("token");
       setToken(null);
       setUser(null);
@@ -70,22 +75,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [token, fetchUser]);
 
-  const login = async (credential: string, password: string, isEmail?: boolean) => {
+  const login = async (credential: string, password: string, isEmail?: boolean, extras?: Record<string, number>) => {
     const body = isEmail
-      ? { email: credential, password }
-      : { username: credential, password };
-    const res = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
+      ? { email: credential, password, ...extras }
+      : { username: credential, password, ...extras };
 
-    if (!res.ok) {
-      const data = await res.json();
+    console.log("[auth] login → POST /api/auth/login");
+
+    let data: any;
+    try {
+      data = await postJson("/api/auth/login", body);
+    } catch (err: any) {
+      console.error("[auth] login failed:", err);
+      throw new Error(err.message || "Login failed");
+    }
+
+    console.log("[auth] login response:", { token: !!data.token, role: data.user?.role });
+
+    if (!data.token) {
       throw new Error(data.message || "Login failed");
     }
 
-    const data = await res.json();
     localStorage.setItem("token", data.token);
     setToken(data.token);
     setUser(data.user);
@@ -115,17 +125,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const impersonate = async (userId: string) => {
     if (!token) return;
-    const res = await fetch(`/api/auth/impersonate/${userId}`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
+    console.log("[auth] impersonate →", userId);
+    let res: Response;
+    try {
+      res = await apiFetch(`/api/auth/impersonate/${userId}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    } catch (err) {
+      console.error("[auth] impersonate network error:", err);
+      throw new Error("Network error during impersonation");
+    }
+    const data = await safeJson(res);
     if (!res.ok) {
-      const data = await res.json();
       throw new Error(data.message || "Impersonation failed");
     }
-
-    const data = await res.json();
     const orgName = data.user?.organizationId?.name || "Organization";
     localStorage.setItem("superadminToken", token);
     localStorage.setItem("impersonatedOrgName", orgName);

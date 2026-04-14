@@ -1,3 +1,4 @@
+import { apiFetch, safeJson } from "@/lib/api";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
@@ -63,18 +64,18 @@ export default function OrgAdminDashboard() {
     queryFn: async () => {
       let url = `/api/dashboard/org?period=${period}`;
       if (selectedMember) url += `&memberId=${selectedMember}`;
-      const res = await fetch(url, {
+      const res = await apiFetch(url, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Failed to fetch dashboard");
-      return res.json();
+      return safeJson(res);
     },
   });
 
   const { data: overtimeData } = useQuery({
     queryKey: ["/api/dashboard/overtime", period],
     queryFn: async () => {
-      const res = await fetch(`/api/dashboard/overtime?period=${period}`, {
+      const res = await apiFetch(`/api/dashboard/overtime?period=${period}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) return null;
@@ -88,7 +89,7 @@ export default function OrgAdminDashboard() {
     try {
       const startDate = data?.startDate || new Date().toISOString().split("T")[0];
       const endDate = data?.endDate || startDate;
-      const res = await fetch(`/api/dashboard/org/drilldown?type=${type}&startDate=${startDate}&endDate=${endDate}`, {
+      const res = await apiFetch(`/api/dashboard/org/drilldown?type=${type}&startDate=${startDate}&endDate=${endDate}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {

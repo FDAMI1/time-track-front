@@ -1,3 +1,4 @@
+import { apiFetch } from "@/lib/api";
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
@@ -88,7 +89,7 @@ export default function DocumentsPage() {
   const { data: templates = [], isLoading: loadingTemplates } = useQuery<Template[]>({
     queryKey: ["/api/document-templates"],
     queryFn: async () => {
-      const res = await fetch("/api/document-templates", { headers: { Authorization: `Bearer ${token}` } });
+      const res = await apiFetch("/api/document-templates", { headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) return [];
       return res.json();
     },
@@ -98,7 +99,7 @@ export default function DocumentsPage() {
   const { data: members = [] } = useQuery<OrgUser[]>({
     queryKey: ["/api/users"],
     queryFn: async () => {
-      const res = await fetch("/api/users", { headers: { Authorization: `Bearer ${token}` } });
+      const res = await apiFetch("/api/users", { headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) return [];
       return res.json();
     },
@@ -108,7 +109,7 @@ export default function DocumentsPage() {
   const { data: salaryStructures = [] } = useQuery<SalaryStructure[]>({
     queryKey: ["/api/salary-structures"],
     queryFn: async () => {
-      const res = await fetch("/api/salary-structures", { headers: { Authorization: `Bearer ${token}` } });
+      const res = await apiFetch("/api/salary-structures", { headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) return [];
       return res.json();
     },
@@ -118,7 +119,7 @@ export default function DocumentsPage() {
   const { data: inputConfig } = useQuery<{ fields: InputField[] }>({
     queryKey: ["/api/salary-input-config"],
     queryFn: async () => {
-      const res = await fetch("/api/salary-input-config", { headers: { Authorization: `Bearer ${token}` } });
+      const res = await apiFetch("/api/salary-input-config", { headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) return { fields: [] };
       return res.json();
     },
@@ -128,7 +129,7 @@ export default function DocumentsPage() {
   const { data: placeholderData } = useQuery<{ placeholders: string[] }>({
     queryKey: ["/api/document-templates", genForm.templateId, "placeholders"],
     queryFn: async () => {
-      const res = await fetch(`/api/document-templates/${genForm.templateId}/placeholders`, {
+      const res = await apiFetch(`/api/document-templates/${genForm.templateId}/placeholders`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) return { placeholders: [] };
@@ -196,7 +197,7 @@ export default function DocumentsPage() {
         payload.salaryInputs = genForm.salaryInputs;
       }
 
-      const res = await fetch("/api/documents/generate", {
+      const res = await apiFetch("/api/documents/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(payload),

@@ -1,3 +1,4 @@
+import { apiFetch, safeJson } from "@/lib/api";
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
@@ -51,6 +52,7 @@ export default function TimeTrackingPage() {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<Date | null>(null);
+  const [capturedCoords, setCapturedCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTaskName, setEditTaskName] = useState("");
@@ -72,6 +74,15 @@ export default function TimeTrackingPage() {
     };
   }, []);
 
+  const { data: orgData } = useQuery({
+    queryKey: ["/api/organizations/my"],
+    queryFn: async () => {
+      const res = await apiFetch("/api/organizations/my", { headers: { Authorization: `Bearer ${token}` } });
+      return res.json();
+    },
+    enabled: !!token,
+  });
+
   const isViewingSelf = !selectedUserId || selectedUserId === "self";
   const apiPath = isViewingSelf
     ? `/api/timetracking/my?startDate=${fromDate}&endDate=${toDate}`
@@ -80,11 +91,11 @@ export default function TimeTrackingPage() {
   const { data: entries, isLoading } = useQuery({
     queryKey: ["/api/timetracking", fromDate, toDate, selectedUserId],
     queryFn: async () => {
-      const res = await fetch(apiPath, {
+      const res = await apiFetch(apiPath, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Failed to fetch");
-      return res.json();
+      return safeJson(res);
     },
   });
 
@@ -95,11 +106,11 @@ export default function TimeTrackingPage() {
   const { data: report } = useQuery({
     queryKey: ["/api/timetracking/report", fromDate, toDate, selectedUserId],
     queryFn: async () => {
-      const res = await fetch(reportPath, {
+      const res = await apiFetch(reportPath, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Failed to fetch");
-      return res.json();
+      return safeJson(res);
     },
   });
 
@@ -107,7 +118,7 @@ export default function TimeTrackingPage() {
     queryKey: ["/api/users/org-members-list"],
     queryFn: async () => {
       if (!isAdmin) return [];
-      const res = await fetch("/api/users", {
+      const res = await apiFetch("/api/users", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) return [];
@@ -118,7 +129,7 @@ export default function TimeTrackingPage() {
 
   const addMutation = useMutation({
     mutationFn: async (data: any) => {
-      const res = await fetch("/api/timetracking", {
+      const res = await apiFetch("/api/timetracking", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(data),
@@ -141,7 +152,7 @@ export default function TimeTrackingPage() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: any }) => {
-      const res = await fetch(`/api/timetracking/${id}`, {
+      const res = await apiFetch(`/api/timetracking/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(data),
@@ -165,7 +176,7 @@ export default function TimeTrackingPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const res = await fetch(`/api/timetracking/${id}`, {
+      const res = await apiFetch(`/api/timetracking/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -179,10 +190,28 @@ export default function TimeTrackingPage() {
     },
   });
 
-  function handleStart() {
+  async function handleStart() {
     if (!newTaskName.trim()) {
       toast({ title: "Error", description: "Please enter a task name before starting", variant: "destructive" });
       return;
+    }
+    const locationRequired = orgData?.isLocationRestrictionEnabled && orgData?.location?.latitude != null;
+    if (locationRequired) {
+      if (!navigator.geolocation) {
+        toast({ title: "Location unavailable", description: "Your browser does not support geolocation", variant: "destructive" });
+        return;
+      }
+      try {
+        const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
+          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000, enableHighAccuracy: true })
+        );
+        setCapturedCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+      } catch {
+        toast({ title: "Location required", description: "Please allow location access in your browser to start time tracking", variant: "destructive" });
+        return;
+      }
+    } else {
+      setCapturedCoords(null);
     }
     const now = getCurrentTime();
     setTimerStartTime(now);
@@ -212,12 +241,14 @@ export default function TimeTrackingPage() {
       startTime: timerStartTime,
       endTime,
       date: today,
+      ...(capturedCoords ? { latitude: capturedCoords.lat, longitude: capturedCoords.lng } : {}),
     });
 
     setIsTimerRunning(false);
     setTimerStartTime("");
     setElapsedSeconds(0);
     startTimeRef.current = null;
+    setCapturedCoords(null);
     setNewTaskName("");
     setNewDescription("");
   }
