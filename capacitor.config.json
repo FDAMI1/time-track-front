@@ -1,0 +1,6 @@
+{
+  "appId": "com.nfskills.portal",
+  "appName": "NFskills",
+  "webDir": "dist",
+  "bundledWebRuntime": false
+}

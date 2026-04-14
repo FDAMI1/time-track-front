@@ -1,4 +1,4 @@
-package com.nfskills.barik;
+package com.nfskills.portal;
 
 import com.getcapacitor.BridgeActivity;
 
