@@ -1,4 +1,3 @@
-import { apiFetch } from "@/lib/api";
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
@@ -58,7 +57,7 @@ export default function SalarySetupPage() {
   const { data: structures = [], isLoading: loadingStructures } = useQuery<SalaryStructure[]>({
     queryKey: ["/api/salary-structures"],
     queryFn: async () => {
-      const res = await apiFetch("/api/salary-structures", { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch("/api/salary-structures", { headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) return [];
       return res.json();
     },
@@ -68,7 +67,7 @@ export default function SalarySetupPage() {
   const { data: inputConfig, isLoading: loadingConfig } = useQuery<{ fields: SalaryInputField[] }>({
     queryKey: ["/api/salary-input-config"],
     queryFn: async () => {
-      const res = await apiFetch("/api/salary-input-config", { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch("/api/salary-input-config", { headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) throw new Error("Failed");
       return res.json();
     },
@@ -77,7 +76,7 @@ export default function SalarySetupPage() {
 
   const createStructure = useMutation({
     mutationFn: async (data: typeof structureForm) => {
-      const res = await apiFetch("/api/salary-structures", {
+      const res = await fetch("/api/salary-structures", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(data),
@@ -96,7 +95,7 @@ export default function SalarySetupPage() {
 
   const updateStructure = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: typeof structureForm }) => {
-      const res = await apiFetch(`/api/salary-structures/${id}`, {
+      const res = await fetch(`/api/salary-structures/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(data),
@@ -116,7 +115,7 @@ export default function SalarySetupPage() {
 
   const deleteStructure = useMutation({
     mutationFn: async (id: string) => {
-      const res = await apiFetch(`/api/salary-structures/${id}`, {
+      const res = await fetch(`/api/salary-structures/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -132,7 +131,7 @@ export default function SalarySetupPage() {
 
   const saveInputConfig = useMutation({
     mutationFn: async (fields: SalaryInputField[]) => {
-      const res = await apiFetch("/api/salary-input-config", {
+      const res = await fetch("/api/salary-input-config", {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ fields }),

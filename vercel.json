@@ -8,7 +8,7 @@
       "handle": "filesystem"
     },
     {
-      "src": "/.*",
+      "src": "^(?!/api).*$",
       "dest": "/index.html"
     }
   ],
@@ -18,7 +18,16 @@
       "headers": [
         {
           "key": "Cache-Control",
-          "value": "no-cache, no-store, must-revalidate"
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
         }
       ]
     }

@@ -1,4 +1,3 @@
-import { apiFetch } from "@/lib/api";
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
@@ -48,7 +47,7 @@ export default function LeavesPage() {
   const { data: myLeaves, isLoading: myLoading } = useQuery({
     queryKey: ["/api/leaves/my"],
     queryFn: async () => {
-      const res = await apiFetch("/api/leaves/my", {
+      const res = await fetch("/api/leaves/my", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Failed to fetch");
@@ -59,7 +58,7 @@ export default function LeavesPage() {
   const { data: orgLeaves, isLoading: orgLoading } = useQuery({
     queryKey: ["/api/leaves/org"],
     queryFn: async () => {
-      const res = await apiFetch("/api/leaves/org", {
+      const res = await fetch("/api/leaves/org", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Failed to fetch");
@@ -71,7 +70,7 @@ export default function LeavesPage() {
   const { data: leaveStats } = useQuery({
     queryKey: ["/api/leaves/stats"],
     queryFn: async () => {
-      const res = await apiFetch("/api/leaves/stats", {
+      const res = await fetch("/api/leaves/stats", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Failed to fetch");
@@ -81,7 +80,7 @@ export default function LeavesPage() {
 
   const createLeave = useMutation({
     mutationFn: async (data: typeof form) => {
-      const res = await apiFetch("/api/leaves", {
+      const res = await fetch("/api/leaves", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(data),
@@ -103,7 +102,7 @@ export default function LeavesPage() {
 
   const approveLeave = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const res = await apiFetch(`/api/leaves/${id}/approve`, {
+      const res = await fetch(`/api/leaves/${id}/approve`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ status }),

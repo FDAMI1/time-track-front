@@ -1,4 +1,3 @@
-import { apiFetch } from "@/lib/api";
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
@@ -46,7 +45,7 @@ export default function WhatsappNotificationsPage() {
   const { data: notifications, isLoading } = useQuery({
     queryKey,
     queryFn: async () => {
-      const res = await apiFetch(`/api/whatsapp/notifications?${buildQuery()}`, {
+      const res = await fetch(`/api/whatsapp/notifications?${buildQuery()}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Failed to fetch");
@@ -56,7 +55,7 @@ export default function WhatsappNotificationsPage() {
 
   const markSent = useMutation({
     mutationFn: async ({ id, sentToStudent, sentToParent }: { id: string; sentToStudent?: boolean; sentToParent?: boolean }) => {
-      const res = await apiFetch(`/api/whatsapp/notifications/${id}/mark-sent`, {
+      const res = await fetch(`/api/whatsapp/notifications/${id}/mark-sent`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ sentToStudent, sentToParent }),
@@ -71,7 +70,7 @@ export default function WhatsappNotificationsPage() {
 
   const bulkDelete = useMutation({
     mutationFn: async (ids: string[]) => {
-      const res = await apiFetch("/api/whatsapp/bulk-delete", {
+      const res = await fetch("/api/whatsapp/bulk-delete", {
         method: "DELETE",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ ids }),

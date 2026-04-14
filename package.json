@@ -1,7 +1,7 @@
 {
-  "name": "track-front",
+  "name": "time-front",
   "version": "1.0.0",
-  "description": "Unified Governance - Frontend",
+  "description": "NFskills - Frontend",
   "type": "module",
   "scripts": {
     "dev": "vite --port 3000",

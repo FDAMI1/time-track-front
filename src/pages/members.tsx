@@ -1,4 +1,3 @@
-import { apiFetch } from "@/lib/api";
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
@@ -70,7 +69,7 @@ export default function MembersPage() {
   const { data: members, isLoading } = useQuery({
     queryKey: ["/api/users"],
     queryFn: async () => {
-      const res = await apiFetch("/api/users", {
+      const res = await fetch("/api/users", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Failed to fetch");
@@ -81,7 +80,7 @@ export default function MembersPage() {
   const { data: policies } = useQuery({
     queryKey: ["/api/policy"],
     queryFn: async () => {
-      const res = await apiFetch("/api/policy", {
+      const res = await fetch("/api/policy", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Failed to fetch");
@@ -92,7 +91,7 @@ export default function MembersPage() {
   const { data: orgDomains } = useQuery({
     queryKey: ["/api/organizations/my/domains"],
     queryFn: async () => {
-      const res = await apiFetch("/api/organizations/my/domains", {
+      const res = await fetch("/api/organizations/my/domains", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) return { allowedEmailDomains: [] };
@@ -109,7 +108,7 @@ export default function MembersPage() {
         payload.emailDomain = data.emailDomain;
         delete payload.email;
       }
-      const res = await apiFetch("/api/users", {
+      const res = await fetch("/api/users", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(payload),
@@ -131,7 +130,7 @@ export default function MembersPage() {
 
   const resetPassword = useMutation({
     mutationFn: async (id: string) => {
-      const res = await apiFetch(`/api/users/${id}/reset-password`, {
+      const res = await fetch(`/api/users/${id}/reset-password`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -149,7 +148,7 @@ export default function MembersPage() {
 
   const updateUser = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: any }) => {
-      const res = await apiFetch(`/api/users/${id}`, {
+      const res = await fetch(`/api/users/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(data),
@@ -171,7 +170,7 @@ export default function MembersPage() {
 
   const deleteUser = useMutation({
     mutationFn: async (id: string) => {
-      const res = await apiFetch(`/api/users/${id}`, {
+      const res = await fetch(`/api/users/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -182,52 +181,6 @@ export default function MembersPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       toast({ title: "Member deleted" });
     },
-  });
-
-  const locationOverride = useMutation({
-    mutationFn: async ({ id, value }: { id: string; value: boolean | null }) => {
-      const res = await apiFetch(`/api/users/${id}/location-override`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ locationRestrictionEnabled: value }),
-      });
-      if (!res.ok) throw new Error("Failed to update location setting");
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
-      toast({ title: "Location setting updated" });
-    },
-    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
-  });
-
-  const { data: teachersList } = useQuery({
-    queryKey: ["/api/users", "teachers"],
-    queryFn: async () => {
-      const res = await apiFetch("/api/users?role=teacher", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) return [];
-      return res.json();
-    },
-    enabled: ["superadmin", "org_admin"].includes(user?.role || ""),
-  });
-
-  const assignTeacher = useMutation({
-    mutationFn: async ({ id, teacherId }: { id: string; teacherId: string | null }) => {
-      const res = await apiFetch(`/api/users/${id}/assign-teacher`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ teacherId }),
-      });
-      if (!res.ok) throw new Error("Failed to assign teacher");
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
-      toast({ title: "Teacher assigned" });
-    },
-    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
   const openEdit = (member: any) => {
@@ -469,10 +422,6 @@ export default function MembersPage() {
                   <TableHead>Role</TableHead>
                   <TableHead>WhatsApp</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Location</TableHead>
-                  {["superadmin", "org_admin"].includes(user?.role || "") && orgType === "academy" && (
-                    <TableHead>Teacher</TableHead>
-                  )}
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -556,47 +505,6 @@ export default function MembersPage() {
                         </span>
                       </div>
                     </TableCell>
-                    <TableCell>
-                      {canManageRole(m.role) ? (
-                        <Select
-                          value={m.locationRestrictionEnabled === null || m.locationRestrictionEnabled === undefined ? "default" : m.locationRestrictionEnabled ? "on" : "off"}
-                          onValueChange={(v) => locationOverride.mutate({ id: m._id, value: v === "default" ? null : v === "on" })}
-                          data-testid={`select-location-${m._id}`}
-                        >
-                          <SelectTrigger className="h-7 w-24 text-xs" data-testid={`trigger-location-${m._id}`}>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="default">Default</SelectItem>
-                            <SelectItem value="on">ON</SelectItem>
-                            <SelectItem value="off">OFF</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      ) : <span className="text-xs text-muted-foreground">—</span>}
-                    </TableCell>
-                    {["superadmin", "org_admin"].includes(user?.role || "") && orgType === "academy" && (
-                      <TableCell>
-                        {m.role === "student" ? (
-                          <Select
-                            value={m.assignedTeacher?._id || m.assignedTeacher || "none"}
-                            onValueChange={(v) => assignTeacher.mutate({ id: m._id, teacherId: v === "none" ? null : v })}
-                            data-testid={`select-teacher-${m._id}`}
-                          >
-                            <SelectTrigger className="h-7 w-36 text-xs" data-testid={`trigger-teacher-${m._id}`}>
-                              <SelectValue placeholder="Assign teacher" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="none">— Unassigned —</SelectItem>
-                              {(teachersList || []).map((t: any) => (
-                                <SelectItem key={t._id} value={t._id}>{t.firstName} {t.lastName}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                    )}
                     <TableCell className="text-right">
                       {canManageRole(m.role) && (
                         <div className="flex gap-1 justify-end">

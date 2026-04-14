@@ -1,4 +1,3 @@
-import { apiFetch } from "@/lib/api";
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
@@ -15,8 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Settings, Clock, Shield, Palette, Eye, EyeOff, Globe, MessageCircle, Plus, Pencil, Trash2, Users, UserPlus, Fingerprint, PenLine, Upload, X, MapPin } from "lucide-react";
-import "leaflet/dist/leaflet.css";
+import { Settings, Clock, Shield, Palette, Eye, EyeOff, Globe, MessageCircle, Plus, Pencil, Trash2, Users, UserPlus, Fingerprint, PenLine, Upload, X } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DocumentTemplatesPage from "@/pages/document-templates";
 import RolesPermissionsPage from "@/pages/roles-permissions";
@@ -30,7 +28,7 @@ function OrganizationAssetsCard({ token }: { token: string }) {
   const { data: assets, isLoading } = useQuery({
     queryKey: ["/api/organization-assets"],
     queryFn: async () => {
-      const res = await apiFetch("/api/organization-assets", { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch("/api/organization-assets", { headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) throw new Error("Failed");
       return res.json();
     },
@@ -40,7 +38,7 @@ function OrganizationAssetsCard({ token }: { token: string }) {
   async function uploadAsset(file: File, type: "signature" | "stamp") {
     const formData = new FormData();
     formData.append(type, file);
-    const res = await apiFetch(`/api/organization-assets/${type}`, {
+    const res = await fetch(`/api/organization-assets/${type}`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
       body: formData,
@@ -53,7 +51,7 @@ function OrganizationAssetsCard({ token }: { token: string }) {
   }
 
   async function deleteAsset(type: "signature" | "stamp") {
-    const res = await apiFetch(`/api/organization-assets/${type}`, {
+    const res = await fetch(`/api/organization-assets/${type}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -227,211 +225,6 @@ const emptySession = {
   autoAbsentEnabled: true,
 };
 
-function LocationSetupCard({ token }: { token: string }) {
-  const { toast } = useToast();
-  const mapContainer = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<any>(null);
-  const markerRef = useRef<any>(null);
-  const circleRef = useRef<any>(null);
-  const radiusRef = useRef(100);
-  const lRef = useRef<any>(null);
-  const [pin, setPin] = useState<{ lat: number; lng: number } | null>(null);
-  const [radius, setRadius] = useState(100);
-  const [search, setSearch] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [mapReady, setMapReady] = useState(false);
-  const [isLocationRestrictionEnabled, setIsLocationRestrictionEnabled] = useState(false);
-  const [isManualAttendanceApproval, setIsManualAttendanceApproval] = useState(false);
-
-  const { data: orgData } = useQuery({
-    queryKey: ["/api/organizations/my"],
-    queryFn: async () => {
-      const res = await apiFetch("/api/organizations/my", { headers: { Authorization: `Bearer ${token}` } });
-      return res.json();
-    },
-    enabled: !!token,
-  });
-
-  useEffect(() => {
-    if (!orgData) return;
-    setIsLocationRestrictionEnabled(orgData.isLocationRestrictionEnabled ?? false);
-    setIsManualAttendanceApproval(orgData.isManualAttendanceApproval ?? false);
-    if (orgData.allowedRadius) setRadius(orgData.allowedRadius);
-    if (orgData.location?.latitude) setPin({ lat: orgData.location.latitude, lng: orgData.location.longitude });
-  }, [orgData]);
-
-  useEffect(() => { radiusRef.current = radius; }, [radius]);
-
-  useEffect(() => {
-    if (!isLocationRestrictionEnabled) {
-      if (mapRef.current) {
-        mapRef.current.remove();
-        mapRef.current = null;
-        markerRef.current = null;
-        circleRef.current = null;
-        lRef.current = null;
-        setMapReady(false);
-      }
-      return;
-    }
-    const loadMap = async () => {
-      const L = await import("leaflet");
-      lRef.current = L;
-      if (!mapContainer.current || mapRef.current) return;
-      delete (L.Icon.Default.prototype as any)._getIconUrl;
-      L.Icon.Default.mergeOptions({
-        iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-        iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-        shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-      });
-      const map = L.map(mapContainer.current).setView([20, 0], 2);
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: "© OpenStreetMap contributors",
-      }).addTo(map);
-      map.on("click", (e: any) => {
-        const { lat, lng } = e.latlng;
-        setPin({ lat, lng });
-        console.log("Selected location:", lat, lng);
-        if (markerRef.current) markerRef.current.setLatLng([lat, lng]);
-        else markerRef.current = L.marker([lat, lng]).addTo(map);
-        if (circleRef.current) circleRef.current.setLatLng([lat, lng]);
-        else circleRef.current = L.circle([lat, lng], { radius: radiusRef.current, color: "#3b82f6", fillOpacity: 0.15 }).addTo(map);
-      });
-      mapRef.current = map;
-      setMapReady(true);
-    };
-    loadMap();
-    return () => {
-      if (mapRef.current) {
-        mapRef.current.remove();
-        mapRef.current = null;
-        markerRef.current = null;
-        circleRef.current = null;
-        lRef.current = null;
-        setMapReady(false);
-      }
-    };
-  }, [isLocationRestrictionEnabled]);
-
-  useEffect(() => {
-    if (!orgData?.location?.latitude || !mapReady || !mapRef.current || !lRef.current) return;
-    const lat = orgData.location.latitude;
-    const lng = orgData.location.longitude;
-    const r = orgData.allowedRadius ?? 100;
-    const L = lRef.current;
-    mapRef.current.setView([lat, lng], 14);
-    if (!markerRef.current) markerRef.current = L.marker([lat, lng]).addTo(mapRef.current);
-    else markerRef.current.setLatLng([lat, lng]);
-    if (!circleRef.current) circleRef.current = L.circle([lat, lng], { radius: r, color: "#3b82f6", fillOpacity: 0.15 }).addTo(mapRef.current);
-    else { circleRef.current.setLatLng([lat, lng]); circleRef.current.setRadius(r); }
-  }, [orgData, mapReady]);
-
-  useEffect(() => {
-    if (circleRef.current) {
-      circleRef.current.setRadius(radius);
-      console.log("Radius updated:", radius, "m");
-    }
-  }, [radius]);
-
-  const handleSearch = async () => {
-    if (!search.trim() || !mapRef.current) return;
-    try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(search)}&limit=1`);
-      const data = await res.json();
-      if (data.length > 0) mapRef.current.setView([parseFloat(data[0].lat), parseFloat(data[0].lon)], 15);
-    } catch {}
-  };
-
-  const handleCurrentLocation = () => {
-    if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(({ coords }) => {
-      if (mapRef.current) mapRef.current.setView([coords.latitude, coords.longitude], 15);
-    });
-  };
-
-  const handleSave = async () => {
-    if (isLocationRestrictionEnabled && !pin) {
-      return toast({ title: "Error", description: "Click on the map to place a pin first", variant: "destructive" });
-    }
-    setSaving(true);
-    try {
-      const body: any = { isLocationRestrictionEnabled, isManualAttendanceApproval, allowedRadius: radius };
-      if (pin) { body.latitude = pin.lat; body.longitude = pin.lng; }
-      const res = await apiFetch(`/api/organizations/my/location`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) throw new Error((await res.json()).message);
-      if (pin) console.log("Saved location:", pin.lat, pin.lng, "radius:", radius, "m");
-      queryClient.invalidateQueries({ queryKey: ["/api/organizations/my"] });
-      toast({ title: "Settings saved", description: "Attendance settings updated successfully" });
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-lg flex items-center gap-2">
-          <MapPin className="w-5 h-5" />
-          Attendance & Location Settings
-        </CardTitle>
-        <CardDescription>Control location restriction and approval workflow for student attendance.</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <Label className="text-sm font-medium">Location Restriction</Label>
-            <p className="text-xs text-muted-foreground">Students must be within the set radius to login</p>
-          </div>
-          <Switch checked={isLocationRestrictionEnabled} onCheckedChange={setIsLocationRestrictionEnabled} data-testid="switch-location-restriction" />
-        </div>
-        {isLocationRestrictionEnabled && (
-          <div className="space-y-4 border rounded-lg p-4">
-            <div className="flex gap-2 flex-wrap">
-              <Input
-                placeholder="Search for a location..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                className="flex-1 min-w-[180px]"
-                data-testid="input-location-search"
-              />
-              <Button type="button" variant="secondary" onClick={handleSearch} data-testid="button-search-location">Search</Button>
-              <Button type="button" variant="outline" onClick={handleCurrentLocation} data-testid="button-use-current-location">Use Current Location</Button>
-            </div>
-            <div
-              ref={mapContainer}
-              style={{ height: "320px", width: "100%", borderRadius: "8px", border: "1px solid hsl(var(--border))", zIndex: 0 }}
-              data-testid="map-location-picker"
-            />
-            <div className="flex items-center gap-3 flex-wrap">
-              <Label className="min-w-max text-sm">Radius: <strong>{radius}m</strong></Label>
-              <input type="range" min={1} max={1000} value={radius} onChange={(e) => setRadius(Number(e.target.value))} className="flex-1 min-w-[120px]" data-testid="slider-radius" />
-              <Input type="number" min={1} max={1000} value={radius} onChange={(e) => setRadius(Math.min(1000, Math.max(1, Number(e.target.value) || 1)))} className="w-20" data-testid="input-radius" />
-            </div>
-            {pin && <p className="text-xs text-muted-foreground">📍 {pin.lat.toFixed(6)}, {pin.lng.toFixed(6)}</p>}
-          </div>
-        )}
-        <div className="flex items-center justify-between">
-          <div>
-            <Label className="text-sm font-medium">Manual Attendance Approval</Label>
-            <p className="text-xs text-muted-foreground">Student attendance requires teacher/manager approval before being marked present</p>
-          </div>
-          <Switch checked={isManualAttendanceApproval} onCheckedChange={setIsManualAttendanceApproval} data-testid="switch-manual-approval" />
-        </div>
-        <Button onClick={handleSave} disabled={saving} data-testid="button-save-location">
-          {saving ? "Saving..." : "Save Settings"}
-        </Button>
-      </CardContent>
-    </Card>
-  );
-}
-
 export default function SettingsPage() {
   const { token, user } = useAuth();
   const { toast } = useToast();
@@ -466,7 +259,7 @@ export default function SettingsPage() {
   const { data: orgDomainsData, refetch: refetchDomains } = useQuery({
     queryKey: ["/api/organizations/my/domains"],
     queryFn: async () => {
-      const res = await apiFetch("/api/organizations/my/domains", {
+      const res = await fetch("/api/organizations/my/domains", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) return { allowedEmailDomains: [] };
@@ -478,7 +271,7 @@ export default function SettingsPage() {
 
   const updateDomains = useMutation({
     mutationFn: async (domains: string[]) => {
-      const res = await apiFetch("/api/organizations/my/domains", {
+      const res = await fetch("/api/organizations/my/domains", {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ allowedEmailDomains: domains }),
@@ -518,7 +311,7 @@ export default function SettingsPage() {
   const { data: policies, isLoading: policiesLoading } = useQuery({
     queryKey: ["/api/policy"],
     queryFn: async () => {
-      const res = await apiFetch("/api/policy", {
+      const res = await fetch("/api/policy", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Failed to fetch");
@@ -530,7 +323,7 @@ export default function SettingsPage() {
   const { data: orgSettingsData } = useQuery({
     queryKey: ["/api/policy/org-settings"],
     queryFn: async () => {
-      const res = await apiFetch("/api/policy/org-settings", {
+      const res = await fetch("/api/policy/org-settings", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Failed to fetch");
@@ -542,7 +335,7 @@ export default function SettingsPage() {
   const { data: orgMembers } = useQuery({
     queryKey: ["/api/users"],
     queryFn: async () => {
-      const res = await apiFetch("/api/users", {
+      const res = await fetch("/api/users", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Failed to fetch");
@@ -553,7 +346,7 @@ export default function SettingsPage() {
 
   const updateAssignedMembers = useMutation({
     mutationFn: async ({ id, assignedMembers }: { id: string; assignedMembers: string[] }) => {
-      const res = await apiFetch(`/api/policy/${id}`, {
+      const res = await fetch(`/api/policy/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ assignedMembers }),
@@ -602,7 +395,7 @@ export default function SettingsPage() {
 
   const updateOrgSettings = useMutation({
     mutationFn: async (data: typeof orgSettings) => {
-      const res = await apiFetch("/api/policy/org-settings", {
+      const res = await fetch("/api/policy/org-settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(data),
@@ -622,7 +415,7 @@ export default function SettingsPage() {
 
   const createSession = useMutation({
     mutationFn: async (data: typeof sessionForm) => {
-      const res = await apiFetch("/api/policy", {
+      const res = await fetch("/api/policy", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(data),
@@ -643,7 +436,7 @@ export default function SettingsPage() {
 
   const updateSession = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: typeof sessionForm }) => {
-      const res = await apiFetch(`/api/policy/${id}`, {
+      const res = await fetch(`/api/policy/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(data),
@@ -665,7 +458,7 @@ export default function SettingsPage() {
 
   const deleteSession = useMutation({
     mutationFn: async (id: string) => {
-      const res = await apiFetch(`/api/policy/${id}`, {
+      const res = await fetch(`/api/policy/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -684,7 +477,7 @@ export default function SettingsPage() {
 
   const saveWhatsappConfig = useMutation({
     mutationFn: async (data: typeof whatsappForm) => {
-      const res = await apiFetch("/api/whatsapp/config", {
+      const res = await fetch("/api/whatsapp/config", {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(data),
@@ -705,7 +498,7 @@ export default function SettingsPage() {
     mutationFn: async (enabled: boolean) => {
       const org = user?.organizationId as any;
       const currentFeatures = org?.features || {};
-      const res = await apiFetch("/api/organizations/my/features", {
+      const res = await fetch("/api/organizations/my/features", {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ features: { ...currentFeatures, chat: enabled } }),
@@ -724,7 +517,7 @@ export default function SettingsPage() {
 
   const changePassword = useMutation({
     mutationFn: async (data: typeof passwordForm) => {
-      const res = await apiFetch("/api/auth/change-password", {
+      const res = await fetch("/api/auth/change-password", {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ currentPassword: data.currentPassword, newPassword: data.newPassword }),
@@ -755,7 +548,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (!isOrgAdmin || !token) return;
-    apiFetch("/api/organizations/my/branding", { headers: { Authorization: `Bearer ${token}` } })
+    fetch("/api/organizations/my/branding", { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.json())
       .then((data) => {
         if (data && Object.keys(data).length > 0) {
@@ -776,7 +569,7 @@ export default function SettingsPage() {
       try {
         const fd = new FormData();
         fd.append("logo", logoFile);
-        const r = await apiFetch("/api/organizations/my/logo", {
+        const r = await fetch("/api/organizations/my/logo", {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
           body: fd,
@@ -790,7 +583,7 @@ export default function SettingsPage() {
           setLogoFile(null);
           if (isOrgAdmin) {
             try {
-              await apiFetch("/api/organizations/my/branding", {
+              await fetch("/api/organizations/my/branding", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
                 body: JSON.stringify(updated),
@@ -805,7 +598,7 @@ export default function SettingsPage() {
 
     if (isOrgAdmin) {
       try {
-        await apiFetch("/api/organizations/my/branding", {
+        await fetch("/api/organizations/my/branding", {
           method: "PUT",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify(themeForm),
@@ -1333,8 +1126,6 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
       )}
-
-      {isOrgAdmin && <LocationSetupCard token={token!} />}
 
       <Card>
         <CardHeader>

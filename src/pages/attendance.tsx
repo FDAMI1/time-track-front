@@ -1,4 +1,3 @@
-import { apiFetch } from "@/lib/api";
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
@@ -63,7 +62,7 @@ export default function AttendancePage() {
   const { data: myRecords, isLoading: myLoading } = useQuery({
     queryKey: ["/api/attendance/my"],
     queryFn: async () => {
-      const res = await apiFetch("/api/attendance/my", {
+      const res = await fetch("/api/attendance/my", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Failed to fetch");
@@ -74,7 +73,7 @@ export default function AttendancePage() {
   const { data: stats } = useQuery({
     queryKey: ["/api/attendance/stats"],
     queryFn: async () => {
-      const res = await apiFetch("/api/attendance/stats", {
+      const res = await fetch("/api/attendance/stats", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Failed to fetch");
@@ -174,44 +173,23 @@ function MyAttendanceTab({ records, isLoading }: { records: any[]; isLoading: bo
               </TableRow>
             </TableHeader>
             <TableBody>
-              {(records || []).slice(0, 30).flatMap((r: any) => {
+              {(records || []).slice(0, 30).map((r: any) => {
                 const sb = statusBadge[r.status] || statusBadge.pending;
-                const sessions = (r.sessions || []).filter((s: any) => s.checkIn);
-                const fmtTime = (d?: any) => {
-                  if (!d) return "-";
-                  const dt = new Date(d);
-                  return `${String(dt.getHours()).padStart(2, "0")}:${String(dt.getMinutes()).padStart(2, "0")}`;
-                };
-                if (sessions.length > 0) {
-                  return sessions.map((s: any, si: number) => (
-                    <TableRow key={`${r._id}-${si}`}>
-                      <TableCell className="font-medium">
-                        {si === 0 ? new Date(r.date).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }) : ""}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-xs">
-                        {si === 0 ? r.policyId?.name || "—" : ""}
-                      </TableCell>
-                      <TableCell>
-                        {si === 0 && <span className={`text-xs px-2 py-1 rounded-md ${sb.className}`}>{sb.label}</span>}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">{fmtTime(s.checkIn)}</TableCell>
-                      <TableCell className="text-muted-foreground">{fmtTime(s.checkOut)}</TableCell>
-                    </TableRow>
-                  ));
-                }
-                return [(
+                return (
                   <TableRow key={r._id}>
                     <TableCell className="font-medium">
                       {new Date(r.date).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
                     </TableCell>
-                    <TableCell className="text-muted-foreground text-xs">{r.policyId?.name || "—"}</TableCell>
+                    <TableCell className="text-muted-foreground text-xs">
+                      {r.policyId?.name || "—"}
+                    </TableCell>
                     <TableCell>
                       <span className={`text-xs px-2 py-1 rounded-md ${sb.className}`}>{sb.label}</span>
                     </TableCell>
                     <TableCell className="text-muted-foreground">{r.checkInTime || "-"}</TableCell>
                     <TableCell className="text-muted-foreground">{r.checkOutTime || "-"}</TableCell>
                   </TableRow>
-                )];
+                );
               })}
             </TableBody>
           </Table>
@@ -264,7 +242,7 @@ function TeamAttendanceTab({ roleFilter, token, viewerRole = "", orgType }: { ro
   const { data: policies } = useQuery({
     queryKey: ["/api/policy"],
     queryFn: async () => {
-      const res = await apiFetch("/api/policy", {
+      const res = await fetch("/api/policy", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Failed to fetch");
@@ -292,7 +270,7 @@ function TeamAttendanceTab({ roleFilter, token, viewerRole = "", orgType }: { ro
     mutationFn: async ({ userId, status }: { userId: string; status: string }) => {
       const body: any = { userId, status };
       if (policyIdParam) body.policyId = policyIdParam;
-      const res = await apiFetch("/api/attendance/mark-for-user", {
+      const res = await fetch("/api/attendance/mark-for-user", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(body),
@@ -314,7 +292,7 @@ function TeamAttendanceTab({ roleFilter, token, viewerRole = "", orgType }: { ro
     mutationFn: async (userIds: string[]) => {
       const body: any = { userIds, status: "present" };
       if (policyIdParam) body.policyId = policyIdParam;
-      const res = await apiFetch("/api/attendance/mark-bulk", {
+      const res = await fetch("/api/attendance/mark-bulk", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(body),
@@ -336,7 +314,7 @@ function TeamAttendanceTab({ roleFilter, token, viewerRole = "", orgType }: { ro
     mutationFn: async (userIds: string[]) => {
       const body: any = { userIds, status: "absent" };
       if (policyIdParam) body.policyId = policyIdParam;
-      const res = await apiFetch("/api/attendance/mark-bulk", {
+      const res = await fetch("/api/attendance/mark-bulk", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(body),
@@ -356,7 +334,7 @@ function TeamAttendanceTab({ roleFilter, token, viewerRole = "", orgType }: { ro
 
   const approveAttendance = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const res = await apiFetch(`/api/attendance/${id}/approve`, {
+      const res = await fetch(`/api/attendance/${id}/approve`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ status }),
@@ -379,7 +357,7 @@ function TeamAttendanceTab({ roleFilter, token, viewerRole = "", orgType }: { ro
 
   async function downloadStudentReport(userId: string, name: string) {
     try {
-      const res = await apiFetch(`/api/reports/user/${userId}?period=monthly&format=xlsx`, {
+      const res = await fetch(`/api/reports/user/${userId}?period=monthly&format=xlsx`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Failed");

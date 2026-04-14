@@ -1,4 +1,3 @@
-import { apiFetch } from "@/lib/api";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
@@ -66,7 +65,7 @@ export default function ActivityLogsPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["/api/activity-logs", filterAction, startDate, endDate, page],
     queryFn: async () => {
-      const res = await apiFetch(`/api/activity-logs?${buildQueryString()}`, {
+      const res = await fetch(`/api/activity-logs?${buildQueryString()}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Failed to fetch activity logs");

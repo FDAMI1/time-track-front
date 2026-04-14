@@ -72,7 +72,6 @@ export function AppSidebar() {
   const logoText = branding.logoText || "";
   const logoType = branding.logoType || "text";
   const logoUrl = branding.logoUrl || "";
-  const BASE_URL = import.meta.env.VITE_API_URL || "";
 
   const initials = `${user.firstName[0]}${user.lastName[0]}`.toUpperCase();
   const orgType = user.organizationId?.type;
@@ -118,7 +117,7 @@ export function AppSidebar() {
         <div className="flex items-center gap-3">
           <div className={`flex items-center justify-center w-9 h-9 rounded-md shrink-0 overflow-hidden ${logoType === "image" && logoUrl ? "bg-transparent" : "bg-primary text-primary-foreground"}`}>
             {logoType === "image" && logoUrl
-              ? <img src={`${BASE_URL}${logoUrl}`} alt="Logo" className="h-9 w-auto object-contain bg-transparent" style={{ background: "transparent" }} />
+              ? <img src={logoUrl} alt="Logo" className="h-9 w-auto object-contain bg-transparent" style={{ background: "transparent" }} />
               : logoText
                 ? <span className="text-sm font-bold">{logoText}</span>
                 : <Shield className="w-5 h-5" />

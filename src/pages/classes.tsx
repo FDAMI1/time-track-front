@@ -1,4 +1,3 @@
-import { apiFetch } from "@/lib/api";
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
@@ -45,7 +44,7 @@ export default function ClassesPage() {
   const { data: classes, isLoading } = useQuery({
     queryKey: ["/api/classes"],
     queryFn: async () => {
-      const res = await apiFetch("/api/classes", { headers: authHeaders });
+      const res = await fetch("/api/classes", { headers: authHeaders });
       if (!res.ok) throw new Error("Failed to fetch");
       return res.json();
     },
@@ -54,7 +53,7 @@ export default function ClassesPage() {
   const { data: users } = useQuery({
     queryKey: ["/api/users"],
     queryFn: async () => {
-      const res = await apiFetch("/api/users", { headers: authHeaders });
+      const res = await fetch("/api/users", { headers: authHeaders });
       if (!res.ok) throw new Error("Failed to fetch");
       return res.json();
     },
@@ -65,7 +64,7 @@ export default function ClassesPage() {
 
   const createClass = useMutation({
     mutationFn: async (data: typeof form) => {
-      const res = await apiFetch("/api/classes", {
+      const res = await fetch("/api/classes", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify(data),
@@ -86,7 +85,7 @@ export default function ClassesPage() {
 
   const updateClass = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: any }) => {
-      const res = await apiFetch(`/api/classes/${id}`, {
+      const res = await fetch(`/api/classes/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify(data),
@@ -106,7 +105,7 @@ export default function ClassesPage() {
 
   const deleteClass = useMutation({
     mutationFn: async (id: string) => {
-      const res = await apiFetch(`/api/classes/${id}`, {
+      const res = await fetch(`/api/classes/${id}`, {
         method: "DELETE",
         headers: authHeaders,
       });
@@ -121,7 +120,7 @@ export default function ClassesPage() {
 
   const addStudents = useMutation({
     mutationFn: async ({ classId, studentIds }: { classId: string; studentIds: string[] }) => {
-      const res = await apiFetch(`/api/classes/${classId}/students`, {
+      const res = await fetch(`/api/classes/${classId}/students`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({ studentIds }),
@@ -142,7 +141,7 @@ export default function ClassesPage() {
 
   const removeStudent = useMutation({
     mutationFn: async ({ classId, userId }: { classId: string; userId: string }) => {
-      const res = await apiFetch(`/api/classes/${classId}/students/${userId}`, {
+      const res = await fetch(`/api/classes/${classId}/students/${userId}`, {
         method: "DELETE",
         headers: authHeaders,
       });
