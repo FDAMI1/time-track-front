@@ -1,3 +1,4 @@
+import { apiFetch } from "@/lib/api";
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
@@ -69,7 +70,7 @@ export default function MembersPage() {
   const { data: members, isLoading } = useQuery({
     queryKey: ["/api/users"],
     queryFn: async () => {
-      const res = await fetch("/api/users", {
+      const res = await apiFetch("/api/users", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Failed to fetch");
@@ -80,7 +81,7 @@ export default function MembersPage() {
   const { data: policies } = useQuery({
     queryKey: ["/api/policy"],
     queryFn: async () => {
-      const res = await fetch("/api/policy", {
+      const res = await apiFetch("/api/policy", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Failed to fetch");
@@ -91,7 +92,7 @@ export default function MembersPage() {
   const { data: orgDomains } = useQuery({
     queryKey: ["/api/organizations/my/domains"],
     queryFn: async () => {
-      const res = await fetch("/api/organizations/my/domains", {
+      const res = await apiFetch("/api/organizations/my/domains", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) return { allowedEmailDomains: [] };
@@ -108,7 +109,7 @@ export default function MembersPage() {
         payload.emailDomain = data.emailDomain;
         delete payload.email;
       }
-      const res = await fetch("/api/users", {
+      const res = await apiFetch("/api/users", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(payload),
@@ -130,7 +131,7 @@ export default function MembersPage() {
 
   const resetPassword = useMutation({
     mutationFn: async (id: string) => {
-      const res = await fetch(`/api/users/${id}/reset-password`, {
+      const res = await apiFetch(`/api/users/${id}/reset-password`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -148,7 +149,7 @@ export default function MembersPage() {
 
   const updateUser = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: any }) => {
-      const res = await fetch(`/api/users/${id}`, {
+      const res = await apiFetch(`/api/users/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(data),
@@ -170,7 +171,7 @@ export default function MembersPage() {
 
   const deleteUser = useMutation({
     mutationFn: async (id: string) => {
-      const res = await fetch(`/api/users/${id}`, {
+      const res = await apiFetch(`/api/users/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -185,7 +186,7 @@ export default function MembersPage() {
 
   const locationOverride = useMutation({
     mutationFn: async ({ id, value }: { id: string; value: boolean | null }) => {
-      const res = await fetch(`/api/users/${id}/location-override`, {
+      const res = await apiFetch(`/api/users/${id}/location-override`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ locationRestrictionEnabled: value }),
@@ -203,7 +204,7 @@ export default function MembersPage() {
   const { data: teachersList } = useQuery({
     queryKey: ["/api/users", "teachers"],
     queryFn: async () => {
-      const res = await fetch("/api/users?role=teacher", {
+      const res = await apiFetch("/api/users?role=teacher", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) return [];
@@ -214,7 +215,7 @@ export default function MembersPage() {
 
   const assignTeacher = useMutation({
     mutationFn: async ({ id, teacherId }: { id: string; teacherId: string | null }) => {
-      const res = await fetch(`/api/users/${id}/assign-teacher`, {
+      const res = await apiFetch(`/api/users/${id}/assign-teacher`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ teacherId }),

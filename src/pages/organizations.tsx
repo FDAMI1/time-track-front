@@ -1,3 +1,4 @@
+import { apiFetch } from "@/lib/api";
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
@@ -32,7 +33,7 @@ export default function OrganizationsPage() {
   const { data: orgs, isLoading } = useQuery({
     queryKey: ["/api/organizations"],
     queryFn: async () => {
-      const res = await fetch("/api/organizations", {
+      const res = await apiFetch("/api/organizations", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Failed to fetch");
@@ -43,7 +44,7 @@ export default function OrganizationsPage() {
   const { data: orgDetail, isLoading: detailLoading } = useQuery({
     queryKey: ["/api/organizations", selectedOrg?._id],
     queryFn: async () => {
-      const res = await fetch(`/api/organizations/${selectedOrg._id}`, {
+      const res = await apiFetch(`/api/organizations/${selectedOrg._id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Failed to fetch");
@@ -54,7 +55,7 @@ export default function OrganizationsPage() {
 
   const createOrg = useMutation({
     mutationFn: async (data: typeof form) => {
-      const res = await fetch("/api/organizations", {
+      const res = await apiFetch("/api/organizations", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(data),
@@ -77,7 +78,7 @@ export default function OrganizationsPage() {
 
   const updateOrg = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: any }) => {
-      const res = await fetch(`/api/organizations/${id}`, {
+      const res = await apiFetch(`/api/organizations/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(data),
@@ -97,7 +98,7 @@ export default function OrganizationsPage() {
 
   const deleteOrg = useMutation({
     mutationFn: async (id: string) => {
-      const res = await fetch(`/api/organizations/${id}`, {
+      const res = await apiFetch(`/api/organizations/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });

@@ -1,3 +1,4 @@
+import { apiFetch } from "@/lib/api";
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
@@ -29,7 +30,7 @@ function OrganizationAssetsCard({ token }: { token: string }) {
   const { data: assets, isLoading } = useQuery({
     queryKey: ["/api/organization-assets"],
     queryFn: async () => {
-      const res = await fetch("/api/organization-assets", { headers: { Authorization: `Bearer ${token}` } });
+      const res = await apiFetch("/api/organization-assets", { headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) throw new Error("Failed");
       return res.json();
     },
@@ -39,7 +40,7 @@ function OrganizationAssetsCard({ token }: { token: string }) {
   async function uploadAsset(file: File, type: "signature" | "stamp") {
     const formData = new FormData();
     formData.append(type, file);
-    const res = await fetch(`/api/organization-assets/${type}`, {
+    const res = await apiFetch(`/api/organization-assets/${type}`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
       body: formData,
@@ -52,7 +53,7 @@ function OrganizationAssetsCard({ token }: { token: string }) {
   }
 
   async function deleteAsset(type: "signature" | "stamp") {
-    const res = await fetch(`/api/organization-assets/${type}`, {
+    const res = await apiFetch(`/api/organization-assets/${type}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -245,7 +246,7 @@ function LocationSetupCard({ token }: { token: string }) {
   const { data: orgData } = useQuery({
     queryKey: ["/api/organizations/my"],
     queryFn: async () => {
-      const res = await fetch("/api/organizations/my", { headers: { Authorization: `Bearer ${token}` } });
+      const res = await apiFetch("/api/organizations/my", { headers: { Authorization: `Bearer ${token}` } });
       return res.json();
     },
     enabled: !!token,
@@ -356,7 +357,7 @@ function LocationSetupCard({ token }: { token: string }) {
     try {
       const body: any = { isLocationRestrictionEnabled, isManualAttendanceApproval, allowedRadius: radius };
       if (pin) { body.latitude = pin.lat; body.longitude = pin.lng; }
-      const res = await fetch(`/api/organizations/my/location`, {
+      const res = await apiFetch(`/api/organizations/my/location`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(body),
@@ -465,7 +466,7 @@ export default function SettingsPage() {
   const { data: orgDomainsData, refetch: refetchDomains } = useQuery({
     queryKey: ["/api/organizations/my/domains"],
     queryFn: async () => {
-      const res = await fetch("/api/organizations/my/domains", {
+      const res = await apiFetch("/api/organizations/my/domains", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) return { allowedEmailDomains: [] };
@@ -477,7 +478,7 @@ export default function SettingsPage() {
 
   const updateDomains = useMutation({
     mutationFn: async (domains: string[]) => {
-      const res = await fetch("/api/organizations/my/domains", {
+      const res = await apiFetch("/api/organizations/my/domains", {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ allowedEmailDomains: domains }),
@@ -517,7 +518,7 @@ export default function SettingsPage() {
   const { data: policies, isLoading: policiesLoading } = useQuery({
     queryKey: ["/api/policy"],
     queryFn: async () => {
-      const res = await fetch("/api/policy", {
+      const res = await apiFetch("/api/policy", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Failed to fetch");
@@ -529,7 +530,7 @@ export default function SettingsPage() {
   const { data: orgSettingsData } = useQuery({
     queryKey: ["/api/policy/org-settings"],
     queryFn: async () => {
-      const res = await fetch("/api/policy/org-settings", {
+      const res = await apiFetch("/api/policy/org-settings", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Failed to fetch");
@@ -541,7 +542,7 @@ export default function SettingsPage() {
   const { data: orgMembers } = useQuery({
     queryKey: ["/api/users"],
     queryFn: async () => {
-      const res = await fetch("/api/users", {
+      const res = await apiFetch("/api/users", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Failed to fetch");
@@ -552,7 +553,7 @@ export default function SettingsPage() {
 
   const updateAssignedMembers = useMutation({
     mutationFn: async ({ id, assignedMembers }: { id: string; assignedMembers: string[] }) => {
-      const res = await fetch(`/api/policy/${id}`, {
+      const res = await apiFetch(`/api/policy/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ assignedMembers }),
@@ -601,7 +602,7 @@ export default function SettingsPage() {
 
   const updateOrgSettings = useMutation({
     mutationFn: async (data: typeof orgSettings) => {
-      const res = await fetch("/api/policy/org-settings", {
+      const res = await apiFetch("/api/policy/org-settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(data),
@@ -621,7 +622,7 @@ export default function SettingsPage() {
 
   const createSession = useMutation({
     mutationFn: async (data: typeof sessionForm) => {
-      const res = await fetch("/api/policy", {
+      const res = await apiFetch("/api/policy", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(data),
@@ -642,7 +643,7 @@ export default function SettingsPage() {
 
   const updateSession = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: typeof sessionForm }) => {
-      const res = await fetch(`/api/policy/${id}`, {
+      const res = await apiFetch(`/api/policy/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(data),
@@ -664,7 +665,7 @@ export default function SettingsPage() {
 
   const deleteSession = useMutation({
     mutationFn: async (id: string) => {
-      const res = await fetch(`/api/policy/${id}`, {
+      const res = await apiFetch(`/api/policy/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -683,7 +684,7 @@ export default function SettingsPage() {
 
   const saveWhatsappConfig = useMutation({
     mutationFn: async (data: typeof whatsappForm) => {
-      const res = await fetch("/api/whatsapp/config", {
+      const res = await apiFetch("/api/whatsapp/config", {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(data),
@@ -704,7 +705,7 @@ export default function SettingsPage() {
     mutationFn: async (enabled: boolean) => {
       const org = user?.organizationId as any;
       const currentFeatures = org?.features || {};
-      const res = await fetch("/api/organizations/my/features", {
+      const res = await apiFetch("/api/organizations/my/features", {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ features: { ...currentFeatures, chat: enabled } }),
@@ -723,7 +724,7 @@ export default function SettingsPage() {
 
   const changePassword = useMutation({
     mutationFn: async (data: typeof passwordForm) => {
-      const res = await fetch("/api/auth/change-password", {
+      const res = await apiFetch("/api/auth/change-password", {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ currentPassword: data.currentPassword, newPassword: data.newPassword }),
@@ -754,7 +755,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (!isOrgAdmin || !token) return;
-    fetch("/api/organizations/my/branding", { headers: { Authorization: `Bearer ${token}` } })
+    apiFetch("/api/organizations/my/branding", { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.json())
       .then((data) => {
         if (data && Object.keys(data).length > 0) {
@@ -775,7 +776,7 @@ export default function SettingsPage() {
       try {
         const fd = new FormData();
         fd.append("logo", logoFile);
-        const r = await fetch("/api/organizations/my/logo", {
+        const r = await apiFetch("/api/organizations/my/logo", {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
           body: fd,
@@ -789,7 +790,7 @@ export default function SettingsPage() {
           setLogoFile(null);
           if (isOrgAdmin) {
             try {
-              await fetch("/api/organizations/my/branding", {
+              await apiFetch("/api/organizations/my/branding", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
                 body: JSON.stringify(updated),
@@ -804,7 +805,7 @@ export default function SettingsPage() {
 
     if (isOrgAdmin) {
       try {
-        await fetch("/api/organizations/my/branding", {
+        await apiFetch("/api/organizations/my/branding", {
           method: "PUT",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify(themeForm),

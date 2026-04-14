@@ -1,3 +1,4 @@
+import { apiFetch } from "@/lib/api";
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
@@ -46,7 +47,7 @@ export default function MemberDashboard() {
   const { data, isLoading } = useQuery({
     queryKey: ["/api/dashboard/personal", period],
     queryFn: async () => {
-      const res = await fetch(`/api/dashboard/personal?period=${period}`, {
+      const res = await apiFetch(`/api/dashboard/personal?period=${period}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Failed to fetch dashboard");
@@ -56,7 +57,7 @@ export default function MemberDashboard() {
 
   const markAttendance = useMutation({
     mutationFn: async () => {
-      const res = await fetch("/api/attendance/mark", {
+      const res = await apiFetch("/api/attendance/mark", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -84,7 +85,7 @@ export default function MemberDashboard() {
 
   const checkOut = useMutation({
     mutationFn: async () => {
-      const res = await fetch("/api/attendance/checkout", {
+      const res = await apiFetch("/api/attendance/checkout", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

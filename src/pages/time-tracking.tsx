@@ -1,3 +1,4 @@
+import { apiFetch } from "@/lib/api";
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
@@ -76,7 +77,7 @@ export default function TimeTrackingPage() {
   const { data: orgData } = useQuery({
     queryKey: ["/api/organizations/my"],
     queryFn: async () => {
-      const res = await fetch("/api/organizations/my", { headers: { Authorization: `Bearer ${token}` } });
+      const res = await apiFetch("/api/organizations/my", { headers: { Authorization: `Bearer ${token}` } });
       return res.json();
     },
     enabled: !!token,
@@ -117,7 +118,7 @@ export default function TimeTrackingPage() {
     queryKey: ["/api/users/org-members-list"],
     queryFn: async () => {
       if (!isAdmin) return [];
-      const res = await fetch("/api/users", {
+      const res = await apiFetch("/api/users", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) return [];
@@ -128,7 +129,7 @@ export default function TimeTrackingPage() {
 
   const addMutation = useMutation({
     mutationFn: async (data: any) => {
-      const res = await fetch("/api/timetracking", {
+      const res = await apiFetch("/api/timetracking", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(data),
@@ -151,7 +152,7 @@ export default function TimeTrackingPage() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: any }) => {
-      const res = await fetch(`/api/timetracking/${id}`, {
+      const res = await apiFetch(`/api/timetracking/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(data),
@@ -175,7 +176,7 @@ export default function TimeTrackingPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const res = await fetch(`/api/timetracking/${id}`, {
+      const res = await apiFetch(`/api/timetracking/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });

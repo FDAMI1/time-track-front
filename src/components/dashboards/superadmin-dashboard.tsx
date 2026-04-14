@@ -1,3 +1,4 @@
+import { apiFetch } from "@/lib/api";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
@@ -17,7 +18,7 @@ export default function SuperAdminDashboard() {
   const { data, isLoading } = useQuery({
     queryKey: ["/api/dashboard/superadmin"],
     queryFn: async () => {
-      const res = await fetch("/api/dashboard/superadmin", {
+      const res = await apiFetch("/api/dashboard/superadmin", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Failed to fetch dashboard");

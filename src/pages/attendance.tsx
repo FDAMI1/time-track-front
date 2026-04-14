@@ -1,3 +1,4 @@
+import { apiFetch } from "@/lib/api";
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
@@ -62,7 +63,7 @@ export default function AttendancePage() {
   const { data: myRecords, isLoading: myLoading } = useQuery({
     queryKey: ["/api/attendance/my"],
     queryFn: async () => {
-      const res = await fetch("/api/attendance/my", {
+      const res = await apiFetch("/api/attendance/my", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Failed to fetch");
@@ -73,7 +74,7 @@ export default function AttendancePage() {
   const { data: stats } = useQuery({
     queryKey: ["/api/attendance/stats"],
     queryFn: async () => {
-      const res = await fetch("/api/attendance/stats", {
+      const res = await apiFetch("/api/attendance/stats", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Failed to fetch");
@@ -263,7 +264,7 @@ function TeamAttendanceTab({ roleFilter, token, viewerRole = "", orgType }: { ro
   const { data: policies } = useQuery({
     queryKey: ["/api/policy"],
     queryFn: async () => {
-      const res = await fetch("/api/policy", {
+      const res = await apiFetch("/api/policy", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Failed to fetch");
@@ -291,7 +292,7 @@ function TeamAttendanceTab({ roleFilter, token, viewerRole = "", orgType }: { ro
     mutationFn: async ({ userId, status }: { userId: string; status: string }) => {
       const body: any = { userId, status };
       if (policyIdParam) body.policyId = policyIdParam;
-      const res = await fetch("/api/attendance/mark-for-user", {
+      const res = await apiFetch("/api/attendance/mark-for-user", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(body),
@@ -313,7 +314,7 @@ function TeamAttendanceTab({ roleFilter, token, viewerRole = "", orgType }: { ro
     mutationFn: async (userIds: string[]) => {
       const body: any = { userIds, status: "present" };
       if (policyIdParam) body.policyId = policyIdParam;
-      const res = await fetch("/api/attendance/mark-bulk", {
+      const res = await apiFetch("/api/attendance/mark-bulk", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(body),
@@ -335,7 +336,7 @@ function TeamAttendanceTab({ roleFilter, token, viewerRole = "", orgType }: { ro
     mutationFn: async (userIds: string[]) => {
       const body: any = { userIds, status: "absent" };
       if (policyIdParam) body.policyId = policyIdParam;
-      const res = await fetch("/api/attendance/mark-bulk", {
+      const res = await apiFetch("/api/attendance/mark-bulk", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(body),
@@ -355,7 +356,7 @@ function TeamAttendanceTab({ roleFilter, token, viewerRole = "", orgType }: { ro
 
   const approveAttendance = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const res = await fetch(`/api/attendance/${id}/approve`, {
+      const res = await apiFetch(`/api/attendance/${id}/approve`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ status }),
@@ -378,7 +379,7 @@ function TeamAttendanceTab({ roleFilter, token, viewerRole = "", orgType }: { ro
 
   async function downloadStudentReport(userId: string, name: string) {
     try {
-      const res = await fetch(`/api/reports/user/${userId}?period=monthly&format=xlsx`, {
+      const res = await apiFetch(`/api/reports/user/${userId}?period=monthly&format=xlsx`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Failed");
