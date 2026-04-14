@@ -34,20 +34,7 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       const isEmail = credential.includes("@");
-      const coords = await new Promise<{ latitude: number; longitude: number } | null>((resolve) => {
-        if (!navigator.geolocation) { resolve(null); return; }
-        navigator.geolocation.getCurrentPosition(
-          (pos) => resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
-          () => resolve(null),
-          { timeout: 8000 }
-        );
-      });
-      if (!coords) {
-        setError("Location permission is required to login");
-        setIsLoading(false);
-        return;
-      }
-      await login(credential.trim(), password, isEmail, coords);
+      await login(credential.trim(), password, isEmail);
     } catch (err: any) {
       setError(err.message || "Login failed");
     } finally {
