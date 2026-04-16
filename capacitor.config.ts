@@ -5,8 +5,10 @@ const config: CapacitorConfig = {
   appName: 'NF Skills App',
   webDir: 'dist',
   server: {
-    androidScheme: 'https',
+    url: "https://portal.nfskills.com/",
+    cleartext: true
   },
 };
+
 
 export default config;

@@ -48,15 +48,18 @@ export default function MembersPage() {
 
   const orgType = user?.organizationId?.type;
 
-  const availableRoles = orgType === "academy"
-    ? [{ value: "teacher", label: "Teacher" }, { value: "student", label: "Student" }]
-    : orgType === "company"
-    ? [{ value: "manager", label: "Manager" }, { value: "employee", label: "Employee" }]
-    : [{ value: "teacher", label: "Teacher" }, { value: "student", label: "Student" }, { value: "manager", label: "Manager" }, { value: "employee", label: "Employee" }];
+  const SYSTEM_ROLE_NAMES = ["org_admin", "teacher", "student", "manager", "employee", "superadmin"];
+
+  const fallbackRoles =
+    orgType === "academy"
+      ? [{ value: "system-teacher", label: "Teacher", roleName: "teacher" }, { value: "system-student", label: "Student", roleName: "student" }]
+      : orgType === "company"
+      ? [{ value: "system-manager", label: "Manager", roleName: "manager" }, { value: "system-employee", label: "Employee", roleName: "employee" }]
+      : [{ value: "system-teacher", label: "Teacher", roleName: "teacher" }, { value: "system-student", label: "Student", roleName: "student" }, { value: "system-manager", label: "Manager", roleName: "manager" }, { value: "system-employee", label: "Employee", roleName: "employee" }];
 
   const [form, setForm] = useState({
     firstName: "", lastName: "", email: "", emailDomain: "", phone: "", education: "", username: "", userId: "",
-    role: availableRoles[0]?.value || "employee",
+    role: fallbackRoles[0]?.value || "system-employee",
     studentWhatsapp: "", parentWhatsapp: "",
     assignedSchedules: [] as string[],
   });
@@ -89,6 +92,29 @@ export default function MembersPage() {
     },
   });
 
+  const { data: rolesData } = useQuery({
+    queryKey: ["/api/roles"],
+    queryFn: async () => {
+      const res = await apiFetch("/api/roles", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!token && ["org_admin", "manager", "superadmin"].includes(user?.role || ""),
+  });
+
+  const availableRoles: Array<{ value: string; label: string; roleName: string }> =
+    rolesData && rolesData.length > 0
+      ? (rolesData as any[])
+          .filter((r: any) => !["org_admin", "superadmin"].includes(r.roleName))
+          .map((r: any) => ({
+            value: r._id.toString(),
+            label: r.roleName,
+            roleName: r.roleName,
+          }))
+      : fallbackRoles;
+
   const { data: orgDomains } = useQuery({
     queryKey: ["/api/organizations/my/domains"],
     queryFn: async () => {
@@ -109,6 +135,13 @@ export default function MembersPage() {
         payload.emailDomain = data.emailDomain;
         delete payload.email;
       }
+      if (data.role.startsWith("system-")) {
+        payload.role = data.role.replace("system-", "");
+        delete payload.roleId;
+      } else {
+        payload.roleId = data.role;
+        delete payload.role;
+      }
       const res = await apiFetch("/api/users", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -121,7 +154,7 @@ export default function MembersPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       queryClient.invalidateQueries({ queryKey: ["/api/policy"] });
       setCreateOpen(false);
-      setForm({ firstName: "", lastName: "", email: "", emailDomain: "", phone: "", education: "", username: "", userId: "", role: availableRoles[0]?.value || "employee", studentWhatsapp: "", parentWhatsapp: "", assignedSchedules: [] });
+      setForm({ firstName: "", lastName: "", email: "", emailDomain: "", phone: "", education: "", username: "", userId: "", role: availableRoles[0]?.value || "system-employee", studentWhatsapp: "", parentWhatsapp: "", assignedSchedules: [] });
       setTempPwdState({ open: true, password: data.tempPassword, username: data.user?.username || "" });
     },
     onError: (err: Error) => {
@@ -238,13 +271,16 @@ export default function MembersPage() {
         return mId === member._id;
       }))
       .map((p: any) => p._id);
+    const roleValue = member.roleId
+      ? member.roleId.toString()
+      : `system-${member.role}`;
     setEditForm({
       firstName: member.firstName,
       lastName: member.lastName,
       email: member.email,
       phone: member.phone || "",
       education: member.education || "",
-      role: member.role,
+      role: roleValue,
       password: "",
       userId: member.userId || "",
       studentWhatsapp: member.studentWhatsapp || "",
@@ -262,6 +298,9 @@ export default function MembersPage() {
     teacher: ["student"],
   };
   const canManageRole = (targetRole: string) => {
+    if (!SYSTEM_ROLE_NAMES.includes(targetRole)) {
+      return ["org_admin", "superadmin"].includes(user?.role || "");
+    }
     const manageable = roleHierarchy[user?.role || ""] || [];
     return manageable.includes(targetRole);
   };
@@ -274,7 +313,16 @@ export default function MembersPage() {
     return matchSearch && matchRole;
   });
 
-  const isStudentOrEmployee = (role: string) => ["student", "employee"].includes(role);
+  const getRoleName = (roleValue: string) => {
+    if (roleValue.startsWith("system-")) return roleValue.replace("system-", "");
+    const found = availableRoles.find(r => r.value === roleValue);
+    return found?.roleName || roleValue;
+  };
+
+  const isStudentOrEmployee = (roleValue: string) => {
+    const name = getRoleName(roleValue);
+    return ["student", "employee"].includes(name);
+  };
 
   return (
     <div className="p-6 space-y-6">
@@ -320,7 +368,7 @@ export default function MembersPage() {
                     WhatsApp Numbers <span className="font-normal text-xs">(optional)</span>
                   </p>
                   <div>
-                    <Label>{form.role === "student" ? "Student" : "Employee"} WhatsApp Number</Label>
+                    <Label>{getRoleName(form.role) === "student" ? "Student" : "Employee"} WhatsApp Number</Label>
                     <Input
                       type="tel"
                       data-testid="input-student-whatsapp"
@@ -443,7 +491,7 @@ export default function MembersPage() {
           <SelectContent>
             <SelectItem value="all">All Roles</SelectItem>
             {availableRoles.map((r) => (
-              <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+              <SelectItem key={r.value} value={r.roleName}>{r.label}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -687,7 +735,21 @@ export default function MembersPage() {
           <DialogHeader>
             <DialogTitle>Edit Member</DialogTitle>
           </DialogHeader>
-          <form onSubmit={(e) => { e.preventDefault(); if (selectedMember) { const data: any = { ...editForm }; if (!data.password) delete data.password; updateUser.mutate({ id: selectedMember._id, data }); } }} className="space-y-4">
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            if (selectedMember) {
+              const data: any = { ...editForm };
+              if (!data.password) delete data.password;
+              if (data.role && data.role.startsWith("system-")) {
+                data.role = data.role.replace("system-", "");
+                delete data.roleId;
+              } else if (data.role) {
+                data.roleId = data.role;
+                delete data.role;
+              }
+              updateUser.mutate({ id: selectedMember._id, data });
+            }
+          }} className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div><Label>First Name</Label><Input data-testid="input-edit-first" value={editForm.firstName} onChange={(e) => setEditForm({ ...editForm, firstName: e.target.value })} required /></div>
               <div><Label>Last Name</Label><Input data-testid="input-edit-last" value={editForm.lastName} onChange={(e) => setEditForm({ ...editForm, lastName: e.target.value })} required /></div>
@@ -702,7 +764,7 @@ export default function MembersPage() {
                   WhatsApp Numbers
                 </p>
                 <div>
-                  <Label>{editForm.role === "student" ? "Student" : "Employee"} WhatsApp Number</Label>
+                  <Label>{getRoleName(editForm.role) === "student" ? "Student" : "Employee"} WhatsApp Number</Label>
                   <Input
                     type="tel"
                     data-testid="input-edit-student-whatsapp"
