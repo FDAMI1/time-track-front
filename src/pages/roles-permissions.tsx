@@ -42,18 +42,44 @@ const ACTION_LABELS: Record<string, string> = {
 };
 
 const MODULE_LABELS: Record<string, string> = {
-  attendance: "Attendance",
   users: "Users",
-  tasks: "Tasks",
-  documents: "Documents",
-  leaves: "Leaves",
-  projects: "Projects",
-  reports: "Reports",
+  organizations: "Organizations",
+  roles: "Roles",
+  permissions: "Permissions",
   classes: "Classes",
-  departments: "Departments",
   courses: "Courses",
   batches: "Batches",
+  student_progress: "Student Progress",
+  departments: "Departments",
+  attendance: "Attendance",
+  attendance_policies: "Attendance Policies",
+  time_tracking: "Time Tracking",
+  leave_requests: "Leave Requests",
+  leaves: "Leaves",
+  leave_policies: "Leave Policies",
+  reimbursements: "Reimbursements",
+  salary_structures: "Salary Structures",
+  salary_config: "Salary Config",
+  tasks: "Tasks",
+  projects: "Projects",
+  chat: "Chat",
+  notifications: "Notifications",
+  documents: "Documents",
+  document_templates: "Document Templates",
+  reports: "Reports",
+  activity_logs: "Activity Logs",
+  organization_assets: "Organization Assets",
 };
+
+const MODULE_GROUPS: { label: string; modules: string[] }[] = [
+  { label: "User Management", modules: ["users", "organizations", "roles", "permissions"] },
+  { label: "Academic", modules: ["classes", "courses", "batches", "student_progress", "departments"] },
+  { label: "HR & Workforce", modules: ["attendance", "attendance_policies", "time_tracking", "leave_requests", "leaves", "leave_policies", "reimbursements", "salary_structures", "salary_config"] },
+  { label: "Projects & Tasks", modules: ["tasks", "projects"] },
+  { label: "Communication", modules: ["chat", "notifications"] },
+  { label: "Documents & Reports", modules: ["documents", "document_templates", "reports", "activity_logs"] },
+  { label: "Assets", modules: ["organization_assets"] },
+];
 
 interface Permission {
   _id: string;
@@ -118,55 +144,78 @@ function PermissionsSelector({
     }
   }
 
-  return (
-    <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
-      {Object.entries(grouped).map(([resource, actions]) => {
-        const modulePerms = allPermissions.filter((p) => p.resource === resource);
-        const allChecked = modulePerms.every((p) => selectedIds.includes(p._id));
-        const someChecked = modulePerms.some((p) => selectedIds.includes(p._id));
-        const isOpen = openModules[resource] ?? false;
-
-        return (
-          <Collapsible key={resource} open={isOpen} onOpenChange={() => toggleModule(resource)}>
-            <div className="border rounded-lg overflow-hidden">
-              <CollapsibleTrigger asChild>
-                <div className="flex items-center justify-between px-3 py-2.5 bg-muted/40 hover:bg-muted/70 cursor-pointer select-none">
-                  <div className="flex items-center gap-2.5">
-                    <Checkbox
-                      checked={allChecked}
-                      data-state={someChecked && !allChecked ? "indeterminate" : allChecked ? "checked" : "unchecked"}
-                      onCheckedChange={() => toggleAll(resource)}
-                      onClick={(e) => e.stopPropagation()}
-                      data-testid={`checkbox-module-all-${resource}`}
-                    />
-                    <span className="text-sm font-medium">{MODULE_LABELS[resource] || resource}</span>
-                    {someChecked && (
-                      <Badge variant="secondary" className="text-xs h-5">
-                        {modulePerms.filter((p) => selectedIds.includes(p._id)).length}/{modulePerms.length}
-                      </Badge>
-                    )}
-                  </div>
-                  {isOpen ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
-                </div>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <div className="px-4 py-2 grid grid-cols-2 gap-2 border-t bg-background">
-                  {actions.map((action) => (
-                    <label key={action} className="flex items-center gap-2 cursor-pointer text-sm py-0.5">
-                      <Checkbox
-                        checked={isChecked(resource, action)}
-                        onCheckedChange={() => togglePermission(resource, action)}
-                        data-testid={`checkbox-perm-${resource}-${action}`}
-                      />
-                      {ACTION_LABELS[action] || action}
-                    </label>
-                  ))}
-                </div>
-              </CollapsibleContent>
+  function renderModuleCollapsible(resource: string, actions: string[]) {
+    const modulePerms = allPermissions.filter((p) => p.resource === resource);
+    const allChecked = modulePerms.length > 0 && modulePerms.every((p) => selectedIds.includes(p._id));
+    const someChecked = modulePerms.some((p) => selectedIds.includes(p._id));
+    const isOpen = openModules[resource] ?? false;
+    return (
+      <Collapsible key={resource} open={isOpen} onOpenChange={() => toggleModule(resource)}>
+        <div className="border rounded-lg overflow-hidden">
+          <CollapsibleTrigger asChild>
+            <div className="flex items-center justify-between px-3 py-2.5 bg-muted/40 hover:bg-muted/70 cursor-pointer select-none">
+              <div className="flex items-center gap-2.5">
+                <Checkbox
+                  checked={allChecked}
+                  data-state={someChecked && !allChecked ? "indeterminate" : allChecked ? "checked" : "unchecked"}
+                  onCheckedChange={() => toggleAll(resource)}
+                  onClick={(e) => e.stopPropagation()}
+                  data-testid={`checkbox-module-all-${resource}`}
+                />
+                <span className="text-sm font-medium">{MODULE_LABELS[resource] || resource}</span>
+                {someChecked && (
+                  <Badge variant="secondary" className="text-xs h-5">
+                    {modulePerms.filter((p) => selectedIds.includes(p._id)).length}/{modulePerms.length}
+                  </Badge>
+                )}
+              </div>
+              {isOpen ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
             </div>
-          </Collapsible>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="px-4 py-2 grid grid-cols-2 gap-2 border-t bg-background">
+              {actions.map((action) => (
+                <label key={action} className="flex items-center gap-2 cursor-pointer text-sm py-0.5">
+                  <Checkbox
+                    checked={isChecked(resource, action)}
+                    onCheckedChange={() => togglePermission(resource, action)}
+                    data-testid={`checkbox-perm-${resource}-${action}`}
+                  />
+                  {ACTION_LABELS[action] || action}
+                </label>
+              ))}
+            </div>
+          </CollapsibleContent>
+        </div>
+      </Collapsible>
+    );
+  }
+
+  const groupedModuleSet = new Set(MODULE_GROUPS.flatMap((g) => g.modules));
+  const ungroupedModules = Object.keys(grouped).filter((m) => !groupedModuleSet.has(m));
+
+  return (
+    <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
+      {MODULE_GROUPS.map((group) => {
+        const groupModules = group.modules.filter((m) => grouped[m]);
+        if (groupModules.length === 0) return null;
+        return (
+          <div key={group.label}>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide px-1 mb-1.5">{group.label}</p>
+            <div className="space-y-1.5">
+              {groupModules.map((resource) => renderModuleCollapsible(resource, grouped[resource] || []))}
+            </div>
+          </div>
         );
       })}
+      {ungroupedModules.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide px-1 mb-1.5">Other</p>
+          <div className="space-y-1.5">
+            {ungroupedModules.map((resource) => renderModuleCollapsible(resource, grouped[resource] || []))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

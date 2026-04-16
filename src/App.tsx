@@ -28,6 +28,7 @@ import DocumentTemplatesPage from "@/pages/document-templates";
 import DocumentsPage from "@/pages/documents";
 import RolesPermissionsPage from "@/pages/roles-permissions";
 import SalarySetupPage from "@/pages/salary-setup";
+import ReimbursementsPage from "@/pages/reimbursements";
 import NotFound from "@/pages/not-found";
 import ForcePasswordChange from "@/components/force-password-change";
 import { applyBrandingCss } from "@/lib/branding";
@@ -202,6 +203,9 @@ function AuthenticatedRouter() {
       )}
       {user?.role === "org_admin" && (
         <Route path="/salary-setup" component={SalarySetupPage} />
+      )}
+      {["org_admin", "manager", "employee"].includes(user?.role || "") && (
+        <Route path="/reimbursements" component={ReimbursementsPage} />
       )}
       <Route component={NotFound} />
     </Switch>

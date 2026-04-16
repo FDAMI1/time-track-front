@@ -29,6 +29,7 @@ import {
   Timer,
   MessageCircle,
   Files,
+  Receipt,
 } from "lucide-react";
 
 const roleLabels: Record<string, string> = {
@@ -101,6 +102,9 @@ export function AppSidebar() {
         items.push({ title: "Settings", url: "/settings", icon: Settings });
       }
       items.push({ title: "Documents", url: "/documents", icon: Files });
+      if (orgType === "company" && ["employee", "manager", "org_admin"].includes(user.role)) {
+        items.push({ title: "Reimbursements", url: "/reimbursements", icon: Receipt });
+      }
       const chatEnabled = (user.organizationId as any)?.features?.chat !== false;
       if (chatEnabled) {
         items.push({ title: "Chat", url: "/chat", icon: MessageCircle });

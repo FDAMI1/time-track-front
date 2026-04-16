@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <application
@@ -15,10 +14,8 @@
             android:name=".MainActivity"
             android:label="@string/title_activity_main"
             android:theme="@style/AppTheme.NoActionBarLaunch"
-            android:usesCleartextTraffic="true"
             android:launchMode="singleTask"
             android:exported="true">
-           
 
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -41,6 +38,4 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
-    
-    
 </manifest>

@@ -372,10 +372,11 @@ function TeamAttendanceTab({ roleFilter, token, viewerRole = "", orgType }: { ro
   });
 
   const members = data?.members || [];
-  const sortOrder: Record<string, number> = { pending: 0, not_marked: 1 };
-  const sortedMembers = [...members].sort((a: any, b: any) => (sortOrder[a.status] ?? 2) - (sortOrder[b.status] ?? 2));
   const unmarkedMembers = members.filter((m: any) => m.status === "not_marked");
-  const pendingMembers = members.filter((m: any) => m.status === "pending");
+  const pendingApprovalMembers = members.filter((m: any) => m.status === "pending");
+  const notYetMarked = members.filter((m: any) => !m.status || m.status === "not_marked" || m.status === "pending");
+  const alreadyMarked = members.filter((m: any) => m.status === "present" || m.status === "absent" || m.status === "late");
+  const sortedMembers = [...notYetMarked, ...alreadyMarked];
 
   async function downloadStudentReport(userId: string, name: string) {
     try {
@@ -394,7 +395,7 @@ function TeamAttendanceTab({ roleFilter, token, viewerRole = "", orgType }: { ro
       toast({ title: "Report download failed", variant: "destructive" });
     }
   }
-  const pendingCount = pendingMembers.length;
+  const pendingCount = pendingApprovalMembers.length;
   const roleLabel = roleFilter === "student" ? "Students" : roleFilter === "teacher" ? "Teachers" : roleFilter === "manager" ? "Managers" : "Employees";
   const hasMultiplePolicies = policies && policies.length > 1;
   const selectedPolicyName = effectivePolicyId
