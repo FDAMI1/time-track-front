@@ -99,7 +99,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem("token", data.token);
     setToken(data.token);
     setUser(data.user);
-    if (data.mustChangePassword) {
+    if (data.user.mustChangePassword) {
       setMustChangePassword(true);
     } else {
       window.history.replaceState(null, "", "/");
