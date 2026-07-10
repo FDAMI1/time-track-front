@@ -1,38 +1,46 @@
 const BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
 
-console.log("[api] BASE_URL:", BASE_URL);
+// Debug logging is compiled out of production builds (Vite tree-shakes the
+// `import.meta.env.DEV` branch). This prevents leaking tokens, request bodies,
+// and response payloads into end-user consoles.
+const isDev = import.meta.env.DEV;
+const debug = (...args: unknown[]) => {
+  if (isDev) console.log("[api]", ...args);
+};
 
 export { BASE_URL };
 
+function resolveUrl(path: string): string {
+  return path.startsWith("http") ? path : `${BASE_URL}${path}`;
+}
+
+function networkError(): Error {
+  return new Error("Network error: cannot reach the server. Check your connection and try again.");
+}
+
 export async function safeJson<T = any>(res: Response): Promise<T> {
   const text = await res.text();
-  console.log(`[api] status=${res.status} url=${res.url} body(200ch)=${text.slice(0, 200)}`);
+  debug(`status=${res.status} url=${res.url}`);
   if (text.trimStart().startsWith("<")) {
-    console.error("[api] HTML received instead of JSON — likely wrong URL or CORS block");
-    throw new Error(`Server returned HTML (status ${res.status}). Check VITE_API_URL and CORS settings.`);
+    throw new Error(`Server returned an unexpected response (status ${res.status}).`);
   }
   try {
     return JSON.parse(text) as T;
   } catch {
-    console.error("[api] JSON parse failed. Raw text:", text.slice(0, 500));
-    throw new Error("Invalid JSON response from server");
+    debug("JSON parse failed:", text.slice(0, 500));
+    throw new Error("Invalid response from server");
   }
 }
 
 export async function apiFetch(path: string, options: RequestInit = {}): Promise<Response> {
-  const url = path.startsWith("http") ? path : `${BASE_URL}${path}`;
-  console.log(`[api] ${options.method || "GET"} ${url}`);
-  let res: Response;
+  const url = resolveUrl(path);
+  debug(`${options.method || "GET"} ${url}`);
   try {
-    res = await fetch(url, options);
+    return await fetch(url, options);
   } catch (err) {
-    console.error(`[api] Network error (Failed to fetch) for ${url}:`, err);
-    throw new Error(
-      `Network error: cannot reach ${url}. ` +
-      `Check VITE_API_URL, CORS headers (allow capacitor://localhost), and internet connection.`
-    );
+    debug(`Network error for ${url}:`, err);
+    throw networkError();
   }
-  return res;
 }
 
 export async function postJson<T = any>(
@@ -40,8 +48,8 @@ export async function postJson<T = any>(
   body: unknown,
   token?: string | null,
 ): Promise<T> {
-  const url = path.startsWith("http") ? path : `${BASE_URL}${path}`;
-  console.log(`[api] POST ${url}`, body);
+  const url = resolveUrl(path);
+  debug(`POST ${url}`);
   let res: Response;
   try {
     res = await fetch(url, {
@@ -53,11 +61,8 @@ export async function postJson<T = any>(
       body: JSON.stringify(body),
     });
   } catch (err) {
-    console.error(`[api] POST network error for ${url}:`, err);
-    throw new Error(
-      `Network error: cannot reach ${url}. ` +
-      `Check VITE_API_URL and CORS headers (allow capacitor://localhost).`
-    );
+    debug(`POST network error for ${url}:`, err);
+    throw networkError();
   }
   return safeJson<T>(res);
 }
