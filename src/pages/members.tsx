@@ -1,4 +1,5 @@
 import { apiFetch } from "@/lib/api";
+import { getInitials } from "@/lib/utils";
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
@@ -531,7 +532,7 @@ export default function MembersPage() {
                       <div className="flex items-center gap-3">
                         <Avatar className="w-8 h-8">
                           <AvatarFallback className="text-xs bg-primary/10 text-primary">
-                            {m.firstName[0]}{m.lastName[0]}
+                            {getInitials(m.firstName, m.lastName)}
                           </AvatarFallback>
                         </Avatar>
                         <div>

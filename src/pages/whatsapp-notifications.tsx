@@ -286,7 +286,7 @@ export default function WhatsappNotificationsPage() {
                         <User className="w-4 h-4 text-muted-foreground" />
                         <span className="font-medium text-sm">{n.studentName}</span>
                         <Badge className={statusColors[n.attendanceStatus] || "bg-muted text-muted-foreground"}>
-                          {n.attendanceStatus.charAt(0).toUpperCase() + n.attendanceStatus.slice(1)}
+                          {n.attendanceStatus ? n.attendanceStatus.charAt(0).toUpperCase() + n.attendanceStatus.slice(1) : "—"}
                         </Badge>
                         <span className="text-xs text-muted-foreground flex items-center gap-1">
                           <Calendar className="w-3 h-3" />

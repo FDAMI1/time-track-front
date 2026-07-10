@@ -221,7 +221,7 @@ export default function DocumentsPage() {
       URL.revokeObjectURL(url);
 
       setGenerateOpen(false);
-      setGenForm({ templateId: "", userId: "", format: "html", extraData: {}, salaryStructureId: "", salaryInputs: {} });
+      setGenForm({ templateId: "", userId: "", format: "html", extraData: {}, salaryStructureId: "", salaryInputs: {}, autoFill: true });
       toast({ title: "Document generated and downloaded" });
     } catch (err: any) {
       toast({ title: "Generation failed", description: err.message, variant: "destructive" });

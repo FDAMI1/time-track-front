@@ -611,24 +611,9 @@ export default function ChatPage() {
                             </span>
 
                             <div
-                              className="flex items-center gap-0.5 ml-1"
-                              style={{ visibility: "hidden" }}
-                              ref={(el) => {
-                                if (el) {
-                                  const parent = el.closest("[data-testid^='message-']");
-                                  if (parent) {
-                                    parent.addEventListener("mouseenter", () => {
-                                      el.style.visibility = "visible";
-                                    });
-                                    parent.addEventListener("mouseleave", () => {
-                                      if (showReactionsFor !== msg._id) {
-                                        el.style.visibility = "visible";
-                                      }
-                                      el.style.visibility = "hidden";
-                                    });
-                                  }
-                                }
-                              }}
+                              className={`flex items-center gap-0.5 ml-1 invisible group-hover:visible ${
+                                showReactionsFor === msg._id ? "!visible" : ""
+                              }`}
                             >
                               {showReactionsFor === msg._id ? (
                                 <div className="flex items-center gap-0.5 bg-background border rounded-md p-0.5">

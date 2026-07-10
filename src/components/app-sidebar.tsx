@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth";
+import { getInitials } from "@/lib/utils";
 import { useLocation, Link } from "wouter";
 import {
   Sidebar,
@@ -75,7 +76,7 @@ export function AppSidebar() {
   const logoUrl = branding.logoUrl || "";
   const BASE_URL = import.meta.env.VITE_API_URL || "";
 
-  const initials = `${user.firstName[0]}${user.lastName[0]}`.toUpperCase();
+  const initials = getInitials(user.firstName, user.lastName);
   const orgType = user.organizationId?.type;
 
   const getNavItems = () => {

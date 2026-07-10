@@ -1,4 +1,5 @@
 import { apiFetch } from "@/lib/api";
+import { getInitials } from "@/lib/utils";
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
@@ -332,7 +333,7 @@ export default function OrganizationsPage() {
                           <TableCell>
                             <div className="flex items-center gap-2">
                               <Avatar className="w-7 h-7">
-                                <AvatarFallback className="text-xs bg-primary/10 text-primary">{u.firstName[0]}{u.lastName[0]}</AvatarFallback>
+                                <AvatarFallback className="text-xs bg-primary/10 text-primary">{getInitials(u.firstName, u.lastName)}</AvatarFallback>
                               </Avatar>
                               <span className="text-sm">{u.firstName} {u.lastName}</span>
                             </div>

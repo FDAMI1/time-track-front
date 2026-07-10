@@ -1,6 +1,12 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { apiFetch, postJson, safeJson } from "./api";
 
+// Dev-only logging so auth details (roles, impersonation targets) never reach
+// production consoles.
+const debug = (...args: unknown[]) => {
+  if (import.meta.env.DEV) console.log(...args);
+};
+
 interface User {
   _id: string;
   username: string;
@@ -40,11 +46,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchUser = useCallback(async (authToken: string) => {
     try {
-      console.log("[auth] fetchUser →", "/api/auth/me");
+      debug("[auth] fetchUser →", "/api/auth/me");
       const res = await apiFetch("/api/auth/me", {
         headers: { Authorization: `Bearer ${authToken}` },
       });
-      console.log("[auth] fetchUser status:", res.status);
+      debug("[auth] fetchUser status:", res.status);
       if (res.ok) {
         const userData = await safeJson<User>(res);
         setUser(userData);
@@ -52,7 +58,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setMustChangePassword(true);
         }
       } else {
-        console.warn("[auth] fetchUser failed — clearing token");
+        debug("[auth] fetchUser failed — clearing token");
         localStorage.removeItem("token");
         setToken(null);
         setUser(null);
@@ -80,7 +86,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       ? { email: credential, password, ...extras }
       : { username: credential, password, ...extras };
 
-    console.log("[auth] login → POST /api/auth/login");
+    debug("[auth] login → POST /api/auth/login");
 
     let data: any;
     try {
@@ -90,7 +96,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw new Error(err.message || "Login failed");
     }
 
-    console.log("[auth] login response:", { token: !!data.token, role: data.user?.role });
+    debug("[auth] login response:", { token: !!data.token, role: data.user?.role });
 
     if (!data.token) {
       throw new Error(data.message || "Login failed");
@@ -125,7 +131,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const impersonate = async (userId: string) => {
     if (!token) return;
-    console.log("[auth] impersonate →", userId);
+    debug("[auth] impersonate →", userId);
     let res: Response;
     try {
       res = await apiFetch(`/api/auth/impersonate/${userId}`, {

@@ -452,6 +452,19 @@ export default function SettingsPage() {
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
 
+  // Create the preview object URL once per selected file and revoke it on
+  // change/unmount, instead of allocating a new blob URL on every render.
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  useEffect(() => {
+    if (!logoFile) {
+      setLogoPreview(null);
+      return;
+    }
+    const url = URL.createObjectURL(logoFile);
+    setLogoPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [logoFile]);
+
   const [orgSettings, setOrgSettings] = useState({
     attendancePolicyEnabled: true,
     timezone: "UTC",
@@ -914,7 +927,7 @@ export default function SettingsPage() {
                   ) : (
                     <div className="flex items-center gap-2 flex-1">
                       {(themeForm.logoUrl || logoFile) && (
-                        <img src={logoFile ? URL.createObjectURL(logoFile) : themeForm.logoUrl} alt="Logo" className="h-10 w-auto object-contain bg-transparent" style={{ background: "transparent" }} />
+                        <img src={logoPreview || themeForm.logoUrl} alt="Logo" className="h-10 w-auto object-contain bg-transparent" style={{ background: "transparent" }} />
                       )}
                       <Button type="button" size="sm" variant="outline" onClick={() => logoInputRef.current?.click()} data-testid="button-upload-logo">
                         <Upload className="w-3.5 h-3.5 mr-1" />
