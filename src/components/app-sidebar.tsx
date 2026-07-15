@@ -31,7 +31,12 @@ import {
   MessageCircle,
   Files,
   Receipt,
+  ExternalLink,
 } from "lucide-react";
+
+// External MCQ portal. Opened in a new tab so the current Track session is
+// preserved; the portal authenticates users against the shared backend.
+const MCQ_PORTAL_URL = "https://mcq.nfskills.com";
 
 const roleLabels: Record<string, string> = {
   superadmin: "Super Admin",
@@ -165,6 +170,20 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <a
+                    href={MCQ_PORTAL_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    data-testid="link-nav-mcq-portal"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    <span>MCQ Portal</span>
+                  </a>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
