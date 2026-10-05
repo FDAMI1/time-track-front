@@ -1,5 +1,5 @@
 import { apiFetch } from "@/lib/api";
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider, useQuery } from "@tanstack/react-query";
@@ -30,6 +30,14 @@ import RolesPermissionsPage from "@/pages/roles-permissions";
 import SalarySetupPage from "@/pages/salary-setup";
 import ReimbursementsPage from "@/pages/reimbursements";
 import NotFound from "@/pages/not-found";
+// MCQ module is code-split so it only loads when visited.
+const McqRouter = lazy(() => import("@/mcq/McqRouter"));
+const McqExternalTestPage = lazy(() => import("@/mcq/pages/McqExternalTestPage"));
+const McqFallback = () => (
+  <div className="flex items-center justify-center p-12">
+    <Skeleton className="h-8 w-48" />
+  </div>
+);
 import ForcePasswordChange from "@/components/force-password-change";
 import { applyBrandingCss } from "@/lib/branding";
 
@@ -207,6 +215,11 @@ function AuthenticatedRouter() {
       {["org_admin", "manager", "employee"].includes(user?.role || "") && (
         <Route path="/reimbursements" component={ReimbursementsPage} />
       )}
+      {user?.organizationId && (
+        <Route path="/mcq" nest>
+          <Suspense fallback={<McqFallback />}><McqRouter /></Suspense>
+        </Route>
+      )}
       <Route component={NotFound} />
     </Switch>
   );
@@ -281,7 +294,12 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <AuthProvider>
-          <AppLayout />
+          <Switch>
+            <Route path="/mcq/external-test/:shareToken">
+              <Suspense fallback={<McqFallback />}><McqExternalTestPage /></Suspense>
+            </Route>
+            <Route component={AppLayout} />
+          </Switch>
         </AuthProvider>
         <Toaster />
       </TooltipProvider>

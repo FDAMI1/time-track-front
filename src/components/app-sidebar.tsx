@@ -31,12 +31,8 @@ import {
   MessageCircle,
   Files,
   Receipt,
-  ExternalLink,
+  ClipboardList,
 } from "lucide-react";
-
-// External MCQ portal. Opened in a new tab so the current Track session is
-// preserved; the portal authenticates users against the shared backend.
-const MCQ_PORTAL_URL = "https://mcq.nfskills.com";
 
 const roleLabels: Record<string, string> = {
   superadmin: "Super Admin",
@@ -115,6 +111,7 @@ export function AppSidebar() {
       if (chatEnabled) {
         items.push({ title: "Chat", url: "/chat", icon: MessageCircle });
       }
+      items.push({ title: "MCQ", url: "/mcq", icon: ClipboardList });
     }
 
     return items;
@@ -161,7 +158,7 @@ export function AppSidebar() {
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild
-                    isActive={location === item.url}
+                    isActive={item.url === "/mcq" ? location.startsWith("/mcq") : location === item.url}
                   >
                     <Link href={item.url} data-testid={`link-nav-${item.title.toLowerCase().replace(/\s+/g, "-")}`}>
                       <item.icon className="w-4 h-4" />
@@ -170,20 +167,6 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
-
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild>
-                  <a
-                    href={MCQ_PORTAL_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    data-testid="link-nav-mcq-portal"
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                    <span>MCQ Portal</span>
-                  </a>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
