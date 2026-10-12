@@ -59,6 +59,16 @@ function getBranding() {
   } catch { return {}; }
 }
 
+interface NavItem {
+  group: string;
+  title: string;
+  url: string;
+  icon: React.ComponentType<{ className?: string }>;
+}
+
+// Display order of the sidebar sections.
+const NAV_GROUPS = ["Main", "People", "Attendance", "Academic", "Communication", "Records", "Platform", "Administration"];
+
 export function AppSidebar() {
   const { user, logout } = useAuth();
   const [location] = useLocation();
@@ -81,49 +91,53 @@ export function AppSidebar() {
   const orgType = user.organizationId?.type;
 
   const getNavItems = () => {
-    const items: { title: string; url: string; icon: any }[] = [];
+    const items: NavItem[] = [];
 
-    items.push({ title: "Dashboard", url: "/", icon: LayoutDashboard });
+    items.push({ group: "Main", title: "Dashboard", url: "/", icon: LayoutDashboard });
 
     if (user.role === "superadmin") {
-      items.push({ title: "Organizations", url: "/organizations", icon: Building2 });
-      items.push({ title: "Settings", url: "/settings", icon: Settings });
+      items.push({ group: "Platform", title: "Organizations", url: "/organizations", icon: Building2 });
+      items.push({ group: "Administration", title: "Settings", url: "/settings", icon: Settings });
     } else {
       if (["org_admin", "manager", "teacher"].includes(user.role)) {
-        items.push({ title: "Members", url: "/members", icon: Users });
+        items.push({ group: "People", title: "Members", url: "/members", icon: Users });
       }
-      items.push({ title: "Attendance", url: "/attendance", icon: CalendarCheck });
-      items.push({ title: "Leave Requests", url: "/leaves", icon: CalendarOff });
+      items.push({ group: "Attendance", title: "Attendance", url: "/attendance", icon: CalendarCheck });
+      items.push({ group: "Attendance", title: "Leave Requests", url: "/leaves", icon: CalendarOff });
       if (["employee", "manager", "org_admin", "teacher"].includes(user.role)) {
-        items.push({ title: "Time Tracking", url: "/time-tracking", icon: Timer });
+        items.push({ group: "Attendance", title: "Time Tracking", url: "/time-tracking", icon: Timer });
       }
       if (["org_admin", "teacher", "manager"].includes(user.role)) {
         if (orgType !== "company") {
-          items.push({ title: "WhatsApp", url: "/whatsapp", icon: MessageCircle });
+          items.push({ group: "Communication", title: "WhatsApp", url: "/whatsapp", icon: MessageCircle });
         }
-        items.push({ title: "Settings", url: "/settings", icon: Settings });
+        items.push({ group: "Administration", title: "Settings", url: "/settings", icon: Settings });
       }
-      items.push({ title: "Documents", url: "/documents", icon: Files });
+      items.push({ group: "Records", title: "Documents", url: "/documents", icon: Files });
       if (orgType === "company" && ["employee", "manager", "org_admin"].includes(user.role)) {
-        items.push({ title: "Reimbursements", url: "/reimbursements", icon: Receipt });
+        items.push({ group: "Records", title: "Reimbursements", url: "/reimbursements", icon: Receipt });
       }
       const chatEnabled = (user.organizationId as any)?.features?.chat !== false;
       if (chatEnabled) {
-        items.push({ title: "Chat", url: "/chat", icon: MessageCircle });
+        items.push({ group: "Communication", title: "Chat", url: "/chat", icon: MessageCircle });
       }
-      items.push({ title: "MCQ", url: "/mcq", icon: ClipboardList });
+      if (orgType === "academy") {
+        items.push({ group: "Academic", title: "MCQ", url: "/mcq", icon: ClipboardList });
+      }
     }
 
     return items;
   };
 
   const navItems = getNavItems();
+  const navGroups = NAV_GROUPS.map((label) => ({ label, items: navItems.filter((i) => i.group === label) })).filter((g) => g.items.length > 0);
+  const OrgIcon = orgType === "academy" ? GraduationCap : orgType === "company" ? Briefcase : Shield;
 
   return (
     <Sidebar>
-      <SidebarHeader className="p-4 border-b border-sidebar-border">
-        <div className="flex items-center gap-3">
-          <div className={`flex items-center justify-center w-9 h-9 rounded-md shrink-0 overflow-hidden ${logoType === "image" && logoUrl ? "bg-transparent" : "bg-primary text-primary-foreground"}`}>
+      <SidebarHeader className="p-4 gap-4">
+        <div className="flex items-center gap-2.5">
+          <div className={`flex items-center justify-center w-9 h-9 rounded-lg shrink-0 overflow-hidden ${logoType === "image" && logoUrl ? "bg-transparent" : "bg-primary text-primary-foreground"}`}>
             {logoType === "image" && logoUrl
               ? <img src={`${BASE_URL}${logoUrl}`} alt="Logo" className="h-9 w-auto object-contain bg-transparent" style={{ background: "transparent" }} />
               : logoText
@@ -131,45 +145,47 @@ export function AppSidebar() {
                 : <Shield className="w-5 h-5" />
             }
           </div>
+          <span className="text-base font-bold tracking-tight truncate">{appName || "NF Skills"}</span>
+        </div>
+        <div className="flex items-center gap-2.5 rounded-lg border border-sidebar-border bg-background px-3 py-2">
+          <div className="flex items-center justify-center w-7 h-7 rounded-md bg-primary/10 text-primary shrink-0">
+            <OrgIcon className="w-4 h-4" />
+          </div>
           <div className="flex flex-col min-w-0">
-            <span className="text-sm font-semibold truncate">{appName}</span>
-            <span className="text-xs text-muted-foreground truncate">
-              {orgType === "academy" ? "Academy" : orgType === "company" ? "Company" : "Platform"}
+            <span className="text-sm font-medium truncate">{user.organizationId?.name || "Platform"}</span>
+            <span className="text-[11px] text-muted-foreground truncate">
+              {orgType === "academy" ? "Academy" : orgType === "company" ? "Company" : "Super Admin"}
             </span>
           </div>
         </div>
       </SidebarHeader>
 
-      <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel className="flex items-center gap-2">
-            {orgType === "academy" ? (
-              <GraduationCap className="w-3.5 h-3.5" />
-            ) : orgType === "company" ? (
-              <Briefcase className="w-3.5 h-3.5" />
-            ) : (
-              <Shield className="w-3.5 h-3.5" />
-            )}
-            Navigation
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {navItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={item.url === "/mcq" ? location.startsWith("/mcq") : location === item.url}
-                  >
-                    <Link href={item.url} data-testid={`link-nav-${item.title.toLowerCase().replace(/\s+/g, "-")}`}>
-                      <item.icon className="w-4 h-4" />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+      <SidebarContent className="px-2">
+        {navGroups.map((group) => (
+          <SidebarGroup key={group.label} className="py-1">
+            <SidebarGroupLabel className="h-7 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              {group.label}
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {group.items.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      asChild
+                      className="h-9 font-medium data-[active=true]:font-semibold"
+                      isActive={item.url === "/mcq" ? location.startsWith("/mcq") : location === item.url}
+                    >
+                      <Link href={item.url} data-testid={`link-nav-${item.title.toLowerCase().replace(/\s+/g, "-")}`}>
+                        <item.icon className="w-4 h-4" />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ))}
       </SidebarContent>
 
       <SidebarFooter className="p-3 border-t border-sidebar-border">

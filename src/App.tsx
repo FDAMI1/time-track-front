@@ -1,6 +1,6 @@
 import { apiFetch } from "@/lib/api";
 import { useState, useEffect, lazy, Suspense } from "react";
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -8,6 +8,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
+import { getInitials } from "@/lib/utils";
+import { hasMcqAccess } from "@/mcq/lib/roles";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -140,6 +142,37 @@ function NotificationBell() {
   );
 }
 
+const PAGE_TITLES: Record<string, string> = {
+  organizations: "Organizations",
+  members: "Members",
+  attendance: "Attendance",
+  leaves: "Leave Requests",
+  "time-tracking": "Time Tracking",
+  whatsapp: "WhatsApp",
+  classes: "Classes",
+  "activity-logs": "Activity Logs",
+  chat: "Chat",
+  settings: "Settings",
+  "document-templates": "Document Templates",
+  documents: "Documents",
+  "roles-permissions": "Roles & Permissions",
+  "salary-setup": "Salary Setup",
+  reimbursements: "Reimbursements",
+  mcq: "MCQ",
+};
+
+// Page title with a breadcrumb, derived from the first URL segment.
+function PageHeading() {
+  const [location] = useLocation();
+  const title = PAGE_TITLES[location.split("/")[1]];
+  return (
+    <div className="min-w-0 leading-tight">
+      <h1 className="text-sm font-semibold truncate" data-testid="text-page-heading">{title || "Dashboard"}</h1>
+      <p className="hidden sm:block text-xs text-muted-foreground truncate">Dashboard{title ? ` / ${title}` : ""}</p>
+    </div>
+  );
+}
+
 function ImpersonationBanner() {
   const { isImpersonating, exitImpersonation, impersonatedOrgName, user } = useAuth();
   if (!isImpersonating) return null;
@@ -215,7 +248,7 @@ function AuthenticatedRouter() {
       {["org_admin", "manager", "employee"].includes(user?.role || "") && (
         <Route path="/reimbursements" component={ReimbursementsPage} />
       )}
-      {user?.organizationId && (
+      {hasMcqAccess(user) && (
         <Route path="/mcq" nest>
           <Suspense fallback={<McqFallback />}><McqRouter /></Suspense>
         </Route>
@@ -276,11 +309,22 @@ function AppLayout() {
         <AppSidebar />
         <div className="flex flex-col flex-1 min-w-0">
           <ImpersonationBanner />
-          <header className="flex items-center justify-between gap-2 p-2 border-b h-12 shrink-0">
-            <SidebarTrigger data-testid="button-sidebar-toggle" />
-            <NotificationBell />
+          <header className="flex items-center justify-between gap-3 px-4 border-b bg-card h-14 shrink-0">
+            <div className="flex items-center gap-3 min-w-0">
+              <SidebarTrigger data-testid="button-sidebar-toggle" />
+              <PageHeading />
+            </div>
+            <div className="flex items-center gap-2">
+              <NotificationBell />
+              <div className="flex items-center gap-2 pl-2 border-l">
+                <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center text-xs font-semibold">
+                  {getInitials(user.firstName, user.lastName)}
+                </div>
+                <span className="hidden sm:block text-sm font-medium max-w-[10rem] truncate">{user.firstName} {user.lastName}</span>
+              </div>
+            </div>
           </header>
-          <main className="flex-1 overflow-auto">
+          <main className="flex-1 overflow-auto bg-background">
             <AuthenticatedRouter />
           </main>
         </div>
