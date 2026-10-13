@@ -51,6 +51,12 @@ export interface McqTest {
   randomize: boolean;
   publishRule: PublishRule;
   status: TestStatus;
+  // The status as saved by the teacher; `status` is what takers experience
+  // right now once the availability window is applied.
+  storedStatus?: TestStatus;
+  startDate?: string | null;
+  endDate?: string | null;
+  resultsPublished?: boolean;
   proctorWarningLimit: number;
   shareToken: string | null;
   createdBy: string;
@@ -112,6 +118,9 @@ export interface McqAttemptSummary {
   testDescription?: string | null;
   assignedBy?: string | null;
   student?: { _id: string; name: string; email: string } | null;
+  // Set for takers while the test's publish rule is still withholding the result.
+  resultsHidden?: boolean;
+  timedOut?: boolean;
 }
 
 export interface McqAttemptDetail extends McqAttemptSummary {
@@ -131,6 +140,7 @@ export interface McqAssignment {
   studentName?: string;
   studentEmail?: string;
   hasSubmitted?: boolean;
+  attemptsUsed?: number;
   test?: McqTest;
 }
 

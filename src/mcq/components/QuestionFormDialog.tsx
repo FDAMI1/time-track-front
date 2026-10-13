@@ -53,6 +53,13 @@ export default function QuestionFormDialog({ open, onOpenChange, editing, locked
   const [bulkText, setBulkText] = useState("");
   const [bulkMeta, setBulkMeta] = useState({ subject: "", topic: "", marks: 2, negativeMarks: 0 });
 
+  // Reset only when the dialog opens or the thing being edited changes. The
+  // dependencies are primitives on purpose: `lockedMeta` is a fresh object on
+  // every parent render, and depending on it wiped what the user had typed
+  // whenever the page re-rendered (a background refetch is enough).
+  const lockedSubject = lockedMeta?.subject;
+  const lockedTopic = lockedMeta?.topic;
+  const editingId = editing?._id;
   useEffect(() => {
     if (!open) return;
     setMode("manual");
@@ -68,9 +75,10 @@ export default function QuestionFormDialog({ open, onOpenChange, editing, locked
         negativeMarks: editing.negativeMarks,
       });
     } else {
-      setForm({ ...emptyForm(), ...(lockedMeta || {}) });
+      setForm({ ...emptyForm(), ...(lockedSubject !== undefined ? { subject: lockedSubject, topic: lockedTopic ?? "" } : {}) });
     }
-  }, [open, editing, lockedMeta]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, editingId, lockedSubject, lockedTopic]);
 
   const meta = lockedMeta;
   const parsedCount = bulkText.trim() ? parseBulkQuestions(bulkText).length : 0;

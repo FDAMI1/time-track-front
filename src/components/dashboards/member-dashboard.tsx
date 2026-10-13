@@ -1,4 +1,6 @@
 import { apiFetch } from "@/lib/api";
+import { downloadAuthorized } from "@/lib/download";
+import { getCurrentCoordinates, isLocationRequired } from "@/lib/geolocation";
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
@@ -55,14 +57,26 @@ export default function MemberDashboard() {
     },
   });
 
+  const { data: orgSettings } = useQuery<any>({
+    queryKey: ["/api/organizations/my"],
+    queryFn: async () => {
+      const res = await apiFetch("/api/organizations/my", { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) throw new Error("Failed to load organization");
+      return res.json();
+    },
+  });
+
   const markAttendance = useMutation({
     mutationFn: async () => {
+      // Send the position whenever the server will ask for it.
+      const coords = isLocationRequired(user, orgSettings) ? await getCurrentCoordinates() : null;
       const res = await apiFetch("/api/attendance/mark", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
+        body: JSON.stringify(coords ?? {}),
       });
       if (!res.ok) {
         const err = await res.json();
@@ -91,6 +105,7 @@ export default function MemberDashboard() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
+        body: JSON.stringify({}),
       });
       if (!res.ok) {
         const err = await res.json();
@@ -127,23 +142,9 @@ export default function MemberDashboard() {
     : 0;
 
   function handleDownload(url: string, format: string) {
-    fetch(url, { headers: { Authorization: `Bearer ${token}` } })
-      .then(res => {
-        if (!res.ok) throw new Error("Download failed");
-        const disposition = res.headers.get("Content-Disposition") || "";
-        const match = disposition.match(/filename="?([^"]+)"?/);
-        const filename = match ? match[1] : `report.${format}`;
-        return res.blob().then(blob => ({ blob, filename }));
-      })
-      .then(({ blob, filename }) => {
-        const blobUrl = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = blobUrl;
-        link.download = filename;
-        link.click();
-        URL.revokeObjectURL(blobUrl);
-      })
-      .catch(() => {});
+    downloadAuthorized(url, token, `report.${format}`).catch((err: Error) =>
+      toast({ title: "Report download failed", description: err.message, variant: "destructive" })
+    );
   }
 
   function downloadMyReport(format: string) {

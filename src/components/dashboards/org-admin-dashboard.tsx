@@ -1,7 +1,10 @@
 import { apiFetch, safeJson } from "@/lib/api";
+import { downloadAuthorized } from "@/lib/download";
+import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
+import { localDateString } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -28,6 +31,7 @@ const periodLabels: Record<string, string> = {
 
 export default function OrgAdminDashboard() {
   const { token, user } = useAuth();
+  const { toast } = useToast();
   const [period, setPeriod] = useState("daily");
   const [drilldownType, setDrilldownType] = useState<string | null>(null);
   const [drilldownData, setDrilldownData] = useState<any>(null);
@@ -40,23 +44,9 @@ export default function OrgAdminDashboard() {
     const url = type === "team"
       ? `/api/reports/team?period=${period}&format=${format}`
       : `/api/reports/user/${selectedMember}?period=${period}&format=${format}`;
-    fetch(url, { headers: { Authorization: `Bearer ${token}` } })
-      .then(res => {
-        if (!res.ok) throw new Error("Download failed");
-        const disposition = res.headers.get("Content-Disposition") || "";
-        const match = disposition.match(/filename="?([^"]+)"?/);
-        const filename = match ? match[1] : `report.${format}`;
-        return res.blob().then(blob => ({ blob, filename }));
-      })
-      .then(({ blob, filename }) => {
-        const blobUrl = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = blobUrl;
-        link.download = filename;
-        link.click();
-        URL.revokeObjectURL(blobUrl);
-      })
-      .catch(() => {});
+    downloadAuthorized(url, token, `report.${format}`).catch((err: Error) =>
+      toast({ title: "Report download failed", description: err.message, variant: "destructive" })
+    );
   }
 
   const { data, isLoading } = useQuery({
@@ -87,7 +77,7 @@ export default function OrgAdminDashboard() {
     setDrilldownType(type);
     setDrilldownLoading(true);
     try {
-      const startDate = data?.startDate || new Date().toISOString().split("T")[0];
+      const startDate = data?.startDate || localDateString();
       const endDate = data?.endDate || startDate;
       const res = await apiFetch(`/api/dashboard/org/drilldown?type=${type}&startDate=${startDate}&endDate=${endDate}`, {
         headers: { Authorization: `Bearer ${token}` },

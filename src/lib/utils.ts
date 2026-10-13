@@ -14,3 +14,13 @@ export function getInitials(firstName?: string | null, lastName?: string | null)
   const last = lastName?.trim()?.[0] ?? "";
   return (first + last).toUpperCase() || "?";
 }
+
+// Calendar date (YYYY-MM-DD) on the user's own clock. `toISOString()` converts
+// to UTC first, which names the wrong day for several hours every day in any
+// time zone away from UTC.
+export function localDateString(date: Date = new Date()): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}

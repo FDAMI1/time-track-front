@@ -18,6 +18,8 @@ import { useMcqApi } from "@/mcq/lib/api";
 import { isMcqAdmin } from "@/mcq/lib/roles";
 import { userName, type McqTest, type OrgUser, type PublishRule, type TestStatus } from "@/mcq/lib/types";
 import { AssignStudentsDialog, useOrgUsers } from "@/mcq/components/TestAssignDialogs";
+import { useClampPage } from "@/mcq/lib/usePagination";
+import TestWindowFields, { fromLocalInput } from "@/mcq/components/TestWindowFields";
 
 const PAGE_SIZE = 20;
 
@@ -41,7 +43,7 @@ export default function McqTestsPage() {
   const [selectedTestId, setSelectedTestId] = useState<string | null>(null);
   const [teacherFilter, setTeacherFilter] = useState("all");
   const [page, setPage] = useState(1);
-  const [form, setForm] = useState({ title: "", description: "", duration: 30, maxAttempts: 1, publishRule: "INSTANT" as PublishRule });
+  const [form, setForm] = useState({ title: "", description: "", duration: 30, maxAttempts: 1, publishRule: "INSTANT" as PublishRule, startDate: "", endDate: "" });
 
   const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE) });
   if (teacherFilter !== "all") params.set("teacherFilter", teacherFilter);
@@ -54,11 +56,14 @@ export default function McqTestsPage() {
   const teachers = (users || []).filter((u: OrgUser) => ["teacher", "manager"].includes(u.role));
 
   const create = useMutation({
-    mutationFn: () => api.post<McqTest>("/api/mcq/tests", form),
+    mutationFn: () => {
+      if (form.publishRule === "SCHEDULED" && !form.endDate) throw new Error("A scheduled test needs a closing time");
+      return api.post<McqTest>("/api/mcq/tests", { ...form, startDate: fromLocalInput(form.startDate), endDate: fromLocalInput(form.endDate) });
+    },
     onSuccess: (test) => {
       queryClient.invalidateQueries({ queryKey: ["/api/mcq/tests"] });
       setCreateOpen(false);
-      setForm({ title: "", description: "", duration: 30, maxAttempts: 1, publishRule: "INSTANT" });
+      setForm({ title: "", description: "", duration: 30, maxAttempts: 1, publishRule: "INSTANT", startDate: "", endDate: "" });
       toast({ title: "Test created as Draft" });
       navigate(`/tests/${test._id}`);
     },
@@ -79,6 +84,7 @@ export default function McqTestsPage() {
 
   const total = data?.total || 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  useClampPage(page, setPage, totalPages, !!data);
 
   return (
     <div className="space-y-6">
@@ -140,6 +146,13 @@ export default function McqTestsPage() {
                 </SelectContent>
               </Select>
             </div>
+            <TestWindowFields
+              idPrefix="create"
+              startDate={form.startDate}
+              endDate={form.endDate}
+              publishRule={form.publishRule}
+              onChange={(v) => setForm({ ...form, ...v })}
+            />
             <Button type="submit" className="w-full" disabled={create.isPending} data-testid="button-submit-test">
               {create.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Save & Add Questions

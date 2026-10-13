@@ -307,7 +307,7 @@ export default function MembersPage() {
   };
 
   const filtered = (members || []).filter((m: any) => {
-    const matchSearch = `${m.firstName} ${m.lastName} ${m.username} ${m.email}`
+    const matchSearch = `${m.firstName} ${m.lastName} ${m.username} ${m.email} ${m.userId || ""}`
       .toLowerCase()
       .includes(search.toLowerCase());
     const matchRole = filterRole === "all" || m.role === filterRole;
@@ -548,6 +548,9 @@ export default function MembersPage() {
                               <Copy className="w-3 h-3" />
                             </button>
                           </div>
+                          {m.userId && (
+                            <p className="text-xs text-muted-foreground" data-testid={`text-member-code-${m._id}`}>ID: {m.userId}</p>
+                          )}
                           {m.phone && (
                             <p className="text-xs text-muted-foreground flex items-center gap-1"><Phone className="w-3 h-3" />{m.phone}</p>
                           )}

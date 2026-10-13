@@ -21,6 +21,7 @@ import { generateTestPDF } from "@/mcq/lib/testPdf";
 import QuestionFormDialog from "@/mcq/components/QuestionFormDialog";
 import { AssignStudentsDialog, ManageAssignmentsDialog, ShareTestDialog } from "@/mcq/components/TestAssignDialogs";
 import { externalTestLink } from "./McqTestsPage";
+import TestWindowFields, { fromLocalInput, toLocalInput } from "@/mcq/components/TestWindowFields";
 
 const MINIMUM_QUESTIONS = 10;
 
@@ -41,7 +42,7 @@ export default function McqTestDetailPage() {
   const [assignMode, setAssignMode] = useState<"class" | "home">("class");
   const [manageOpen, setManageOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
-  const [editForm, setEditForm] = useState({ title: "", description: "", duration: 30, maxAttempts: 1, publishRule: "INSTANT" as PublishRule });
+  const [editForm, setEditForm] = useState({ title: "", description: "", duration: 30, maxAttempts: 1, publishRule: "INSTANT" as PublishRule, startDate: "", endDate: "" });
 
   const { data: test, isLoading } = useQuery({
     queryKey: ["/api/mcq/tests", id],
@@ -98,6 +99,12 @@ export default function McqTestDetailPage() {
       else if (vars.proctorWarningLimit !== undefined) toast({ title: `Warning limit updated to ${vars.proctorWarningLimit}` });
       else toast({ title: "Test details updated" });
     },
+    onError,
+  });
+
+  const publishResults = useMutation({
+    mutationFn: (published: boolean) => api.post<{ resultsPublished: boolean }>(`/api/mcq/tests/${id}/publish-results`, { published }),
+    onSuccess: (data) => { refresh(); toast({ title: data.resultsPublished ? "Results published" : "Results hidden" }); },
     onError,
   });
 
@@ -175,9 +182,19 @@ export default function McqTestDetailPage() {
           {iconButton("Assign", <Users className="w-4 h-4" />, () => { setAssignMode("class"); setAssignOpen(true); }, "secondary", "button-assign-test")}
           {iconButton("Home", <Home className="w-4 h-4" />, () => { setAssignMode("home"); setAssignOpen(true); }, "secondary", "button-assign-home-test")}
           {iconButton("Unassign", <UserMinus className="w-4 h-4" />, () => setManageOpen(true), "outline", "button-manage-assignments")}
+          {test.publishRule !== "INSTANT" && iconButton(
+            test.resultsPublished ? "Hide results" : "Publish results",
+            <FileCheck className="w-4 h-4" />,
+            () => publishResults.mutate(!test.resultsPublished),
+            "outline",
+            "button-publish-results"
+          )}
           {isAdmin && iconButton("Share", <Share2 className="w-4 h-4" />, () => setShareOpen(true), "outline", "button-share-test")}
           {iconButton("Edit", <Pencil className="w-4 h-4" />, () => {
-            setEditForm({ title: test.title, description: test.description || "", duration: test.duration, maxAttempts: test.maxAttempts, publishRule: test.publishRule });
+            setEditForm({
+              title: test.title, description: test.description || "", duration: test.duration, maxAttempts: test.maxAttempts,
+              publishRule: test.publishRule, startDate: toLocalInput(test.startDate), endDate: toLocalInput(test.endDate),
+            });
             setEditInfoOpen(true);
           }, "outline", "button-edit-test-info")}
           {canDelete && (
@@ -333,7 +350,14 @@ export default function McqTestDetailPage() {
       <Dialog open={editInfoOpen} onOpenChange={setEditInfoOpen}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Edit Test Details</DialogTitle></DialogHeader>
-          <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); updateTest.mutate(editForm); }}>
+          <form className="space-y-4" onSubmit={(e) => {
+            e.preventDefault();
+            if (editForm.publishRule === "SCHEDULED" && !editForm.endDate) {
+              toast({ title: "Error", description: "A scheduled test needs a closing time", variant: "destructive" });
+              return;
+            }
+            updateTest.mutate({ ...editForm, startDate: fromLocalInput(editForm.startDate), endDate: fromLocalInput(editForm.endDate) });
+          }}>
             <div className="space-y-2"><Label>Subject Name</Label><Input value={editForm.title} onChange={(e) => setEditForm({ ...editForm, title: e.target.value })} required data-testid="input-edit-title" /></div>
             <div className="space-y-2"><Label>Topic Name</Label><Input value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} required data-testid="input-edit-description" /></div>
             <div className="grid grid-cols-2 gap-3">
@@ -347,6 +371,13 @@ export default function McqTestDetailPage() {
                 <SelectContent><SelectItem value="INSTANT">Instant</SelectItem><SelectItem value="MANUAL">Manual</SelectItem><SelectItem value="SCHEDULED">Scheduled</SelectItem></SelectContent>
               </Select>
             </div>
+            <TestWindowFields
+              idPrefix="edit"
+              startDate={editForm.startDate}
+              endDate={editForm.endDate}
+              publishRule={editForm.publishRule}
+              onChange={(v) => setEditForm({ ...editForm, ...v })}
+            />
             <DialogFooter>
               <Button type="submit" className="w-full" disabled={updateTest.isPending} data-testid="button-submit-edit-info">{updateTest.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}Save Changes</Button>
             </DialogFooter>

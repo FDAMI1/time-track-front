@@ -38,7 +38,8 @@ export default function TakerDashboard() {
   const pending = list.filter((a) => a.status === "ASSIGNED" && a.test?.status === "ACTIVE");
   const completed = list.filter((a) => a.status === "COMPLETED").length;
   const submitted = (attempts || []).filter((a) => a.submittedAt);
-  const avgScore = submitted.length > 0 ? Math.round(submitted.reduce((s, a) => s + pctOf(a.score, a.totalMarks), 0) / submitted.length) : 0;
+  const scored = submitted.filter((a) => !a.resultsHidden);
+  const avgScore = scored.length > 0 ? Math.round(scored.reduce((s, a) => s + pctOf(a.score, a.totalMarks), 0) / scored.length) : 0;
 
   return (
     <div className="space-y-6">
@@ -94,9 +95,12 @@ export default function TakerDashboard() {
                     <div className="flex items-center justify-between gap-2 py-2 px-2 cursor-pointer hover-elevate rounded-md" data-testid={`result-item-${a._id}`}>
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-foreground">{a.testTitle || "Test"}</p>
-                        <p className="text-xs text-muted-foreground">Score: {a.score}/{a.totalMarks}{a.assignedBy && <> | By: {a.assignedBy}</>}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {a.resultsHidden ? "Result pending" : <>Score: {a.score}/{a.totalMarks}</>}
+                          {a.assignedBy && <> | By: {a.assignedBy}</>}
+                        </p>
                       </div>
-                      <Badge variant={scoreVariant(pct)}>{pct}%</Badge>
+                      {a.resultsHidden ? <Badge variant="secondary">Pending</Badge> : <Badge variant={scoreVariant(pct)}>{pct}%</Badge>}
                     </div>
                   </Link>
                 );

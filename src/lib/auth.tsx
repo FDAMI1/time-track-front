@@ -17,6 +17,7 @@ interface User {
   organizationId?: any;
   isActive: boolean;
   mustChangePassword?: boolean;
+  locationRestrictionEnabled?: boolean | null;
 }
 
 interface AuthContextType {
@@ -25,6 +26,9 @@ interface AuthContextType {
   login: (credential: string, password: string, isEmail?: boolean, extras?: Record<string, number>) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
+  // Adopts a replacement token (issued after a password change, which ends
+  // every other session) without logging the user out.
+  replaceToken: (newToken: string) => void;
   isLoading: boolean;
   mustChangePassword: boolean;
   clearMustChangePassword: () => void;
@@ -57,17 +61,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (userData.mustChangePassword) {
           setMustChangePassword(true);
         }
-      } else {
-        debug("[auth] fetchUser failed — clearing token");
+      } else if (res.status === 401 || res.status === 403) {
+        // The server rejected this token: the session is over.
+        debug("[auth] token rejected — clearing session");
         localStorage.removeItem("token");
         setToken(null);
         setUser(null);
+      } else {
+        // A server hiccup (5xx) must not sign the user out.
+        console.error("[auth] fetchUser unexpected status:", res.status);
       }
     } catch (err) {
+      // Offline or unreachable: keep the stored token so the app recovers on reconnect.
       console.error("[auth] fetchUser error:", err);
-      localStorage.removeItem("token");
-      setToken(null);
-      setUser(null);
     } finally {
       setIsLoading(false);
     }
@@ -125,6 +131,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     window.history.replaceState(null, "", "/");
   };
 
+  const replaceToken = useCallback((newToken: string) => {
+    localStorage.setItem("token", newToken);
+    setToken(newToken);
+  }, []);
+
   const clearMustChangePassword = () => {
     setMustChangePassword(false);
   };
@@ -172,7 +183,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [token, fetchUser]);
 
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, refreshUser, isLoading, mustChangePassword, clearMustChangePassword, isImpersonating, impersonate, exitImpersonation, impersonatedOrgName }}>
+    <AuthContext.Provider value={{ user, token, login, logout, refreshUser, replaceToken, isLoading, mustChangePassword, clearMustChangePassword, isImpersonating, impersonate, exitImpersonation, impersonatedOrgName }}>
       {children}
     </AuthContext.Provider>
   );

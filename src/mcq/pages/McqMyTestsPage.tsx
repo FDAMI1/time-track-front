@@ -32,7 +32,7 @@ export default function McqMyTestsPage() {
             <h3 className="font-medium text-foreground truncate" data-testid={`text-test-name-${a._id}`}>{a.test?.title || "Unknown Test"}</h3>
             <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground flex-wrap">
               <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{a.test?.duration} min</span>
-              <span className="flex items-center gap-1"><FileCheck className="w-3 h-3" />{a.test?.maxAttempts} attempt(s)</span>
+              <span className="flex items-center gap-1"><FileCheck className="w-3 h-3" />{a.attemptsUsed ?? 0}/{a.test?.maxAttempts} attempt(s) used</span>
               <Badge variant="secondary" className="text-[10px]">{a.test?.status}</Badge>
               {a.allowHomeTest && <Badge variant="secondary" className="text-[10px]"><Home className="w-3 h-3 mr-1" />Home</Badge>}
             </div>

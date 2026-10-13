@@ -14,6 +14,7 @@ import { Search, ExternalLink, Trash2, ChevronLeft, ChevronRight, Calendar, User
 import { useMcqApi } from "@/mcq/lib/api";
 import type { McqExternalAttempt } from "@/mcq/lib/types";
 import ExternalStudentsPanel from "@/mcq/components/ExternalStudentsPanel";
+import { useClampPage } from "@/mcq/lib/usePagination";
 
 interface ListResponse {
   attempts: McqExternalAttempt[];
@@ -52,6 +53,7 @@ function ExternalAttemptsPanel() {
   const attempts = data?.attempts || [];
   const total = data?.total || 0;
   const totalPages = data?.totalPages || 1;
+  useClampPage(page, setPage, totalPages, !!data);
   const completed = attempts.filter((a) => a.status === "COMPLETED").length;
   const terminated = attempts.filter((a) => a.status === "TERMINATED").length;
   const avg = attempts.length ? Math.round(attempts.reduce((s, a) => s + a.avgPercentage, 0) / attempts.length) : 0;

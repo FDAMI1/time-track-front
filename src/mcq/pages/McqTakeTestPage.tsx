@@ -180,6 +180,22 @@ export default function McqTakeTestPage() {
     );
   }
 
+  if (submitted && result && result.resultsHidden) {
+    return centered(
+      <>
+        <div className="w-20 h-20 rounded-full mx-auto flex items-center justify-center bg-primary/10"><Trophy className="w-10 h-10 text-primary" /></div>
+        <div>
+          <h2 className="text-2xl font-bold text-foreground" data-testid="text-result-title">Test Submitted</h2>
+          <p className="text-muted-foreground text-sm mt-1">{testInfo?.title}</p>
+        </div>
+        <p className="text-sm text-muted-foreground" data-testid="text-result-pending">
+          {result.timedOut ? "Time ran out before you submitted. " : ""}Your result will be available once your teacher publishes it.
+        </p>
+        <Button onClick={() => navigate("/")}>Dashboard</Button>
+      </>
+    );
+  }
+
   if (submitted && result) {
     const pct = pctOf(result.score, result.totalMarks);
     const tone = pct >= 70

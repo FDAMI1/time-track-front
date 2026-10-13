@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Shield, Eye, EyeOff } from "lucide-react";
 
 export default function ForcePasswordChange() {
-  const { token, clearMustChangePassword } = useAuth();
+  const { token, clearMustChangePassword, replaceToken } = useAuth();
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showNew, setShowNew] = useState(false);
@@ -35,12 +35,14 @@ export default function ForcePasswordChange() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ newPassword, skipCurrentPassword: true }),
+        body: JSON.stringify({ newPassword }),
       });
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.message || "Failed to change password");
       }
+      const data = await res.json();
+      if (data.token) replaceToken(data.token);
       clearMustChangePassword();
       window.history.replaceState(null, "", "/");
     } catch (err: any) {

@@ -29,6 +29,8 @@ const leaveTypeLabels: Record<string, string> = {
   personal: "Personal Leave",
   vacation: "Vacation",
   other: "Other",
+  paid: "Paid Leave",
+  unpaid: "Unpaid Leave",
 };
 
 export default function LeavesPage() {
@@ -56,10 +58,13 @@ export default function LeavesPage() {
     },
   });
 
+  // Teachers review their assigned students' requests; admins and managers use
+  // the organization list. The query key stays shared so one invalidation works.
+  const orgLeavesPath = user?.role === "teacher" ? "/api/leaves/team" : "/api/leaves/org";
   const { data: orgLeaves, isLoading: orgLoading } = useQuery({
     queryKey: ["/api/leaves/org"],
     queryFn: async () => {
-      const res = await apiFetch("/api/leaves/org", {
+      const res = await apiFetch(orgLeavesPath, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Failed to fetch");
@@ -190,6 +195,8 @@ export default function LeavesPage() {
                     <SelectItem value="casual">Casual Leave</SelectItem>
                     <SelectItem value="personal">Personal Leave</SelectItem>
                     <SelectItem value="vacation">Vacation</SelectItem>
+                    <SelectItem value="paid">Paid Leave</SelectItem>
+                    <SelectItem value="unpaid">Unpaid Leave</SelectItem>
                     <SelectItem value="other">Other</SelectItem>
                   </SelectContent>
                 </Select>

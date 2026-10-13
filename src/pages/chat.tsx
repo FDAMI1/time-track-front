@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { groupReactions } from "@/lib/reactions";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -80,10 +81,12 @@ export default function ChatPage() {
     refetchInterval: 5000,
   });
 
+  // Chat has its own directory endpoint: it works for every role and already
+  // excludes people the current role is not allowed to chat with.
   const { data: users } = useQuery({
-    queryKey: ["/api/users"],
+    queryKey: ["/api/chat/users"],
     queryFn: async () => {
-      const res = await apiFetch("/api/users", {
+      const res = await apiFetch("/api/chat/users", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Failed to fetch users");
@@ -301,7 +304,9 @@ export default function ChatPage() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="private">Private</SelectItem>
-                        <SelectItem value="group">Group</SelectItem>
+                        {["org_admin", "manager", "teacher"].includes(user?.role || "") && (
+                          <SelectItem value="group">Group</SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
@@ -580,10 +585,10 @@ export default function ChatPage() {
 
                           {msg.reactions && msg.reactions.length > 0 && (
                             <div className="flex gap-1 mt-0.5 px-1 flex-wrap">
-                              {msg.reactions.map((r: any, idx: number) => (
+                              {groupReactions(msg.reactions, user?._id).map((r) => (
                                 <span
-                                  key={idx}
-                                  className="text-xs bg-muted rounded-md px-1.5 py-0.5 flex items-center gap-0.5 cursor-pointer"
+                                  key={r.emoji}
+                                  className={`text-xs rounded-md px-1.5 py-0.5 flex items-center gap-0.5 cursor-pointer ${r.mine ? "bg-primary/15 ring-1 ring-primary/40" : "bg-muted"}`}
                                   onClick={() =>
                                     toggleReaction.mutate({
                                       messageId: msg._id,
@@ -599,7 +604,6 @@ export default function ChatPage() {
                                       })()
                                     : r.emoji}
                                   {r.count > 1 && <span>{r.count}</span>}
-                                  {r.users?.length > 1 && !r.count && <span>{r.users.length}</span>}
                                 </span>
                               ))}
                             </div>

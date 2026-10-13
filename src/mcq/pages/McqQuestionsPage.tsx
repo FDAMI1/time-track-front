@@ -13,6 +13,7 @@ import { Plus, BookOpen, Trash2, Pencil, Search, ChevronLeft, ChevronRight } fro
 import { useMcqApi } from "@/mcq/lib/api";
 import type { McqQuestion, QuestionPayload } from "@/mcq/lib/types";
 import QuestionFormDialog from "@/mcq/components/QuestionFormDialog";
+import { useClampPage } from "@/mcq/lib/usePagination";
 
 const PAGE_SIZE = 20;
 
@@ -68,6 +69,7 @@ export default function McqQuestionsPage() {
 
   const total = data?.total || 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  useClampPage(page, setPage, totalPages, !!data);
 
   return (
     <div className="space-y-6">

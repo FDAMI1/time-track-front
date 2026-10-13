@@ -433,7 +433,7 @@ function LocationSetupCard({ token }: { token: string }) {
 }
 
 export default function SettingsPage() {
-  const { token, user } = useAuth();
+  const { token, user, replaceToken } = useAuth();
   const { toast } = useToast();
   const isSuperAdmin = user?.role === "superadmin";
   const isOrgAdmin = user?.role === "org_admin";
@@ -745,7 +745,9 @@ export default function SettingsPage() {
       if (!res.ok) { const err = await res.json(); throw new Error(err.message); }
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data: { token?: string }) => {
+      // Changing the password ends every other session; keep this one alive.
+      if (data?.token) replaceToken(data.token);
       setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
       setShowCurrentPassword(false);
       setShowNewPassword(false);

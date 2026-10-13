@@ -2,6 +2,7 @@ import { apiFetch, safeJson } from "@/lib/api";
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
+import { localDateString } from "@/lib/utils";
 import { queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -39,7 +40,7 @@ function getCurrentTime() {
 export default function TimeTrackingPage() {
   const { token, user } = useAuth();
   const { toast } = useToast();
-  const today = new Date().toISOString().split("T")[0];
+  const today = localDateString();
   const [fromDate, setFromDate] = useState(today);
   const [toDate, setToDate] = useState(today);
   const [viewTab, setViewTab] = useState<"entries" | "report">("entries");
@@ -233,7 +234,11 @@ export default function TimeTrackingPage() {
       timerRef.current = null;
     }
     const endTime = getCurrentTime();
-    const today = new Date().toISOString().split("T")[0];
+    // The entry belongs to the day the timer started; a timer that runs past
+    // midnight ends "earlier" on the clock, which the server needs to be told.
+    const startedAt = startTimeRef.current || new Date();
+    const today = localDateString(startedAt);
+    const overnight = endTime < timerStartTime;
 
     addMutation.mutate({
       taskName: newTaskName.trim(),
@@ -241,6 +246,7 @@ export default function TimeTrackingPage() {
       startTime: timerStartTime,
       endTime,
       date: today,
+      ...(overnight ? { overnight: true } : {}),
       ...(capturedCoords ? { latitude: capturedCoords.lat, longitude: capturedCoords.lng } : {}),
     });
 

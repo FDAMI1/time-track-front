@@ -1,7 +1,9 @@
 import { apiFetch, safeJson } from "@/lib/api";
+import { downloadAuthorized } from "@/lib/download";
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
+import { localDateString } from "@/lib/utils";
 import { queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -258,7 +260,7 @@ function openBulkWhatsappLinks(notifications: any[]) {
 
 function TeamAttendanceTab({ roleFilter, token, viewerRole = "", orgType }: { roleFilter: string; token: string; viewerRole?: string; orgType?: string }) {
   const { toast } = useToast();
-  const today = new Date().toISOString().split("T")[0];
+  const today = localDateString();
   const [selectedPolicyId, setSelectedPolicyId] = useState<string>("");
 
   const { data: policies } = useQuery({
@@ -380,19 +382,9 @@ function TeamAttendanceTab({ roleFilter, token, viewerRole = "", orgType }: { ro
 
   async function downloadStudentReport(userId: string, name: string) {
     try {
-      const res = await apiFetch(`/api/reports/user/${userId}?period=monthly&format=xlsx`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error("Failed");
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${name.replace(/\s+/g, "-")}-report.xlsx`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch {
-      toast({ title: "Report download failed", variant: "destructive" });
+      await downloadAuthorized(`/api/reports/user/${userId}?period=monthly&format=xlsx`, token, `${name.replace(/\s+/g, "-")}-report.xlsx`);
+    } catch (err) {
+      toast({ title: "Report download failed", description: (err as Error).message, variant: "destructive" });
     }
   }
   const pendingCount = pendingApprovalMembers.length;

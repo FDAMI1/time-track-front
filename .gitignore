@@ -6,3 +6,6 @@ vite.config.ts.*
 *.tar.gz
 .git
 .env
+# Android signing keys and local env must never be tracked
+*.jks
+*.keystore

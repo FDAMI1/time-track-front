@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
 import { queryClient } from "@/lib/queryClient";
-import { apiFetch, safeJson, BASE_URL } from "@/lib/api";
+import { apiFetch, safeJson } from "@/lib/api";
+import { downloadAuthorized } from "@/lib/download";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,14 +53,12 @@ export default function ReimbursementsPage() {
     enabled: orgType === "company",
   });
 
-  // Load users for manager select and forward dialog
-  const { data: allUsers = [] } = useQuery<any[]>({
-    queryKey: ["/api/users"],
+  // Approvers come from a dedicated endpoint: employees are not allowed to
+  // list organization users, so the generic users list would be empty for them.
+  const { data: managers = [] } = useQuery<any[]>({
+    queryKey: ["/api/reimbursements/approvers"],
     enabled: orgType === "company",
   });
-  const managers = (allUsers as any[]).filter((u: any) =>
-    ["manager", "org_admin"].includes(u.role)
-  );
 
   const activePolicy = (policies as any[]).find((p: any) => p.type === form.type) || null;
   const amountNum = Number(form.amount);
@@ -481,15 +480,18 @@ export default function ReimbursementsPage() {
                         <p className="text-xs text-destructive">Reason: {claim.rejectionReason}</p>
                       )}
                       {claim.invoice && (
-                        <a
-                          href={`${BASE_URL}/uploads/${claim.invoice}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs text-primary underline-offset-2 underline"
+                        <button
+                          type="button"
+                          className="text-xs text-primary underline underline-offset-2"
                           data-testid={`link-invoice-${claim._id}`}
+                          onClick={() =>
+                            downloadAuthorized(`/api/reimbursements/${claim._id}/invoice`, token, "invoice").catch((err: Error) =>
+                              toast({ title: "Could not open invoice", description: err.message, variant: "destructive" })
+                            )
+                          }
                         >
                           View Invoice
-                        </a>
+                        </button>
                       )}
                       <p className="text-xs text-muted-foreground">
                         {new Date(claim.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
@@ -593,8 +595,8 @@ export default function ReimbursementsPage() {
                   <SelectValue placeholder="Select user" />
                 </SelectTrigger>
                 <SelectContent>
-                  {(allUsers as any[])
-                    .filter((u: any) => ["manager", "org_admin"].includes(u.role) && u._id !== user?._id)
+                  {(managers as any[])
+                    .filter((u: any) => u._id !== user?._id)
                     .map((u: any) => (
                       <SelectItem key={u._id} value={u._id} data-testid={`option-forward-${u._id}`}>
                         {u.firstName} {u.lastName} ({u.role})
