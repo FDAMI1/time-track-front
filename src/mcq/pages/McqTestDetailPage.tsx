@@ -13,12 +13,13 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Clock, FileCheck, Shuffle, Eye, ArrowLeft, Award, Plus, Pencil, Trash2, Loader2, AlertTriangle, CheckCircle, Download, FileText, Camera, Users, Home, UserMinus, Share2, Copy } from "lucide-react";
+import { BookOpen, Clock, FileCheck, Shuffle, Eye, ArrowLeft, Award, Plus, Pencil, Trash2, Loader2, AlertTriangle, CheckCircle, Download, FileText, Camera, Users, Home, UserMinus, Share2, Copy } from "lucide-react";
 import { useMcqApi } from "@/mcq/lib/api";
 import { isMcqAdmin } from "@/mcq/lib/roles";
 import { pctOf, scoreVariant, type McqAttemptSummary, type McqPdfTemplate, type McqQuestion, type McqTestDetail, type PublishRule, type QuestionPayload } from "@/mcq/lib/types";
 import { generateTestPDF } from "@/mcq/lib/testPdf";
 import QuestionFormDialog from "@/mcq/components/QuestionFormDialog";
+import QuestionBankPicker from "@/mcq/components/QuestionBankPicker";
 import { AssignStudentsDialog, ManageAssignmentsDialog, ShareTestDialog } from "@/mcq/components/TestAssignDialogs";
 import { externalTestLink } from "./McqTestsPage";
 import TestWindowFields, { fromLocalInput, toLocalInput } from "@/mcq/components/TestWindowFields";
@@ -34,6 +35,7 @@ export default function McqTestDetailPage() {
   const isAdmin = isMcqAdmin(user?.role);
 
   const [questionDialogOpen, setQuestionDialogOpen] = useState(false);
+  const [bankOpen, setBankOpen] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<McqQuestion | null>(null);
   const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
   const [downloading, setDownloading] = useState(false);
@@ -264,9 +266,20 @@ export default function McqTestDetailPage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h2 className="text-lg font-semibold text-foreground">Questions ({questionCount})</h2>
         {isDraft && (
-          <Button onClick={() => { setEditingQuestion(null); setQuestionDialogOpen(true); }} data-testid="button-add-question"><Plus className="w-4 h-4 mr-2" />Add Question</Button>
+          <div className="flex gap-2 flex-wrap">
+            <Button variant="secondary" onClick={() => setBankOpen(true)} data-testid="button-add-from-bank"><BookOpen className="w-4 h-4 mr-2" />Add from Bank</Button>
+            <Button onClick={() => { setEditingQuestion(null); setQuestionDialogOpen(true); }} data-testid="button-add-question"><Plus className="w-4 h-4 mr-2" />Add Question</Button>
+          </div>
         )}
       </div>
+
+      <QuestionBankPicker
+        testId={id}
+        open={bankOpen}
+        onOpenChange={setBankOpen}
+        existingIds={(test.questions || []).map((q) => String(q.questionId))}
+        onAdded={(count) => { refresh(); toast({ title: `${count} question(s) added to test` }); }}
+      />
 
       <QuestionFormDialog
         open={questionDialogOpen}

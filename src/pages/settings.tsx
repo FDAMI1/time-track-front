@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { RemoteImage } from "@/components/remote-image";
 import { Settings, Clock, Shield, Palette, Eye, EyeOff, Globe, MessageCircle, Plus, Pencil, Trash2, Users, UserPlus, Fingerprint, PenLine, Upload, X, MapPin } from "lucide-react";
 import "leaflet/dist/leaflet.css";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -130,11 +131,12 @@ function OrganizationAssetsCard({ token }: { token: string }) {
                   </div>
                   {url ? (
                     <div className="rounded-md border bg-muted/20 flex items-center justify-center p-3 min-h-[80px]">
-                      <img
+                      <RemoteImage
                         src={url}
-                        alt={type}
+                        alt={type === "signature" ? "Signature" : "Company stamp"}
                         className="max-h-20 max-w-full object-contain"
                         data-testid={`img-${type}`}
+                        fallback={<p className="text-xs text-destructive" data-testid={`img-${type}-unavailable`}>Image unavailable. Upload it again.</p>}
                       />
                     </div>
                   ) : (
@@ -928,9 +930,13 @@ export default function SettingsPage() {
                     <Input data-testid="input-logo-text" value={themeForm.logoText} onChange={(e) => setThemeForm({ ...themeForm, logoText: e.target.value })} maxLength={3} placeholder="e.g. UG" />
                   ) : (
                     <div className="flex items-center gap-2 flex-1">
-                      {(themeForm.logoUrl || logoFile) && (
-                        <img src={logoPreview || themeForm.logoUrl} alt="Logo" className="h-10 w-auto object-contain bg-transparent" style={{ background: "transparent" }} />
-                      )}
+                      <RemoteImage
+                        src={logoPreview || themeForm.logoUrl}
+                        alt="Logo"
+                        className="h-10 w-auto object-contain"
+                        data-testid="img-logo-preview"
+                        fallback={themeForm.logoUrl ? <span className="text-xs text-destructive">Logo unavailable</span> : null}
+                      />
                       <Button type="button" size="sm" variant="outline" onClick={() => logoInputRef.current?.click()} data-testid="button-upload-logo">
                         <Upload className="w-3.5 h-3.5 mr-1" />
                         {logoFile ? logoFile.name.slice(0, 15) + "…" : "Choose file"}

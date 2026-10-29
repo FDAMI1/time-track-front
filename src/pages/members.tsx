@@ -59,14 +59,14 @@ export default function MembersPage() {
       : [{ value: "system-teacher", label: "Teacher", roleName: "teacher" }, { value: "system-student", label: "Student", roleName: "student" }, { value: "system-manager", label: "Manager", roleName: "manager" }, { value: "system-employee", label: "Employee", roleName: "employee" }];
 
   const [form, setForm] = useState({
-    firstName: "", lastName: "", email: "", emailDomain: "", phone: "", education: "", username: "", userId: "",
+    firstName: "", lastName: "", email: "", emailDomain: "", phone: "", education: "", username: "", userId: "", biometricId: "",
     role: fallbackRoles[0]?.value || "system-employee",
     studentWhatsapp: "", parentWhatsapp: "",
     assignedSchedules: [] as string[],
   });
 
   const [editForm, setEditForm] = useState({
-    firstName: "", lastName: "", email: "", phone: "", education: "", role: "", password: "", userId: "",
+    firstName: "", lastName: "", email: "", phone: "", education: "", role: "", password: "", userId: "", biometricId: "",
     studentWhatsapp: "", parentWhatsapp: "",
     assignedSchedules: [] as string[],
   });
@@ -155,7 +155,7 @@ export default function MembersPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       queryClient.invalidateQueries({ queryKey: ["/api/policy"] });
       setCreateOpen(false);
-      setForm({ firstName: "", lastName: "", email: "", emailDomain: "", phone: "", education: "", username: "", userId: "", role: availableRoles[0]?.value || "system-employee", studentWhatsapp: "", parentWhatsapp: "", assignedSchedules: [] });
+      setForm({ firstName: "", lastName: "", email: "", emailDomain: "", phone: "", education: "", username: "", userId: "", biometricId: "", role: availableRoles[0]?.value || "system-employee", studentWhatsapp: "", parentWhatsapp: "", assignedSchedules: [] });
       setTempPwdState({ open: true, password: data.tempPassword, username: data.user?.username || "" });
     },
     onError: (err: Error) => {
@@ -284,6 +284,7 @@ export default function MembersPage() {
       role: roleValue,
       password: "",
       userId: member.userId || "",
+      biometricId: member.biometricId || "",
       studentWhatsapp: member.studentWhatsapp || "",
       parentWhatsapp: member.parentWhatsapp || "",
       assignedSchedules: memberSchedules,
@@ -462,6 +463,7 @@ export default function MembersPage() {
                 )}
               </div>
               <div><Label>User ID <span className="text-muted-foreground text-xs">(optional)</span></Label><Input data-testid="input-member-userid" value={form.userId} onChange={(e) => setForm({ ...form, userId: e.target.value })} placeholder="e.g. STU-001 or EMP-042" /></div>
+              <div><Label>Biometric ID <span className="text-muted-foreground text-xs">(optional)</span></Label><Input data-testid="input-member-biometric-id" inputMode="numeric" value={form.biometricId} onChange={(e) => setForm({ ...form, biometricId: e.target.value })} placeholder="Number on the fingerprint machine" /></div>
               <p className="text-xs text-muted-foreground flex items-center gap-1.5">
                 <KeyRound className="w-3 h-3" />
                 A temporary password will be auto-generated and shown after creation.
@@ -550,6 +552,9 @@ export default function MembersPage() {
                           </div>
                           {m.userId && (
                             <p className="text-xs text-muted-foreground" data-testid={`text-member-code-${m._id}`}>ID: {m.userId}</p>
+                          )}
+                          {m.biometricId && (
+                            <p className="text-xs text-muted-foreground" data-testid={`text-member-biometric-${m._id}`}>Biometric ID: {m.biometricId}</p>
                           )}
                           {m.phone && (
                             <p className="text-xs text-muted-foreground flex items-center gap-1"><Phone className="w-3 h-3" />{m.phone}</p>
@@ -822,6 +827,7 @@ export default function MembersPage() {
 
             <div><Label>Current Education</Label><Input data-testid="input-edit-education" value={editForm.education} onChange={(e) => setEditForm({ ...editForm, education: e.target.value })} placeholder="e.g. BSc Computer Science" /></div>
             <div><Label>User ID <span className="text-muted-foreground text-xs">(optional)</span></Label><Input data-testid="input-edit-userid" value={editForm.userId} onChange={(e) => setEditForm({ ...editForm, userId: e.target.value })} placeholder="e.g. STU-001 or EMP-042" /></div>
+            <div><Label>Biometric ID <span className="text-muted-foreground text-xs">(optional)</span></Label><Input data-testid="input-edit-biometric-id" inputMode="numeric" value={editForm.biometricId} onChange={(e) => setEditForm({ ...editForm, biometricId: e.target.value })} placeholder="Number on the fingerprint machine" /></div>
             <div>
               <Label>Role</Label>
               <Select value={editForm.role} onValueChange={(v) => setEditForm({ ...editForm, role: v })}>

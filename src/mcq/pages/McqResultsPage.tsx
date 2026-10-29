@@ -127,9 +127,11 @@ function TakerResults() {
   if (isLoading) return <div className="space-y-6"><Skeleton className="h-8 w-48" /><div className="space-y-3">{[...Array(3)].map((_, i) => <Card key={i}><CardContent className="p-5"><Skeleton className="h-16 w-full" /></CardContent></Card>)}</div></div>;
 
   const submitted = (data || []).filter((a) => a.submittedAt);
-  const totalScore = submitted.reduce((s, a) => s + (a.score || 0), 0);
-  const totalMarks = submitted.reduce((s, a) => s + (a.totalMarks || 0), 0);
-  const best = submitted.length ? Math.max(...submitted.map((a) => pctOf(a.score, a.totalMarks))) : 0;
+  // Results the teacher has not published yet carry no score and stay out of the averages.
+  const scored = submitted.filter((a) => !a.resultsHidden);
+  const totalScore = scored.reduce((s, a) => s + (a.score || 0), 0);
+  const totalMarks = scored.reduce((s, a) => s + (a.totalMarks || 0), 0);
+  const best = scored.length ? Math.max(...scored.map((a) => pctOf(a.score, a.totalMarks))) : 0;
 
   return (
     <div className="space-y-6">
@@ -150,11 +152,13 @@ function TakerResults() {
                     <div className="flex items-center justify-between gap-2">
                       <div className="min-w-0">
                         <p className="font-medium text-foreground" data-testid={`text-result-test-${a._id}`}>{a.testTitle || "Test"}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">Score: {a.score}/{a.totalMarks} | {a.submittedAt && new Date(a.submittedAt).toLocaleDateString()}{a.assignedBy && <> | Assigned by: <span className="font-medium">{a.assignedBy}</span></>}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{a.resultsHidden ? "Result pending" : <>Score: {a.score}/{a.totalMarks}</>} | {a.submittedAt && new Date(a.submittedAt).toLocaleDateString()}{a.assignedBy && <> | Assigned by: <span className="font-medium">{a.assignedBy}</span></>}</p>
                       </div>
-                      <Badge variant={a.proctorStatus === "FLAGGED" ? "destructive" : scoreVariant(pct)}>{a.proctorStatus === "FLAGGED" ? "Terminated" : `${pct}%`}</Badge>
+                      {a.resultsHidden
+                        ? <Badge variant="secondary" data-testid={`badge-result-pending-${a._id}`}>Pending</Badge>
+                        : <Badge variant={a.proctorStatus === "FLAGGED" ? "destructive" : scoreVariant(pct)}>{a.proctorStatus === "FLAGGED" ? "Terminated" : `${pct}%`}</Badge>}
                     </div>
-                    <div className="mt-3 h-1.5 bg-muted rounded-full overflow-hidden"><div className={`h-full rounded-full ${pct >= 70 ? "bg-chart-2" : pct >= 40 ? "bg-chart-4" : "bg-destructive"}`} style={{ width: `${pct}%` }} /></div>
+                    {!a.resultsHidden && <div className="mt-3 h-1.5 bg-muted rounded-full overflow-hidden"><div className={`h-full rounded-full ${pct >= 70 ? "bg-chart-2" : pct >= 40 ? "bg-chart-4" : "bg-destructive"}`} style={{ width: `${pct}%` }} /></div>}
                   </CardContent>
                 </Card>
               </Link>

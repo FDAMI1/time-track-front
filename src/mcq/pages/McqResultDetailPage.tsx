@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { ArrowLeft, CheckCircle2, XCircle, MinusCircle, ShieldAlert, AlertTriangle, ImageIcon, Trash2 } from "lucide-react";
+import { RemoteImage } from "@/components/remote-image";
 import { screenshotUrl, useMcqApi } from "@/mcq/lib/api";
 import { isMcqStaff } from "@/mcq/lib/roles";
 import { pctOf, VIOLATION_LABELS, type McqAttemptDetail } from "@/mcq/lib/types";
@@ -194,7 +195,15 @@ export default function McqResultDetailPage() {
       <Dialog open={!!screenshot} onOpenChange={(open) => !open && setScreenshot(null)}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle className="flex items-center gap-2"><ImageIcon className="w-5 h-5" />{screenshot?.label || "Screen Capture"}</DialogTitle></DialogHeader>
-          {screenshot && <img src={screenshotUrl(screenshot.fileId, token)} alt="Proctor violation screenshot" className="max-w-full rounded-lg border border-border mx-auto" data-testid="img-screenshot-preview" />}
+          {screenshot && (
+            <RemoteImage
+              src={screenshotUrl(screenshot.fileId, token)}
+              alt="Proctor violation screenshot"
+              className="max-w-full min-h-40 rounded-lg border border-border mx-auto"
+              data-testid="img-screenshot-preview"
+              fallback={<p className="text-sm text-muted-foreground text-center py-8">Screenshot unavailable. It may have been removed after the retention period.</p>}
+            />
+          )}
         </DialogContent>
       </Dialog>
     </div>

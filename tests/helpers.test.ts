@@ -6,6 +6,25 @@ import { isLocationRequired } from "../src/lib/geolocation.ts";
 import { localDateString } from "../src/lib/utils.ts";
 import { parseBulkQuestions } from "../src/mcq/lib/parseQuestions.ts";
 import { pctOf, scoreVariant } from "../src/mcq/lib/types.ts";
+import { assetUrl } from "../src/lib/asset-url.ts";
+
+describe("assetUrl", () => {
+  const cld = "https://res.cloudinary.com/demo/image/upload/v1/portal/orgs/1/logo/abc.png";
+  test("adds automatic format and quality to Cloudinary images, once", () => {
+    const out = assetUrl(cld, "");
+    assert.equal(out, "https://res.cloudinary.com/demo/image/upload/f_auto,q_auto/v1/portal/orgs/1/logo/abc.png");
+    assert.equal(assetUrl(out, ""), out);
+  });
+  test("prefixes legacy server paths with the API host", () => {
+    assert.equal(assetUrl("/uploads/logo/a.png", "https://api.example.com"), "https://api.example.com/uploads/logo/a.png");
+  });
+  test("leaves other URLs alone and maps empty values to empty", () => {
+    assert.equal(assetUrl("https://cdn.example.com/x.png", ""), "https://cdn.example.com/x.png");
+    assert.equal(assetUrl("blob:http://localhost/123", ""), "blob:http://localhost/123");
+    assert.equal(assetUrl(undefined, ""), "");
+    assert.equal(assetUrl("", ""), "");
+  });
+});
 
 describe("filenameFromDisposition", () => {
   test("reads quoted and unquoted names", () => {

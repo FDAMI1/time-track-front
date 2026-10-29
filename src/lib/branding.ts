@@ -1,3 +1,5 @@
+import { assetUrl } from "./asset-url";
+
 function hexToHsl(hex: string): string {
   if (!hex || !hex.startsWith("#") || hex.length < 7) return "217 91% 35%";
   const r = parseInt(hex.slice(1, 3), 16) / 255;
@@ -43,7 +45,7 @@ export function applyBrandingCss(theme: {
     el.style.setProperty("--sidebar-primary", hexToHsl(btn));
     el.style.setProperty("--sidebar-ring", hexToHsl(btn));
   }
-  if (theme.logoUrl) document.querySelector("link[rel='icon']")?.setAttribute("href", theme.logoUrl);
+  if (theme.logoUrl) document.querySelector("link[rel='icon']")?.setAttribute("href", assetUrl(theme.logoUrl));
   window.dispatchEvent(new CustomEvent("brandingUpdated"));
 }
 

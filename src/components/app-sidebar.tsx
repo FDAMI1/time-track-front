@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { RemoteImage } from "@/components/remote-image";
 import {
   LayoutDashboard,
   Building2,
@@ -85,7 +86,6 @@ export function AppSidebar() {
   const logoText = branding.logoText || "";
   const logoType = branding.logoType || "text";
   const logoUrl = branding.logoUrl || "";
-  const BASE_URL = import.meta.env.VITE_API_URL || "";
 
   const initials = getInitials(user.firstName, user.lastName);
   const orgType = user.organizationId?.type;
@@ -138,12 +138,12 @@ export function AppSidebar() {
       <SidebarHeader className="p-4 gap-4">
         <div className="flex items-center gap-2.5">
           <div className={`flex items-center justify-center w-9 h-9 rounded-lg shrink-0 overflow-hidden ${logoType === "image" && logoUrl ? "bg-transparent" : "bg-primary text-primary-foreground"}`}>
-            {logoType === "image" && logoUrl
-              ? <img src={`${BASE_URL}${logoUrl}`} alt="Logo" className="h-9 w-auto object-contain bg-transparent" style={{ background: "transparent" }} />
-              : logoText
-                ? <span className="text-sm font-bold">{logoText}</span>
-                : <Shield className="w-5 h-5" />
-            }
+            <RemoteImage
+              src={logoType === "image" ? logoUrl : ""}
+              alt="Logo"
+              className="h-9 w-auto object-contain"
+              fallback={logoText ? <span className="text-sm font-bold">{logoText}</span> : <Shield className="w-5 h-5" />}
+            />
           </div>
           <span className="text-base font-bold tracking-tight truncate">{appName || "NF Skills"}</span>
         </div>

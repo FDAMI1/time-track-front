@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { BiometricPanel } from "@/components/biometric-panel";
 import { CalendarCheck, CheckCircle2, Clock, XCircle, Users, Bell, Check, X, UserCheck, FileDown, Copy } from "lucide-react";
 
 const statusBadge: Record<string, { className: string; label: string }> = {
@@ -24,17 +25,28 @@ const statusBadge: Record<string, { className: string; label: string }> = {
   not_marked: { className: "bg-muted text-muted-foreground", label: "Not Marked" },
 };
 
+const sourceLabels: Record<string, string> = { app: "App", manual: "Staff", biometric: "Fingerprint" };
+
+// How a check-in or check-out was made; nothing for records older than the field.
+function SourceTag({ source }: { source?: string | null }) {
+  if (!source || !sourceLabels[source]) return null;
+  return <span className="ml-1.5 text-xs text-muted-foreground/80" data-testid="text-attendance-source">· {sourceLabels[source]}</span>;
+}
+
 function getRoleTabs(role: string, orgType?: string) {
   if (role === "org_admin") {
+    const machines = { value: "biometric", label: "Fingerprint Machines", roleFilter: null };
     if (orgType === "academy") {
       return [
         { value: "student", label: "Student Attendance", roleFilter: "student" },
         { value: "teacher", label: "Teacher Attendance", roleFilter: "teacher" },
+        machines,
       ];
     } else {
       return [
         { value: "employee", label: "Employee Attendance", roleFilter: "employee" },
         { value: "manager", label: "Manager Attendance", roleFilter: "manager" },
+        machines,
       ];
     }
   }
@@ -126,7 +138,7 @@ export default function AttendancePage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
+        <TabsList className="max-w-full justify-start overflow-x-auto">
           {tabs.map((tab) => (
             <TabsTrigger key={tab.value} value={tab.value} data-testid={`tab-${tab.value}-attendance`}>
               {tab.label}
@@ -136,7 +148,9 @@ export default function AttendancePage() {
 
         {tabs.map((tab) => (
           <TabsContent key={tab.value} value={tab.value}>
-            {tab.roleFilter ? (
+            {tab.value === "biometric" ? (
+              <BiometricPanel token={token!} />
+            ) : tab.roleFilter ? (
               <TeamAttendanceTab
                 roleFilter={tab.roleFilter}
                 token={token!}
@@ -196,8 +210,8 @@ function MyAttendanceTab({ records, isLoading }: { records: any[]; isLoading: bo
                       <TableCell>
                         {si === 0 && <span className={`text-xs px-2 py-1 rounded-md ${sb.className}`}>{sb.label}</span>}
                       </TableCell>
-                      <TableCell className="text-muted-foreground">{fmtTime(s.checkIn)}</TableCell>
-                      <TableCell className="text-muted-foreground">{fmtTime(s.checkOut)}</TableCell>
+                      <TableCell className="text-muted-foreground">{fmtTime(s.checkIn)}<SourceTag source={s.checkInSource} /></TableCell>
+                      <TableCell className="text-muted-foreground">{fmtTime(s.checkOut)}{s.checkOut && <SourceTag source={s.checkOutSource} />}</TableCell>
                     </TableRow>
                   ));
                 }
@@ -210,7 +224,7 @@ function MyAttendanceTab({ records, isLoading }: { records: any[]; isLoading: bo
                     <TableCell>
                       <span className={`text-xs px-2 py-1 rounded-md ${sb.className}`}>{sb.label}</span>
                     </TableCell>
-                    <TableCell className="text-muted-foreground">{r.checkInTime || "-"}</TableCell>
+                    <TableCell className="text-muted-foreground">{r.checkInTime || "-"}<SourceTag source={r.source} /></TableCell>
                     <TableCell className="text-muted-foreground">{r.checkOutTime || "-"}</TableCell>
                   </TableRow>
                 )];
@@ -500,7 +514,7 @@ function TeamAttendanceTab({ roleFilter, token, viewerRole = "", orgType }: { ro
                     <TableCell>
                       <span className={`text-xs px-2 py-1 rounded-md ${sb.className}`}>{sb.label}</span>
                     </TableCell>
-                    <TableCell className="text-muted-foreground">{m.checkInTime || "-"}</TableCell>
+                    <TableCell className="text-muted-foreground">{m.checkInTime || "-"}<SourceTag source={m.source} /></TableCell>
                     {viewerRole === "manager" && roleFilter === "employee" ? (
                       <>
                         <TableCell className="text-muted-foreground">{m.checkOutTime || "-"}</TableCell>
