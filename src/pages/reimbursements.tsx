@@ -188,7 +188,8 @@ export default function ReimbursementsPage() {
     const { role } = user || {};
     if (claim.status === "rejected" || claim.status === "approved_final") return [];
     if (role === "manager" || role === "teacher") {
-      if (claim.status === "pending_manager") return ["approve", "forward", "reject"];
+      const assignedToMe = (claim.assignedTo?._id || claim.assignedTo) === user?._id;
+      if (assignedToMe && ["pending_manager", "forwarded"].includes(claim.status)) return ["approve", "forward", "reject"];
     }
     if (role === "org_admin") {
       if (["approved_manager", "forwarded", "pending_manager"].includes(claim.status))

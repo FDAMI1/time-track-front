@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Users, UserCheck, UserX, Clock, CalendarOff, TrendingUp, AlertCircle, Download, FileSpreadsheet, FileText, ChevronDown, Timer } from "lucide-react";
+import { Users, UserCheck, UserX, Clock, CalendarOff, TrendingUp, AlertCircle, Download, FileSpreadsheet, FileText, ChevronDown } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { Button } from "@/components/ui/button";
 
@@ -59,17 +59,6 @@ export default function OrgAdminDashboard() {
       });
       if (!res.ok) throw new Error("Failed to fetch dashboard");
       return safeJson(res);
-    },
-  });
-
-  const { data: overtimeData } = useQuery({
-    queryKey: ["/api/dashboard/overtime", period],
-    queryFn: async () => {
-      const res = await apiFetch(`/api/dashboard/overtime?period=${period}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) return null;
-      return res.json();
     },
   });
 
@@ -338,56 +327,6 @@ export default function OrgAdminDashboard() {
           </CardContent>
         </Card>
       </div>
-
-      {overtimeData && overtimeData.totalOvertimeHours > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Timer className="w-5 h-5 text-chart-5" />
-              Overtime Summary ({pLabel})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-              <div className="text-center p-4 rounded-md bg-chart-5/10">
-                <p className="text-2xl font-bold text-chart-5" data-testid="text-total-overtime-hours">{overtimeData.totalOvertimeHours}h</p>
-                <p className="text-xs text-muted-foreground">Total Overtime Hours</p>
-              </div>
-              <div className="text-center p-4 rounded-md bg-muted/30">
-                <p className="text-2xl font-bold" data-testid="text-overtime-records">{overtimeData.totalRecords}</p>
-                <p className="text-xs text-muted-foreground">Overtime Records</p>
-              </div>
-              <div className="text-center p-4 rounded-md bg-muted/30">
-                <p className="text-2xl font-bold" data-testid="text-overtime-avg">
-                  {overtimeData.totalRecords > 0
-                    ? Math.round(overtimeData.totalOvertimeMinutes / overtimeData.totalRecords)
-                    : 0}m
-                </p>
-                <p className="text-xs text-muted-foreground">Avg Overtime per Record</p>
-              </div>
-            </div>
-            {overtimeData.topOvertimeUsers?.length > 0 && (
-              <div>
-                <p className="text-sm font-medium mb-2">Top Overtime</p>
-                <div className="space-y-2">
-                  {overtimeData.topOvertimeUsers.slice(0, 5).map((u: any) => (
-                    <div key={u.userId} className="flex items-center justify-between p-2 rounded-md bg-muted/30" data-testid={`overtime-user-${u.userId}`}>
-                      <div>
-                        <p className="text-sm font-medium">{u.firstName} {u.lastName}</p>
-                        <p className="text-xs text-muted-foreground capitalize">{u.role}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm font-bold text-chart-5">{u.totalHours}h</p>
-                        <p className="text-xs text-muted-foreground">{u.count} day(s)</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
 
       <Dialog open={!!drilldownType} onOpenChange={(open) => { if (!open) closeDrilldown(); }}>
         <DialogContent className="max-w-lg max-h-[80vh] overflow-hidden flex flex-col">

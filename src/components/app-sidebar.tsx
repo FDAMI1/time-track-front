@@ -111,9 +111,9 @@ export function AppSidebar() {
         if (orgType !== "company") {
           items.push({ group: "Communication", title: "WhatsApp", url: "/whatsapp", icon: MessageCircle });
         }
-        items.push({ group: "Administration", title: "Settings", url: "/settings", icon: Settings });
       }
       items.push({ group: "Records", title: "Documents", url: "/documents", icon: Files });
+      items.push({ group: "Administration", title: "Settings", url: "/settings", icon: Settings });
       if (orgType === "company" && ["employee", "manager", "org_admin"].includes(user.role)) {
         items.push({ group: "Records", title: "Reimbursements", url: "/reimbursements", icon: Receipt });
       }

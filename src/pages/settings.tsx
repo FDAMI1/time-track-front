@@ -879,14 +879,14 @@ export default function SettingsPage() {
       <div>
         <h1 className="text-2xl font-bold" data-testid="text-settings-title">Settings</h1>
         <p className="text-muted-foreground">
-          {isSuperAdmin ? "Customize platform appearance and manage your account" : "Configure attendance policies and account settings"}
+          {isSuperAdmin ? "Customize platform appearance and manage your account" : canManagePolicy ? "Configure attendance policies and account settings" : "Manage your account"}
         </p>
       </div>
 
       <Tabs value={settingsTab} onValueChange={setSettingsTab}>
         <TabsList>
           <TabsTrigger value="general" data-testid="tab-settings-general">General</TabsTrigger>
-          {(isOrgAdmin || user?.role === "manager") && (
+          {isOrgAdmin && (
             <TabsTrigger value="doc-templates" data-testid="tab-settings-doc-templates">{orgType === "academy" ? "Certificate Templates" : "Doc Templates"}</TabsTrigger>
           )}
           {isOrgAdmin && (
@@ -1367,7 +1367,6 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handlePasswordSubmit} className="space-y-4 max-w-md">
-            {!["org_admin", "super_admin"].includes(user?.role || "") && (
             <div>
               <Label>Current Password</Label>
               <div className="relative">
@@ -1384,7 +1383,6 @@ export default function SettingsPage() {
                 </Button>
               </div>
             </div>
-            )}
             <div>
               <Label>New Password</Label>
               <div className="relative">

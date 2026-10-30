@@ -483,14 +483,13 @@ function TeamAttendanceTab({ roleFilter, token, viewerRole = "", orgType }: { ro
                 <TableHead>Name</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Check In</TableHead>
-                {viewerRole === "manager" && roleFilter === "employee" ? (
+                {viewerRole === "manager" && roleFilter === "employee" && (
                   <>
                     <TableHead>Check Out</TableHead>
                     <TableHead>Hours</TableHead>
                   </>
-                ) : (
-                  <TableHead className="text-right">Actions</TableHead>
                 )}
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -515,7 +514,7 @@ function TeamAttendanceTab({ roleFilter, token, viewerRole = "", orgType }: { ro
                       <span className={`text-xs px-2 py-1 rounded-md ${sb.className}`}>{sb.label}</span>
                     </TableCell>
                     <TableCell className="text-muted-foreground">{m.checkInTime || "-"}<SourceTag source={m.source} /></TableCell>
-                    {viewerRole === "manager" && roleFilter === "employee" ? (
+                    {viewerRole === "manager" && roleFilter === "employee" && (
                       <>
                         <TableCell className="text-muted-foreground">{m.checkOutTime || "-"}</TableCell>
                         <TableCell className="text-muted-foreground text-xs">
@@ -528,73 +527,72 @@ function TeamAttendanceTab({ roleFilter, token, viewerRole = "", orgType }: { ro
                           })() : "-"}
                         </TableCell>
                       </>
-                    ) : (
-                      <TableCell className="text-right">
-                        {(roleFilter === "student" || roleFilter === "employee") && !isPending && !isNotMarked && (
+                    )}
+                    <TableCell className="text-right">
+                      {(roleFilter === "student" || roleFilter === "employee") && !isPending && !isNotMarked && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2 text-muted-foreground hover:text-foreground"
+                          onClick={() => downloadStudentReport(m._id, `${m.firstName} ${m.lastName}`)}
+                          data-testid={`button-report-${m._id}`}
+                          title="Download monthly report"
+                        >
+                          <FileDown className="w-3.5 h-3.5 mr-1" />
+                          Report
+                        </Button>
+                      )}
+                      {isPending && (
+                        <div className="flex gap-1 justify-end">
                           <Button
                             size="sm"
-                            variant="ghost"
-                            className="h-7 px-2 text-muted-foreground hover:text-foreground"
-                            onClick={() => downloadStudentReport(m._id, `${m.firstName} ${m.lastName}`)}
-                            data-testid={`button-report-${m._id}`}
-                            title="Download monthly report"
+                            variant="default"
+                            onClick={() => approveAttendance.mutate({ id: m.attendanceId, status: "present" })}
+                            disabled={approveAttendance.isPending}
+                            data-testid={`button-confirm-${m._id}`}
                           >
-                            <FileDown className="w-3.5 h-3.5 mr-1" />
-                            Report
+                            <Check className="w-3.5 h-3.5 mr-1" />
+                            Confirm
                           </Button>
-                        )}
-                        {isPending && (
-                          <div className="flex gap-1 justify-end">
-                            <Button
-                              size="sm"
-                              variant="default"
-                              onClick={() => approveAttendance.mutate({ id: m.attendanceId, status: "present" })}
-                              disabled={approveAttendance.isPending}
-                              data-testid={`button-confirm-${m._id}`}
-                            >
-                              <Check className="w-3.5 h-3.5 mr-1" />
-                              Confirm
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => approveAttendance.mutate({ id: m.attendanceId, status: "absent" })}
-                              disabled={approveAttendance.isPending}
-                              data-testid={`button-decline-${m._id}`}
-                            >
-                              <X className="w-3.5 h-3.5 mr-1" />
-                              Decline
-                            </Button>
-                          </div>
-                        )}
-                        {!isPending && (
-                          <div className="flex gap-1 justify-end">
-                            <Button
-                              size="sm"
-                              variant={m.status === "present" || m.status === "late" ? "default" : "outline"}
-                              className={m.status === "present" || m.status === "late" ? "bg-chart-2 hover:bg-chart-2/90 text-white" : "border-chart-2/50 text-chart-2 hover:bg-chart-2/10"}
-                              onClick={() => markForUser.mutate({ userId: m._id, status: "present" })}
-                              disabled={markForUser.isPending || m.status === "present"}
-                              data-testid={`button-mark-present-${m._id}`}
-                            >
-                              <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
-                              Present
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant={m.status === "absent" ? "default" : "outline"}
-                              className={m.status === "absent" ? "bg-destructive hover:bg-destructive/90 text-white" : "border-destructive/50 text-destructive hover:bg-destructive/10"}
-                              onClick={() => markForUser.mutate({ userId: m._id, status: "absent" })}
-                              disabled={markForUser.isPending || m.status === "absent"}
-                              data-testid={`button-mark-absent-${m._id}`}
-                            >
-                              <XCircle className="w-3.5 h-3.5 mr-1" />
-                              Absent
-                            </Button>
-                          </div>
-                        )}
-                      </TableCell>
-                    )}
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => approveAttendance.mutate({ id: m.attendanceId, status: "absent" })}
+                            disabled={approveAttendance.isPending}
+                            data-testid={`button-decline-${m._id}`}
+                          >
+                            <X className="w-3.5 h-3.5 mr-1" />
+                            Decline
+                          </Button>
+                        </div>
+                      )}
+                      {!isPending && (
+                        <div className="flex gap-1 justify-end">
+                          <Button
+                            size="sm"
+                            variant={m.status === "present" || m.status === "late" ? "default" : "outline"}
+                            className={m.status === "present" || m.status === "late" ? "bg-chart-2 hover:bg-chart-2/90 text-white" : "border-chart-2/50 text-chart-2 hover:bg-chart-2/10"}
+                            onClick={() => markForUser.mutate({ userId: m._id, status: "present" })}
+                            disabled={markForUser.isPending || m.status === "present"}
+                            data-testid={`button-mark-present-${m._id}`}
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
+                            Present
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant={m.status === "absent" ? "default" : "outline"}
+                            className={m.status === "absent" ? "bg-destructive hover:bg-destructive/90 text-white" : "border-destructive/50 text-destructive hover:bg-destructive/10"}
+                            onClick={() => markForUser.mutate({ userId: m._id, status: "absent" })}
+                            disabled={markForUser.isPending || m.status === "absent"}
+                            data-testid={`button-mark-absent-${m._id}`}
+                          >
+                            <XCircle className="w-3.5 h-3.5 mr-1" />
+                            Absent
+                          </Button>
+                        </div>
+                      )}
+                    </TableCell>
                   </TableRow>
                 );
               })}

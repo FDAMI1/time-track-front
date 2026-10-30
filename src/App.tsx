@@ -230,9 +230,7 @@ function AuthenticatedRouter() {
         <Route path="/activity-logs" component={ActivityLogsPage} />
       )}
       <Route path="/chat" component={ChatPage} />
-      {["superadmin", "org_admin", "teacher", "manager"].includes(user?.role || "") && (
-        <Route path="/settings" component={SettingsPage} />
-      )}
+      <Route path="/settings" component={SettingsPage} />
       {["org_admin", "teacher", "manager"].includes(user?.role || "") && (
         <Route path="/document-templates" component={DocumentTemplatesPage} />
       )}

@@ -93,7 +93,7 @@ export default function WhatsappNotificationsPage() {
 
   const hasNumbers = (n: any) => n.studentWhatsapp || n.parentWhatsapp;
   const isSent = (n: any) => {
-    if (!hasNumbers(n)) return true;
+    if (!hasNumbers(n)) return false;
     const studentDone = !n.studentWhatsapp || n.sentToStudent;
     const parentDone = !n.parentWhatsapp || n.sentToParent;
     return studentDone && parentDone;
@@ -270,7 +270,7 @@ export default function WhatsappNotificationsPage() {
           </div>
 
           {list.map((n: any) => (
-            <Card key={n._id} data-testid={`card-notification-${n._id}`} className={!isSent(n) ? "border-green-200 dark:border-green-800" : ""}>
+            <Card key={n._id} data-testid={`card-notification-${n._id}`} className={hasNumbers(n) && !isSent(n) ? "border-green-200 dark:border-green-800" : ""}>
               <CardContent className="p-4">
                 <div className="flex gap-3">
                   <div className="flex items-start pt-1">
