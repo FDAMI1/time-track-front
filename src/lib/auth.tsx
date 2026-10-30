@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { apiFetch, postJson, safeJson } from "./api";
+import { queryClient } from "./queryClient";
 
 // Dev-only logging so auth details (roles, impersonation targets) never reach
 // production consoles.
@@ -109,6 +110,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     localStorage.setItem("token", data.token);
+    queryClient.clear();
     setToken(data.token);
     setUser(data.user);
     if (data.user.mustChangePassword) {
@@ -128,6 +130,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setMustChangePassword(false);
     setIsImpersonating(false);
     setImpersonatedOrgName(null);
+    // Cached responses belong to this user, so the next one in this browser must not see them.
+    queryClient.clear();
     window.history.replaceState(null, "", "/");
   };
 

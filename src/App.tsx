@@ -36,6 +36,8 @@ import NotFound from "@/pages/not-found";
 const McqRouter = lazy(() => import("@/mcq/McqRouter"));
 const McqExternalTestPage = lazy(() => import("@/mcq/pages/McqExternalTestPage"));
 const TicketsRouter = lazy(() => import("@/tickets/TicketsRouter"));
+const AssistantWidget = lazy(() => import("@/assistant/AssistantWidget"));
+const AssistantAdminPage = lazy(() => import("@/assistant/AssistantAdminPage"));
 const McqFallback = () => (
   <div className="flex items-center justify-center p-12">
     <Skeleton className="h-8 w-48" />
@@ -161,6 +163,7 @@ const PAGE_TITLES: Record<string, string> = {
   reimbursements: "Reimbursements",
   mcq: "MCQ",
   tickets: "Tickets",
+  "assistant-admin": "AI Assistant",
 };
 
 // Page title with a breadcrumb, derived from the first URL segment.
@@ -253,6 +256,11 @@ function AuthenticatedRouter() {
           <Suspense fallback={<McqFallback />}><McqRouter /></Suspense>
         </Route>
       )}
+      {["org_admin", "superadmin"].includes(user?.role || "") && (
+        <Route path="/assistant-admin">
+          <Suspense fallback={<McqFallback />}><AssistantAdminPage /></Suspense>
+        </Route>
+      )}
       <Route path="/tickets" nest>
         <Suspense fallback={<McqFallback />}><TicketsRouter /></Suspense>
       </Route>
@@ -332,6 +340,7 @@ function AppLayout() {
           </main>
         </div>
       </div>
+      <Suspense fallback={null}><AssistantWidget key={user._id} /></Suspense>
     </SidebarProvider>
   );
 }

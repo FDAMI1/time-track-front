@@ -34,6 +34,7 @@ import {
   Receipt,
   ClipboardList,
   LifeBuoy,
+  Bot,
 } from "lucide-react";
 
 const roleLabels: Record<string, string> = {
@@ -99,6 +100,7 @@ export function AppSidebar() {
     if (user.role === "superadmin") {
       items.push({ group: "Platform", title: "Organizations", url: "/organizations", icon: Building2 });
       items.push({ group: "Communication", title: "Tickets", url: "/tickets", icon: LifeBuoy });
+      items.push({ group: "Administration", title: "AI Assistant", url: "/assistant-admin", icon: Bot });
       items.push({ group: "Administration", title: "Settings", url: "/settings", icon: Settings });
     } else {
       if (["org_admin", "manager", "teacher"].includes(user.role)) {
@@ -121,6 +123,9 @@ export function AppSidebar() {
       }
       if ((user.organizationId as any)?.features?.tickets !== false) {
         items.push({ group: "Communication", title: "Tickets", url: "/tickets", icon: LifeBuoy });
+      }
+      if (user.role === "org_admin") {
+        items.push({ group: "Administration", title: "AI Assistant", url: "/assistant-admin", icon: Bot });
       }
       const chatEnabled = (user.organizationId as any)?.features?.chat !== false;
       if (chatEnabled) {
