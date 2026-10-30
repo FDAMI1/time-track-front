@@ -35,6 +35,7 @@ import NotFound from "@/pages/not-found";
 // MCQ module is code-split so it only loads when visited.
 const McqRouter = lazy(() => import("@/mcq/McqRouter"));
 const McqExternalTestPage = lazy(() => import("@/mcq/pages/McqExternalTestPage"));
+const TicketsRouter = lazy(() => import("@/tickets/TicketsRouter"));
 const McqFallback = () => (
   <div className="flex items-center justify-center p-12">
     <Skeleton className="h-8 w-48" />
@@ -159,6 +160,7 @@ const PAGE_TITLES: Record<string, string> = {
   "salary-setup": "Salary Setup",
   reimbursements: "Reimbursements",
   mcq: "MCQ",
+  tickets: "Tickets",
 };
 
 // Page title with a breadcrumb, derived from the first URL segment.
@@ -251,6 +253,9 @@ function AuthenticatedRouter() {
           <Suspense fallback={<McqFallback />}><McqRouter /></Suspense>
         </Route>
       )}
+      <Route path="/tickets" nest>
+        <Suspense fallback={<McqFallback />}><TicketsRouter /></Suspense>
+      </Route>
       <Route component={NotFound} />
     </Switch>
   );

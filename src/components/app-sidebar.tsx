@@ -33,6 +33,7 @@ import {
   Files,
   Receipt,
   ClipboardList,
+  LifeBuoy,
 } from "lucide-react";
 
 const roleLabels: Record<string, string> = {
@@ -97,6 +98,7 @@ export function AppSidebar() {
 
     if (user.role === "superadmin") {
       items.push({ group: "Platform", title: "Organizations", url: "/organizations", icon: Building2 });
+      items.push({ group: "Communication", title: "Tickets", url: "/tickets", icon: LifeBuoy });
       items.push({ group: "Administration", title: "Settings", url: "/settings", icon: Settings });
     } else {
       if (["org_admin", "manager", "teacher"].includes(user.role)) {
@@ -116,6 +118,9 @@ export function AppSidebar() {
       items.push({ group: "Administration", title: "Settings", url: "/settings", icon: Settings });
       if (orgType === "company" && ["employee", "manager", "org_admin"].includes(user.role)) {
         items.push({ group: "Records", title: "Reimbursements", url: "/reimbursements", icon: Receipt });
+      }
+      if ((user.organizationId as any)?.features?.tickets !== false) {
+        items.push({ group: "Communication", title: "Tickets", url: "/tickets", icon: LifeBuoy });
       }
       const chatEnabled = (user.organizationId as any)?.features?.chat !== false;
       if (chatEnabled) {
@@ -173,7 +178,7 @@ export function AppSidebar() {
                     <SidebarMenuButton
                       asChild
                       className="h-9 font-medium data-[active=true]:font-semibold"
-                      isActive={item.url === "/mcq" ? location.startsWith("/mcq") : location === item.url}
+                      isActive={["/mcq", "/tickets"].includes(item.url) ? location.startsWith(item.url) : location === item.url}
                     >
                       <Link href={item.url} data-testid={`link-nav-${item.title.toLowerCase().replace(/\s+/g, "-")}`}>
                         <item.icon className="w-4 h-4" />
