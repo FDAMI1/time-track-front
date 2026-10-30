@@ -435,7 +435,7 @@ function LocationSetupCard({ token }: { token: string }) {
 }
 
 export default function SettingsPage() {
-  const { token, user, replaceToken } = useAuth();
+  const { token, user, replaceToken, refreshUser } = useAuth();
   const { toast } = useToast();
   const isSuperAdmin = user?.role === "superadmin";
   const isOrgAdmin = user?.role === "org_admin";
@@ -474,6 +474,10 @@ export default function SettingsPage() {
 
   const [chatEnabled, setChatEnabled] = useState<boolean>(
     (user?.organizationId as any)?.features?.chat !== false
+  );
+
+  const [ticketsEnabled, setTicketsEnabled] = useState<boolean>(
+    (user?.organizationId as any)?.features?.tickets !== false
   );
 
   const [newDomain, setNewDomain] = useState("");
@@ -731,6 +735,26 @@ export default function SettingsPage() {
     onSuccess: (_, enabled) => {
       setChatEnabled(enabled);
       toast({ title: `Chat ${enabled ? "enabled" : "disabled"} successfully` });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const updateTicketsFeature = useMutation({
+    mutationFn: async (enabled: boolean) => {
+      const res = await apiFetch("/api/organizations/my/features", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ features: { tickets: enabled } }),
+      });
+      if (!res.ok) { const err = await res.json(); throw new Error(err.message); }
+      return res.json();
+    },
+    onSuccess: (_, enabled) => {
+      setTicketsEnabled(enabled);
+      refreshUser();
+      toast({ title: `Tickets ${enabled ? "enabled" : "disabled"} successfully` });
     },
     onError: (err: Error) => {
       toast({ title: "Error", description: err.message, variant: "destructive" });
@@ -1279,6 +1303,18 @@ export default function SettingsPage() {
                 checked={chatEnabled}
                 disabled={updateChatFeature.isPending}
                 onCheckedChange={(val) => updateChatFeature.mutate(val)}
+              />
+            </div>
+            <div className="flex items-center justify-between py-2 border-b">
+              <div>
+                <p className="font-medium text-sm">Tickets</p>
+                <p className="text-xs text-muted-foreground">Allow members to raise and follow support tickets</p>
+              </div>
+              <Switch
+                data-testid="switch-tickets-enabled"
+                checked={ticketsEnabled}
+                disabled={updateTicketsFeature.isPending}
+                onCheckedChange={(val) => updateTicketsFeature.mutate(val)}
               />
             </div>
           </CardContent>
