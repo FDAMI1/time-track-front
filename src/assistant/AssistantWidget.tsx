@@ -40,7 +40,7 @@ interface AskResult {
   conversationId: string;
   message: ChatMessage;
   ticketOffer: TicketOffer | null;
-  action: AssistantAction | null;
+  actions: AssistantAction[];
 }
 
 interface Conversation {
@@ -69,7 +69,7 @@ export default function AssistantWidget() {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [offer, setOffer] = useState<TicketOffer | null>(null);
-  const [action, setAction] = useState<(AssistantAction & { messageId: string }) | null>(null);
+  const [actions, setActions] = useState<AssistantAction[]>([]);
   const [text, setText] = useState("");
   const [article, setArticle] = useState<{ title: string; body: string } | null>(null);
   const end = useRef<HTMLDivElement>(null);
@@ -88,7 +88,7 @@ export default function AssistantWidget() {
     refetchInterval: false,
   });
 
-  useEffect(() => { end.current?.scrollIntoView?.({ block: "end" }); }, [messages, offer, action]);
+  useEffect(() => { end.current?.scrollIntoView?.({ block: "end" }); }, [messages, offer, actions]);
 
   const onError = (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" });
 
@@ -96,7 +96,7 @@ export default function AssistantWidget() {
     mutationFn: (message: string) => api.post<AskResult>("/api/assistant/messages", { message, conversationId: conversationId || undefined }),
     onMutate: (message) => {
       setOffer(null);
-      setAction(null);
+      setActions([]);
       setMessages((m) => [...m, { _id: `local-${Date.now()}`, sender: "user", content: message }]);
       setText("");
     },
@@ -104,7 +104,7 @@ export default function AssistantWidget() {
       setConversationId(result.conversationId);
       setMessages((m) => [...m, result.message]);
       setOffer(result.ticketOffer);
-      setAction(result.action ? { ...result.action, messageId: result.message._id } : null);
+      setActions(result.actions.map((action, i) => ({ ...action, id: `${result.message._id}-${i}` })));
       queryClient.invalidateQueries({ queryKey: [...scope, "conversations"] });
     },
     onError,
@@ -116,7 +116,7 @@ export default function AssistantWidget() {
       setConversationId(detail.conversation._id);
       setMessages(detail.messages);
       setOffer(detail.conversation.hasPendingTicket ? { subject: detail.conversation.title } : null);
-      setAction(null);
+      setActions([]);
       setShowHistory(false);
     },
     onError,
@@ -160,7 +160,7 @@ export default function AssistantWidget() {
     setConversationId(null);
     setMessages([]);
     setOffer(null);
-    setAction(null);
+    setActions([]);
     setShowHistory(false);
   }
 
@@ -169,10 +169,11 @@ export default function AssistantWidget() {
     setFull(false);
   };
 
-  const actionSaved = () => {
-    if (!action) return;
-    setMessages((m) => [...m, { _id: `ticket-${action.messageId}`, sender: "assistant", content: `Saved: ${action.label}.`, page: action.page }]);
-    setAction(null);
+  const dropAction = (id?: string) => setActions((all) => all.filter((a) => a.id !== id));
+
+  const actionSaved = (action: AssistantAction) => {
+    setMessages((m) => [...m, { _id: `ticket-${action.id}`, sender: "assistant", content: `Saved: ${action.label}.`, page: action.page }]);
+    dropAction(action.id);
     queryClient.invalidateQueries();
   };
 
@@ -258,7 +259,7 @@ export default function AssistantWidget() {
             </div>
           ))}
           {ask.isPending && <p className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin" />Thinking</p>}
-          {action && <ActionCard key={action.messageId} action={action} onDone={actionSaved} onCancel={() => setAction(null)} />}
+          {actions.map((action) => <ActionCard key={action.id} action={action} onDone={() => actionSaved(action)} onCancel={() => dropAction(action.id)} />)}
           {offer?.existing && <p className="text-sm text-muted-foreground">Ticket {offer.existing} is already open for this conversation. <Link href="/tickets" className="underline">View tickets</Link></p>}
           {offer?.subject && (
             <div className="rounded-lg border p-3 space-y-2" data-testid="assistant-ticket-offer">

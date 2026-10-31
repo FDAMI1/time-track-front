@@ -20,6 +20,7 @@ interface ActionField {
 }
 
 export interface AssistantAction {
+  id?: string;
   key: string;
   label: string;
   path: string;
