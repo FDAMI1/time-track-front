@@ -9,6 +9,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Bot, Flag, History, Loader2, Maximize2, Minimize2, Plus, Send, ThumbsDown, ThumbsUp, Trash2, X } from "lucide-react";
 import { useMcqApi } from "@/mcq/lib/api";
+import ActionCard, { type AssistantAction } from "./ActionCard";
+
+interface PageLink {
+  label: string;
+  path: string;
+}
 
 interface Source {
   articleId: string;
@@ -20,6 +26,7 @@ interface ChatMessage {
   sender: "user" | "assistant";
   content: string;
   sources?: Source[];
+  page?: PageLink;
   failed?: boolean;
   feedback?: { rating?: string; reportedIncorrect?: boolean };
 }
@@ -33,6 +40,7 @@ interface AskResult {
   conversationId: string;
   message: ChatMessage;
   ticketOffer: TicketOffer | null;
+  action: AssistantAction | null;
 }
 
 interface Conversation {
@@ -61,6 +69,7 @@ export default function AssistantWidget() {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [offer, setOffer] = useState<TicketOffer | null>(null);
+  const [action, setAction] = useState<(AssistantAction & { messageId: string }) | null>(null);
   const [text, setText] = useState("");
   const [article, setArticle] = useState<{ title: string; body: string } | null>(null);
   const end = useRef<HTMLDivElement>(null);
@@ -79,7 +88,7 @@ export default function AssistantWidget() {
     refetchInterval: false,
   });
 
-  useEffect(() => { end.current?.scrollIntoView?.({ block: "end" }); }, [messages, offer]);
+  useEffect(() => { end.current?.scrollIntoView?.({ block: "end" }); }, [messages, offer, action]);
 
   const onError = (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" });
 
@@ -87,6 +96,7 @@ export default function AssistantWidget() {
     mutationFn: (message: string) => api.post<AskResult>("/api/assistant/messages", { message, conversationId: conversationId || undefined }),
     onMutate: (message) => {
       setOffer(null);
+      setAction(null);
       setMessages((m) => [...m, { _id: `local-${Date.now()}`, sender: "user", content: message }]);
       setText("");
     },
@@ -94,6 +104,7 @@ export default function AssistantWidget() {
       setConversationId(result.conversationId);
       setMessages((m) => [...m, result.message]);
       setOffer(result.ticketOffer);
+      setAction(result.action ? { ...result.action, messageId: result.message._id } : null);
       queryClient.invalidateQueries({ queryKey: [...scope, "conversations"] });
     },
     onError,
@@ -105,6 +116,7 @@ export default function AssistantWidget() {
       setConversationId(detail.conversation._id);
       setMessages(detail.messages);
       setOffer(detail.conversation.hasPendingTicket ? { subject: detail.conversation.title } : null);
+      setAction(null);
       setShowHistory(false);
     },
     onError,
@@ -148,8 +160,21 @@ export default function AssistantWidget() {
     setConversationId(null);
     setMessages([]);
     setOffer(null);
+    setAction(null);
     setShowHistory(false);
   }
+
+  const leaveFor = () => {
+    setOpen(false);
+    setFull(false);
+  };
+
+  const actionSaved = () => {
+    if (!action) return;
+    setMessages((m) => [...m, { _id: `ticket-${action.messageId}`, sender: "assistant", content: `Saved: ${action.label}.`, page: action.page }]);
+    setAction(null);
+    queryClient.invalidateQueries();
+  };
 
   const send = () => {
     const message = text.trim();
@@ -204,7 +229,7 @@ export default function AssistantWidget() {
         <div className="flex-1 overflow-y-auto p-3 space-y-3" aria-live="polite" data-testid="assistant-messages">
           {messages.length === 0 && (
             <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">Ask how to do something in the portal, or about your own records.</p>
+              <p className="text-sm text-muted-foreground">Ask how to do something, ask about your own records, or tell me what to create.</p>
               {status.suggestions.map((question) => (
                 <Button key={question} variant="outline" size="sm" className="w-full h-auto py-2 justify-start text-left whitespace-normal" onClick={() => ask.mutate(question)}>{question}</Button>
               ))}
@@ -218,6 +243,11 @@ export default function AssistantWidget() {
               {message.sources?.map((source) => (
                 <Button key={source.articleId} variant="ghost" size="sm" className="h-auto p-1 text-xs underline" onClick={() => openArticle.mutate(source.articleId)}>{source.title}</Button>
               ))}
+              {message.page && (
+                <Button asChild variant="outline" size="sm" className="mt-1 block w-fit h-auto py-1" data-testid="assistant-page-link">
+                  <Link href={message.page.path} onClick={leaveFor}>Open {message.page.label}</Link>
+                </Button>
+              )}
               {message.sender === "assistant" && !message._id.startsWith("ticket-") && !message.failed && (
                 <div className="flex gap-1 mt-1">
                   <Button variant="ghost" size="icon" className="h-6 w-6" aria-label="Helpful" aria-pressed={message.feedback?.rating === "helpful"} onClick={() => feedback.mutate({ id: message._id, body: { rating: "helpful" } })}><ThumbsUp className="w-3 h-3" /></Button>
@@ -228,6 +258,7 @@ export default function AssistantWidget() {
             </div>
           ))}
           {ask.isPending && <p className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin" />Thinking</p>}
+          {action && <ActionCard key={action.messageId} action={action} onDone={actionSaved} onCancel={() => setAction(null)} />}
           {offer?.existing && <p className="text-sm text-muted-foreground">Ticket {offer.existing} is already open for this conversation. <Link href="/tickets" className="underline">View tickets</Link></p>}
           {offer?.subject && (
             <div className="rounded-lg border p-3 space-y-2" data-testid="assistant-ticket-offer">
@@ -248,7 +279,7 @@ export default function AssistantWidget() {
           <Textarea
             rows={2}
             className="resize-none"
-            placeholder="Type your question"
+            placeholder="Ask, or tell me what to create"
             aria-label="Your question"
             maxLength={2000}
             value={text}
