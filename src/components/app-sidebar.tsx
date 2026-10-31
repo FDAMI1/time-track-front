@@ -35,7 +35,12 @@ import {
   ClipboardList,
   LifeBuoy,
   Bot,
+  PhoneCall,
+  UserPlus,
+  Wallet,
+  CalendarDays,
 } from "lucide-react";
+import { canUseAcademy } from "@/academy/lib/academy";
 
 const roleLabels: Record<string, string> = {
   superadmin: "Super Admin",
@@ -134,6 +139,10 @@ export function AppSidebar() {
       if (orgType === "academy") {
         items.push({ group: "Academic", title: "MCQ", url: "/mcq", icon: ClipboardList });
       }
+      if (canUseAcademy(user, "enquiries")) items.push({ group: "Academic", title: "Enquiries", url: "/enquiries", icon: PhoneCall });
+      if (canUseAcademy(user, "admissions")) items.push({ group: "Academic", title: "Admissions", url: "/admissions", icon: UserPlus });
+      if (canUseAcademy(user, "fees")) items.push({ group: "Academic", title: "Fees", url: "/fees", icon: Wallet });
+      if (canUseAcademy(user, "lectures")) items.push({ group: "Academic", title: "Lectures", url: "/lectures", icon: CalendarDays });
     }
 
     return items;

@@ -13,7 +13,7 @@ type FieldValue = string | number | string[];
 interface ActionField {
   name: string;
   label: string;
-  type: "text" | "textarea" | "number" | "date" | "select" | "options" | "answer";
+  type: "text" | "textarea" | "number" | "date" | "time" | "select" | "options" | "answer";
   required?: boolean;
   options?: string[];
   value: FieldValue;

@@ -10,6 +10,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { getInitials } from "@/lib/utils";
 import { hasMcqAccess } from "@/mcq/lib/roles";
+import { canUseAcademy } from "@/academy/lib/academy";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -36,6 +37,10 @@ import NotFound from "@/pages/not-found";
 const McqRouter = lazy(() => import("@/mcq/McqRouter"));
 const McqExternalTestPage = lazy(() => import("@/mcq/pages/McqExternalTestPage"));
 const TicketsRouter = lazy(() => import("@/tickets/TicketsRouter"));
+const EnquiriesPage = lazy(() => import("@/academy/pages/EnquiriesPage"));
+const AdmissionsPage = lazy(() => import("@/academy/pages/AdmissionsPage"));
+const FeesPage = lazy(() => import("@/academy/pages/FeesPage"));
+const LecturesPage = lazy(() => import("@/academy/pages/LecturesPage"));
 const AssistantWidget = lazy(() => import("@/assistant/AssistantWidget"));
 const AssistantAdminPage = lazy(() => import("@/assistant/AssistantAdminPage"));
 const McqFallback = () => (
@@ -163,6 +168,10 @@ const PAGE_TITLES: Record<string, string> = {
   reimbursements: "Reimbursements",
   mcq: "MCQ",
   tickets: "Tickets",
+  enquiries: "Enquiries",
+  admissions: "Admissions",
+  fees: "Fees",
+  lectures: "Lectures",
   "assistant-admin": "AI Assistant",
 };
 
@@ -259,6 +268,26 @@ function AuthenticatedRouter() {
       {["org_admin", "superadmin"].includes(user?.role || "") && (
         <Route path="/assistant-admin">
           <Suspense fallback={<McqFallback />}><AssistantAdminPage /></Suspense>
+        </Route>
+      )}
+      {canUseAcademy(user, "enquiries") && (
+        <Route path="/enquiries">
+          <Suspense fallback={<McqFallback />}><EnquiriesPage /></Suspense>
+        </Route>
+      )}
+      {canUseAcademy(user, "admissions") && (
+        <Route path="/admissions">
+          <Suspense fallback={<McqFallback />}><AdmissionsPage /></Suspense>
+        </Route>
+      )}
+      {canUseAcademy(user, "fees") && (
+        <Route path="/fees">
+          <Suspense fallback={<McqFallback />}><FeesPage /></Suspense>
+        </Route>
+      )}
+      {canUseAcademy(user, "lectures") && (
+        <Route path="/lectures">
+          <Suspense fallback={<McqFallback />}><LecturesPage /></Suspense>
         </Route>
       )}
       <Route path="/tickets" nest>

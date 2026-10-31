@@ -434,6 +434,13 @@ function LocationSetupCard({ token }: { token: string }) {
   );
 }
 
+const ACADEMY_FEATURES = [
+  { key: "enquiries", label: "Enquiries", hint: "Track leads and follow-ups" },
+  { key: "admissions", label: "Admissions", hint: "Take applications and enrol students" },
+  { key: "fees", label: "Fees", hint: "Keep fee plans, invoices and payment records" },
+  { key: "lectures", label: "Lectures", hint: "Schedule lectures for batches" },
+];
+
 export default function SettingsPage() {
   const { token, user, replaceToken, refreshUser } = useAuth();
   const { toast } = useToast();
@@ -755,6 +762,25 @@ export default function SettingsPage() {
       setTicketsEnabled(enabled);
       refreshUser();
       toast({ title: `Tickets ${enabled ? "enabled" : "disabled"} successfully` });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const updateAcademyFeature = useMutation({
+    mutationFn: async ({ feature, enabled }: { feature: string; enabled: boolean }) => {
+      const res = await apiFetch("/api/organizations/my/features", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ features: { [feature]: enabled } }),
+      });
+      if (!res.ok) { const err = await res.json(); throw new Error(err.message); }
+      return res.json();
+    },
+    onSuccess: async (_, { feature, enabled }) => {
+      await refreshUser();
+      toast({ title: `${feature.charAt(0).toUpperCase()}${feature.slice(1)} ${enabled ? "enabled" : "disabled"} successfully` });
     },
     onError: (err: Error) => {
       toast({ title: "Error", description: err.message, variant: "destructive" });
@@ -1317,6 +1343,20 @@ export default function SettingsPage() {
                 onCheckedChange={(val) => updateTicketsFeature.mutate(val)}
               />
             </div>
+            {(user?.organizationId as { type?: string } | undefined)?.type === "academy" && ACADEMY_FEATURES.map(({ key, label, hint }) => (
+              <div className="flex items-center justify-between" key={key}>
+                <div>
+                  <p className="font-medium text-sm">{label}</p>
+                  <p className="text-xs text-muted-foreground">{hint}</p>
+                </div>
+                <Switch
+                  data-testid={`switch-${key}-enabled`}
+                  checked={(user?.organizationId as { features?: Record<string, boolean> } | undefined)?.features?.[key] !== false}
+                  disabled={updateAcademyFeature.isPending}
+                  onCheckedChange={(enabled) => updateAcademyFeature.mutate({ feature: key, enabled })}
+                />
+              </div>
+            ))}
           </CardContent>
         </Card>
       )}

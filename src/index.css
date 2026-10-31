@@ -288,3 +288,9 @@
     inset: -1px;
   }
 }
+
+/* An open receipt prints alone, without the page behind it. */
+@media print {
+  body:has([data-print-receipt]) * { visibility: hidden; }
+  [data-print-receipt], [data-print-receipt] * { visibility: visible; }
+}
