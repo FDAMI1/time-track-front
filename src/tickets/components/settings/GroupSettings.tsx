@@ -17,10 +17,11 @@ interface Group {
   leadId?: string | null;
   memberIds: string[];
   departmentId?: string | null;
+  autoAssign?: boolean;
   isActive: boolean;
 }
 
-const EMPTY = { name: "", leadId: "none", departmentId: "none", memberIds: [] as string[] };
+const EMPTY = { name: "", leadId: "none", departmentId: "none", memberIds: [] as string[], autoAssign: false };
 
 export default function GroupSettings() {
   const { list, save, remove } = useSettingsCrud<Group>("groups");
@@ -36,6 +37,7 @@ export default function GroupSettings() {
     body: {
       name: form.name,
       memberIds: form.memberIds,
+      autoAssign: form.autoAssign,
       leadId: form.leadId === "none" ? null : form.leadId,
       departmentId: form.departmentId === "none" ? null : form.departmentId,
     },
@@ -88,6 +90,10 @@ export default function GroupSettings() {
                 ))}
               </div>
             </fieldset>
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox checked={form.autoAssign} onCheckedChange={(checked) => setForm({ ...form, autoAssign: !!checked })} data-testid="checkbox-group-auto-assign" />
+              Auto-ticket assignment: give new tickets to members in turn
+            </label>
             <div className="flex gap-2">
               <Button type="submit" disabled={save.isPending} data-testid="button-save-group">{editing ? "Update Group" : "Add Group"}</Button>
               {editing && <Button type="button" variant="ghost" onClick={reset}>Cancel</Button>}
@@ -100,10 +106,10 @@ export default function GroupSettings() {
           <CardContent className="p-4 flex items-center justify-between gap-3 flex-wrap">
             <div>
               <p className="font-medium">{group.name} {!group.isActive && <Badge variant="outline">Inactive</Badge>}</p>
-              <p className="text-xs text-muted-foreground">{group.memberIds.length} members</p>
+              <p className="text-xs text-muted-foreground">{group.memberIds.length} members{group.autoAssign ? " · Auto-assignment on" : ""}</p>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => { setEditing(group._id); setForm({ name: group.name, leadId: group.leadId || "none", departmentId: group.departmentId || "none", memberIds: group.memberIds }); }}>Edit</Button>
+              <Button variant="outline" size="sm" onClick={() => { setEditing(group._id); setForm({ name: group.name, leadId: group.leadId || "none", departmentId: group.departmentId || "none", memberIds: group.memberIds, autoAssign: !!group.autoAssign }); }}>Edit</Button>
               {group.isActive
                 ? <Button variant="ghost" size="sm" onClick={() => remove.mutate(group._id)}>Deactivate</Button>
                 : <Button variant="ghost" size="sm" onClick={() => save.mutate({ id: group._id, body: { isActive: true } })}>Activate</Button>}

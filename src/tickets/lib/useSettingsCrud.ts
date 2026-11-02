@@ -22,7 +22,7 @@ export function useSettingsCrud<T extends { _id: string }>(name: string) {
   });
   const remove = useMutation({
     mutationFn: (id: string) => api.delete(`${url}/${id}`),
-    onSuccess: () => { refresh(); toast({ title: "Deactivated" }); },
+    onSuccess: () => { refresh(); toast({ title: "Done" }); },
     onError,
   });
 

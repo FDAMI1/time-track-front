@@ -11,9 +11,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Loader2 } from "lucide-react";
 import { useMcqApi } from "@/mcq/lib/api";
-import { capitalize, PRIORITIES, SCALE, TICKET_TYPES, type Ticket, type TicketMeta } from "@/tickets/lib/types";
+import PersonPicker from "@/tickets/components/PersonPicker";
+import CustomFieldInputs, { fieldsForType } from "@/tickets/components/CustomFieldInputs";
+import MajorIncidentInputs from "@/tickets/components/MajorIncidentInputs";
+import { AGENT_SOURCES, capitalize, PRIORITIES, SCALE, TICKET_TYPES, type CustomValue, type MajorIncident, type NamedRef, type Ticket, type TicketMeta } from "@/tickets/lib/types";
 
-const EMPTY = { subject: "", description: "", categoryId: "", subcategory: "", type: "incident", priority: "medium", urgency: "medium", impact: "medium", source: "portal" };
+const EMPTY = { subject: "", description: "", categoryId: "", subcategory: "", type: "incident", priority: "medium", urgency: "medium", impact: "medium", source: "portal", plannedStartAt: "", plannedEndAt: "", plannedEffort: "" };
+const AGENT_KEYS = ["source", "plannedStartAt", "plannedEndAt", "plannedEffort"];
 
 interface Props {
   open: boolean;
@@ -27,23 +31,36 @@ export default function NewTicketDialog({ open, onOpenChange, meta }: Props) {
   const [, navigate] = useLocation();
   const [form, setForm] = useState(EMPTY);
   const [files, setFiles] = useState<File[]>([]);
+  const [requester, setRequester] = useState<NamedRef | null>(null);
+  const [cc, setCc] = useState<NamedRef | null>(null);
+  const [custom, setCustom] = useState<Record<string, CustomValue>>({});
+  const [major, setMajor] = useState<MajorIncident>({});
   const set = (field: keyof typeof EMPTY, value: string) => setForm((f) => ({ ...f, [field]: value }));
   const subcategories = meta?.categories.find((c) => c._id === form.categoryId)?.subcategories || [];
+  const fields = fieldsForType(meta?.fields, form.type);
+  const agent = !!meta?.isAgent;
+
+  const reset = () => { setForm(EMPTY); setFiles([]); setRequester(null); setCc(null); setCustom({}); setMajor({}); };
 
   const create = useMutation({
     mutationFn: () => {
       const body = new FormData();
       for (const [key, value] of Object.entries(form)) {
-        if (value && !(meta?.matrixEnabled ? key === "priority" : key === "urgency" || key === "impact")) body.append(key, value);
+        const skip = (meta?.matrixEnabled ? key === "priority" : key === "urgency" || key === "impact") || (!agent && AGENT_KEYS.includes(key));
+        if (value && !skip) body.append(key, value);
       }
+      const shown = Object.fromEntries(fields.filter((f) => custom[f.key] !== undefined).map((f) => [f.key, custom[f.key]]));
+      body.append("customFields", JSON.stringify(shown));
+      if (requester) body.append("requesterId", requester._id);
+      if (cc) body.append("cc", cc._id);
+      if (agent && form.type === "major_incident") body.append("majorIncident", JSON.stringify(major));
       files.forEach((file) => body.append("files", file));
       return api.post<Ticket>("/api/tickets", body);
     },
     onSuccess: (ticket) => {
       queryClient.invalidateQueries({ queryKey: ["/api/tickets"] });
       onOpenChange(false);
-      setForm(EMPTY);
-      setFiles([]);
+      reset();
       toast({ title: `Ticket ${ticket.ticketKey} created` });
       navigate(`/${ticket._id}`);
     },
@@ -54,10 +71,22 @@ export default function NewTicketDialog({ open, onOpenChange, meta }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>New Ticket</DialogTitle>
+          <DialogTitle>{agent ? "New Ticket" : "Report an issue"}</DialogTitle>
           <DialogDescription>Describe the problem. The support team will reply here.</DialogDescription>
         </DialogHeader>
         <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); create.mutate(); }}>
+          {agent && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Requester</Label>
+                <PersonPicker label="Search a requester" testId="input-ticket-requester" value={requester} onChange={setRequester} />
+              </div>
+              <div className="space-y-2">
+                <Label>CC</Label>
+                <PersonPicker label="Search a person" testId="input-ticket-cc" value={cc} onChange={setCc} />
+              </div>
+            </div>
+          )}
           <div className="space-y-2">
             <Label htmlFor="ticket-subject">Subject</Label>
             <Input id="ticket-subject" required maxLength={200} value={form.subject} onChange={(e) => set("subject", e.target.value)} data-testid="input-ticket-subject" />
@@ -86,7 +115,7 @@ export default function NewTicketDialog({ open, onOpenChange, meta }: Props) {
             <div className="space-y-2">
               <Label>Type</Label>
               <Select value={form.type} onValueChange={(v) => set("type", v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger data-testid="select-ticket-type"><SelectValue /></SelectTrigger>
                 <SelectContent>{TICKET_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
               </Select>
             </div>
@@ -109,20 +138,32 @@ export default function NewTicketDialog({ open, onOpenChange, meta }: Props) {
                 </Select>
               </div>
             )}
-            {meta?.isAgent && (
-              <div className="space-y-2">
-                <Label>Source</Label>
-                <Select value={form.source} onValueChange={(v) => set("source", v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="portal">Portal</SelectItem>
-                    <SelectItem value="phone">Phone</SelectItem>
-                    <SelectItem value="walk_up">Walk-up</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            {agent && (
+              <>
+                <div className="space-y-2">
+                  <Label>Source</Label>
+                  <Select value={form.source} onValueChange={(v) => set("source", v)}>
+                    <SelectTrigger data-testid="select-ticket-source"><SelectValue /></SelectTrigger>
+                    <SelectContent>{AGENT_SOURCES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="ticket-effort">Planned Effort</Label>
+                  <Input id="ticket-effort" placeholder="For example 2h" maxLength={40} value={form.plannedEffort} onChange={(e) => set("plannedEffort", e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="ticket-start">Planned Start Date</Label>
+                  <Input id="ticket-start" type="date" value={form.plannedStartAt} onChange={(e) => set("plannedStartAt", e.target.value)} data-testid="input-planned-start" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="ticket-end">Planned End Date</Label>
+                  <Input id="ticket-end" type="date" value={form.plannedEndAt} onChange={(e) => set("plannedEndAt", e.target.value)} data-testid="input-planned-end" />
+                </div>
+              </>
             )}
           </div>
+          {agent && form.type === "major_incident" && <MajorIncidentInputs value={major} onChange={setMajor} />}
+          <CustomFieldInputs fields={fields} values={custom} onChange={(key, value) => setCustom((c) => ({ ...c, [key]: value }))} />
           <div className="space-y-2">
             <Label htmlFor="ticket-files">Attachments (up to 5 PDF, PNG or JPG files, 5 MB each)</Label>
             <Input id="ticket-files" type="file" multiple accept=".pdf,.png,.jpg,.jpeg" onChange={(e) => setFiles(Array.from(e.target.files || []).slice(0, 5))} />

@@ -3,6 +3,8 @@ import { useAuth } from "@/lib/auth";
 import { useTicketMeta } from "@/tickets/lib/useTicketMeta";
 import TicketsPage from "@/tickets/pages/TicketsPage";
 import TicketDetailPage from "@/tickets/pages/TicketDetailPage";
+import TicketDashboardPage from "@/tickets/pages/TicketDashboardPage";
+import TicketHelpPage from "@/tickets/pages/TicketHelpPage";
 import TicketReportsPage from "@/tickets/pages/TicketReportsPage";
 import TicketSettingsPage from "@/tickets/pages/TicketSettingsPage";
 
@@ -16,6 +18,7 @@ export default function TicketsRouter() {
 
   const tabs = [
     { href: "/", label: "Tickets" },
+    ...(reports ? [{ href: "/dashboard", label: "Dashboard" }] : []),
     ...(reports ? [{ href: "/reports", label: "Reports" }] : []),
     ...(settings ? [{ href: "/settings", label: "Settings" }] : []),
   ];
@@ -23,9 +26,9 @@ export default function TicketsRouter() {
   return (
     <div className="p-4 sm:p-6 space-y-6">
       {tabs.length > 1 && (
-        <nav className="flex gap-1 border-b" aria-label="Tickets">
+        <nav className="flex flex-wrap gap-1 border-b" aria-label="Tickets">
           {tabs.map((tab) => {
-            const active = tab.href === "/" ? !location.startsWith("/reports") && !location.startsWith("/settings") : location.startsWith(tab.href);
+            const active = tab.href === "/" ? !["/dashboard", "/reports", "/settings"].some((p) => location.startsWith(p)) : location.startsWith(tab.href);
             return (
               <Link
                 key={tab.href}
@@ -41,6 +44,8 @@ export default function TicketsRouter() {
       )}
       <Switch>
         <Route path="/" component={TicketsPage} />
+        <Route path="/help" component={TicketHelpPage} />
+        {reports && <Route path="/dashboard" component={TicketDashboardPage} />}
         {reports && <Route path="/reports" component={TicketReportsPage} />}
         {settings && <Route path="/settings" component={TicketSettingsPage} />}
         <Route path="/:id" component={TicketDetailPage} />
