@@ -186,16 +186,19 @@ export default function AssistantWidget() {
   if (location.startsWith("/mcq/take-test") || !status?.available) return null;
 
   if (!open) {
+    // Wrapped, because the Button's own `relative` class would beat `fixed`.
     return (
-      <Button
-        size="icon"
-        className={`fixed right-4 z-40 h-12 w-12 rounded-full shadow-lg ${location.startsWith("/chat") ? "bottom-36" : "bottom-4"}`}
-        onClick={() => setOpen(true)}
-        aria-label="Open portal assistant"
-        data-testid="button-open-assistant"
-      >
-        <Bot className="w-6 h-6" />
-      </Button>
+      <div className={`fixed right-4 z-40 ${location.startsWith("/chat") ? "bottom-36" : "bottom-4"}`}>
+        <Button
+          size="icon"
+          className="h-12 w-12 rounded-full shadow-lg"
+          onClick={() => setOpen(true)}
+          aria-label="Open portal assistant"
+          data-testid="button-open-assistant"
+        >
+          <Bot className="w-6 h-6" />
+        </Button>
+      </div>
     );
   }
 

@@ -138,7 +138,7 @@ export default function AttendancePage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="max-w-full justify-start overflow-x-auto">
+        <TabsList className="flex-wrap h-auto justify-start">
           {tabs.map((tab) => (
             <TabsTrigger key={tab.value} value={tab.value} data-testid={`tab-${tab.value}-attendance`}>
               {tab.label}

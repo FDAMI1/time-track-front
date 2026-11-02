@@ -13,6 +13,7 @@ import {
   SidebarMenuItem,
   SidebarFooter,
   SidebarHeader,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -80,6 +81,7 @@ const NAV_GROUPS = ["Main", "People", "Attendance", "Academic", "Communication",
 export function AppSidebar() {
   const { user, logout } = useAuth();
   const [location] = useLocation();
+  const { setOpenMobile } = useSidebar();
   const [branding, setBranding] = useState(getBranding());
   useEffect(() => {
     const handler = () => setBranding(getBranding());
@@ -194,7 +196,7 @@ export function AppSidebar() {
                       className="h-9 font-medium data-[active=true]:font-semibold"
                       isActive={["/mcq", "/tickets"].includes(item.url) ? location.startsWith(item.url) : location === item.url}
                     >
-                      <Link href={item.url} data-testid={`link-nav-${item.title.toLowerCase().replace(/\s+/g, "-")}`}>
+                      <Link href={item.url} onClick={() => setOpenMobile(false)} data-testid={`link-nav-${item.title.toLowerCase().replace(/\s+/g, "-")}`}>
                         <item.icon className="w-4 h-4" />
                         <span>{item.title}</span>
                       </Link>

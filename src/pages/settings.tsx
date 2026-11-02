@@ -934,7 +934,7 @@ export default function SettingsPage() {
       </div>
 
       <Tabs value={settingsTab} onValueChange={setSettingsTab}>
-        <TabsList>
+        <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="general" data-testid="tab-settings-general">General</TabsTrigger>
           {isOrgAdmin && (
             <TabsTrigger value="doc-templates" data-testid="tab-settings-doc-templates">{orgType === "academy" ? "Certificate Templates" : "Doc Templates"}</TabsTrigger>
