@@ -49,7 +49,8 @@ export function localToday(now = new Date()) {
 }
 
 export const ENQUIRY_STATUSES = ["new", "contacted", "follow_up", "converted", "lost"] as const;
-export const ENQUIRY_SOURCES = ["walk_in", "phone", "website", "referral", "social_media", "other"] as const;
+export const ENQUIRY_SOURCES = ["walk_in", "phone", "website", "referral", "social_media", "meta_ads", "instagram_ads", "google_ads", "whatsapp", "import", "other"] as const;
+export const CALL_OUTCOMES = ["connected", "no_answer", "busy", "wrong_number", "call_back"] as const;
 export const ADMISSION_STATUSES = ["applied", "approved", "rejected", "enrolled"] as const;
 export const INVOICE_STATUSES = ["pending", "partial", "paid", "overdue"] as const;
 export const PAYMENT_METHODS = ["cash", "upi", "bank_transfer", "card", "cheque", "other"] as const;
@@ -58,9 +59,10 @@ export const LECTURE_STATUSES = ["scheduled", "completed", "cancelled"] as const
 export interface Course { _id: string; title: string }
 export interface Batch { _id: string; batchName: string; courseId?: Course | null }
 
-export interface EnquiryNote { _id: string; body: string; authorName: string; createdAt: string }
+export interface EnquiryNote { _id: string; body: string; kind?: "note" | "call"; outcome?: string; authorName: string; createdAt: string }
 export interface Enquiry {
   _id: string;
+  campaign?: { name?: string; adSet?: string; ad?: string };
   name: string;
   phone: string;
   email: string;

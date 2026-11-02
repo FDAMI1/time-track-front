@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth";
@@ -9,17 +9,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Loader2, PhoneCall, Plus, Search } from "lucide-react";
-import { useMcqApi } from "@/mcq/lib/api";
+import { Download, Loader2, PhoneCall, Plus, Search, Settings, Upload } from "lucide-react";
+import { downloadFile, useMcqApi } from "@/mcq/lib/api";
 import { ENQUIRY_SOURCES, ENQUIRY_STATUSES, labelOf, nameOf, peopleOptions, toOptions, type Course, type EnquiryList, type Person } from "@/academy/lib/academy";
 import { ListState, Pager, Picker, StatusBadge } from "@/academy/components/common";
 import EnquiryDialog from "@/academy/components/EnquiryDialog";
+import LeadSourcesSheet from "@/academy/components/LeadSourcesSheet";
 
 const EMPTY = { name: "", phone: "", email: "", courseId: "", source: "walk_in", assignedTo: "", nextFollowUpDate: "", note: "" };
 
 export default function EnquiriesPage() {
   const api = useMcqApi();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const { toast } = useToast();
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("");
@@ -29,6 +30,8 @@ export default function EnquiriesPage() {
   const [form, setForm] = useState(EMPTY);
   const [createOpen, setCreateOpen] = useState(false);
   const [openId, setOpenId] = useState("");
+  const [sourcesOpen, setSourcesOpen] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
   const canAssign = user?.role !== "teacher";
   const set = (field: keyof typeof EMPTY, value: string) => setForm((f) => ({ ...f, [field]: value }));
 
@@ -60,6 +63,24 @@ export default function EnquiriesPage() {
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
+  const importFile = useMutation({
+    mutationFn: async (file: File) => {
+      const XLSX = await import("xlsx");
+      const book = XLSX.read(await file.arrayBuffer());
+      const sheet = XLSX.utils.sheet_to_json<Record<string, unknown>>(book.Sheets[book.SheetNames[0]], { defval: "" });
+      const rows = sheet.map((row) => {
+        const cells = Object.fromEntries(Object.entries(row).map(([k, v]) => [k.trim().toLowerCase(), String(v)]));
+        return { name: cells.name || "", phone: cells.phone || "", email: cells.email || "" };
+      });
+      return api.post<{ created: number; duplicates: number; failed: { row: number; message: string }[] }>("/api/enquiries/import", { rows });
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/enquiries"] });
+      toast({ title: `${result.created} added`, description: `${result.duplicates} already existed, ${result.failed.length} could not be read${result.failed[0] ? ` (row ${result.failed[0].row}: ${result.failed[0].message})` : ""}` });
+    },
+    onError: (err: Error) => toast({ title: "Import failed", description: err.message, variant: "destructive" }),
+  });
+
   const filter = (setter: (value: string) => void) => (value: string) => { setter(value); setPage(1); };
   const enquiries = data?.enquiries || [];
 
@@ -70,7 +91,17 @@ export default function EnquiriesPage() {
           <h1 className="text-2xl font-bold text-foreground">Enquiries</h1>
           <p className="text-muted-foreground text-sm mt-1">{data?.total ?? 0} enquiries</p>
         </div>
-        <Button onClick={() => setCreateOpen(true)} data-testid="button-new-enquiry"><Plus className="w-4 h-4 mr-2" />New Enquiry</Button>
+        <div className="flex gap-2 flex-wrap">
+          {canAssign && (
+            <>
+              <input ref={fileInput} type="file" accept=".csv,.xlsx" className="hidden" aria-label="Import file" data-testid="input-enquiry-import" onChange={(e) => { const file = e.target.files?.[0]; if (file) importFile.mutate(file); e.target.value = ""; }} />
+              <Button variant="outline" disabled={importFile.isPending} onClick={() => fileInput.current?.click()} data-testid="button-import-enquiries"><Upload className="w-4 h-4 mr-2" />Import</Button>
+              <Button variant="outline" onClick={() => downloadFile("/api/enquiries/export", token).catch((err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }))} data-testid="button-export-enquiries"><Download className="w-4 h-4 mr-2" />Export</Button>
+            </>
+          )}
+          {user?.role === "org_admin" && <Button variant="outline" size="icon" aria-label="Lead source settings" onClick={() => setSourcesOpen(true)} data-testid="button-lead-sources"><Settings className="w-4 h-4" /></Button>}
+          <Button onClick={() => setCreateOpen(true)} data-testid="button-new-enquiry"><Plus className="w-4 h-4 mr-2" />New Enquiry</Button>
+        </div>
       </div>
 
       <button
@@ -155,6 +186,7 @@ export default function EnquiriesPage() {
         </DialogContent>
       </Dialog>
 
+      <LeadSourcesSheet open={sourcesOpen} onOpenChange={setSourcesOpen} />
       {openId && <EnquiryDialog id={openId} staff={staff} canAssign={canAssign} onClose={() => setOpenId("")} />}
     </div>
   );

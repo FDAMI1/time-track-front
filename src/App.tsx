@@ -42,6 +42,7 @@ const AdmissionsPage = lazy(() => import("@/academy/pages/AdmissionsPage"));
 const FeesPage = lazy(() => import("@/academy/pages/FeesPage"));
 const LecturesPage = lazy(() => import("@/academy/pages/LecturesPage"));
 const AssistantWidget = lazy(() => import("@/assistant/AssistantWidget"));
+const GlobalTicketSearch = lazy(() => import("@/tickets/components/GlobalTicketSearch"));
 const AssistantAdminPage = lazy(() => import("@/assistant/AssistantAdminPage"));
 const McqFallback = () => (
   <div className="flex items-center justify-center p-12">
@@ -355,6 +356,9 @@ function AppLayout() {
               <PageHeading />
             </div>
             <div className="flex items-center gap-2">
+              {(user.organizationId as { features?: { tickets?: boolean } } | null)?.features?.tickets !== false && (
+                <Suspense fallback={null}><GlobalTicketSearch /></Suspense>
+              )}
               <NotificationBell />
               <div className="flex items-center gap-2 pl-2 border-l">
                 <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center text-xs font-semibold">

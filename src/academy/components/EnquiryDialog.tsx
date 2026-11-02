@@ -10,7 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useMcqApi } from "@/mcq/lib/api";
-import { ENQUIRY_STATUSES, labelOf, peopleOptions, toOptions, type Enquiry, type Person } from "@/academy/lib/academy";
+import { CALL_OUTCOMES, ENQUIRY_STATUSES, labelOf, peopleOptions, toOptions, type Enquiry, type Person } from "@/academy/lib/academy";
 import { Picker } from "@/academy/components/common";
 
 interface Props {
@@ -24,6 +24,7 @@ export default function EnquiryDialog({ id, staff, canAssign, onClose }: Props) 
   const api = useMcqApi();
   const { toast } = useToast();
   const [note, setNote] = useState("");
+  const [outcome, setOutcome] = useState("");
   const key = ["/api/enquiries", "detail", id];
 
   const { data: enquiry, isLoading, error } = useQuery({ queryKey: key, queryFn: () => api.get<Enquiry>(`/api/enquiries/${id}`) });
@@ -37,8 +38,8 @@ export default function EnquiryDialog({ id, staff, canAssign, onClose }: Props) 
     onError: failed,
   });
   const addNote = useMutation({
-    mutationFn: () => api.post(`/api/enquiries/${id}/notes`, { body: note }),
-    onSuccess: () => { setNote(""); refresh(); },
+    mutationFn: () => api.post(`/api/enquiries/${id}/notes`, outcome ? { body: note, kind: "call", outcome } : { body: note }),
+    onSuccess: () => { setNote(""); setOutcome(""); refresh(); },
     onError: failed,
   });
   const remove = useMutation({
@@ -68,17 +69,20 @@ export default function EnquiryDialog({ id, staff, canAssign, onClose }: Props) 
             </div>
 
             <div className="space-y-2">
-              <p className="text-sm font-medium">Notes</p>
+              {enquiry.campaign?.name && <p className="text-xs text-muted-foreground" data-testid="text-enquiry-campaign">Campaign: {[enquiry.campaign.name, enquiry.campaign.adSet, enquiry.campaign.ad].filter(Boolean).join(" / ")}</p>}
+              <p className="text-sm font-medium">Notes and calls</p>
               {(enquiry.notes || []).length === 0 && <p className="text-sm text-muted-foreground">No notes yet</p>}
               {(enquiry.notes || []).map((n) => (
                 <div key={n._id} className="rounded-lg bg-muted p-3 text-sm">
+                  {n.kind === "call" && <p className="text-xs font-medium">Call: {labelOf(n.outcome || "")}</p>}
                   <p className="whitespace-pre-wrap break-words">{n.body}</p>
                   <p className="text-xs text-muted-foreground mt-1">{n.authorName} · {new Date(n.createdAt).toLocaleString()}</p>
                 </div>
               ))}
               <form className="space-y-2" onSubmit={(e) => { e.preventDefault(); addNote.mutate(); }}>
                 <Textarea rows={2} required maxLength={2000} placeholder="Add a note" aria-label="Add a note" value={note} onChange={(e) => setNote(e.target.value)} data-testid="input-enquiry-add-note" />
-                <Button type="submit" size="sm" disabled={addNote.isPending} data-testid="button-add-note">Add Note</Button>
+                <Picker label="Logging a call? Choose the outcome" value={outcome} onChange={setOutcome} options={toOptions(CALL_OUTCOMES)} allLabel="Not a call" testId="select-call-outcome" />
+                <Button type="submit" size="sm" disabled={addNote.isPending} data-testid="button-add-note">{outcome ? "Log Call" : "Add Note"}</Button>
               </form>
             </div>
 
