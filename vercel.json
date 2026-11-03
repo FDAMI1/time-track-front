@@ -2,7 +2,7 @@
   "routes": [
     {
       "src": "^/api/(.*)",
-      "dest": "https://time-track-back.onrender.com/api/$1"
+      "dest": "https://time-track-back-qvp6.onrender.com/api/$1"
     },
     {
       "handle": "filesystem"
