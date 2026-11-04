@@ -6,9 +6,15 @@ createRoot(document.getElementById("root")!).render(<App />);
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js").then(() => {
-      console.log("SW registered");
-    }).catch(() => {});
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+    // A new worker took over: reload once so the page matches the new deployment.
+    const hadController = Boolean(navigator.serviceWorker.controller);
+    let reloaded = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (!hadController || reloaded) return;
+      reloaded = true;
+      window.location.reload();
+    });
   });
 }
 
