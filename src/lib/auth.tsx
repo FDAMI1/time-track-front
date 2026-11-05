@@ -114,6 +114,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     queryClient.clear();
     setToken(data.token);
     setUser(data.user);
+    // The login response carries the organization as a bare id; /me returns it with its
+    // features and type, which decide what the sidebar shows.
+    await fetchUser(data.token);
     if (data.user.mustChangePassword) {
       setMustChangePassword(true);
     } else {

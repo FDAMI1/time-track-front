@@ -26,6 +26,7 @@ export default function EnquiriesPage() {
   const [status, setStatus] = useState("");
   const [source, setSource] = useState("");
   const [stage, setStage] = useState<LeadStage | "">("");
+  const [assignee, setAssignee] = useState("");
   const [due, setDue] = useState(false);
   const [page, setPage] = useState(1);
   const [form, setForm] = useState(EMPTY);
@@ -42,6 +43,7 @@ export default function EnquiriesPage() {
   if (status) params.set("status", status);
   if (source) params.set("source", source);
   if (stage) params.set("stage", stage);
+  if (assignee) params.set("assignedTo", assignee);
   if (due) params.set("due", "true");
 
   const { data, isLoading, error } = useQuery({
@@ -162,13 +164,14 @@ export default function EnquiriesPage() {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-[1fr_11rem_11rem] gap-3">
+      <div className={`grid grid-cols-1 gap-3 ${canAssign ? "sm:grid-cols-2 lg:grid-cols-[1fr_11rem_11rem_11rem]" : "sm:grid-cols-[1fr_11rem_11rem]"}`}>
         <div className="relative">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input className="pl-9" placeholder="Search name, phone or email" aria-label="Search enquiries" value={q} onChange={(e) => filter(setQ)(e.target.value)} data-testid="input-enquiry-search" />
         </div>
         <Picker label="Status" value={status} onChange={filter(setStatus)} options={toOptions(ENQUIRY_STATUSES)} allLabel="All statuses" testId="filter-enquiry-status" />
         <Picker label="Source" value={source} onChange={filter(setSource)} options={toOptions(ENQUIRY_SOURCES)} allLabel="All sources" testId="filter-enquiry-source" />
+        {canAssign && <Picker label="Telecaller" value={assignee} onChange={filter(setAssignee)} options={peopleOptions(staff)} allLabel="All telecallers" testId="filter-enquiry-assignee" />}
       </div>
 
       <ListState isLoading={isLoading} error={error} isEmpty={enquiries.length === 0} emptyText="No leads found" icon={PhoneCall}>

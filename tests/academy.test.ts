@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { addDays, canUseAcademy, canUseCrm, formatMoney, mondayOf, toMinor, weekOf } from "../src/academy/lib/academy.ts";
+import { addDays, canUseAcademy, canUseCrm, canUseTickets, fillTemplate, formatMoney, mondayOf, toMinor, weekOf } from "../src/academy/lib/academy.ts";
 
 test("money text becomes exact paise", () => {
   assert.equal(toMinor("19.99"), 1999);
@@ -28,6 +28,12 @@ test("menus follow organization type, feature and role", () => {
   assert.equal(canUseCrm({ role: "org_admin", organizationId: { type: "company" } }), true);
   assert.equal(canUseCrm({ role: "student", organizationId: org }), false);
   assert.equal(canUseCrm({ role: "org_admin", organizationId: { type: "company", features: { crm: false } } }), false);
+  assert.equal(canUseCrm({ role: "superadmin", organizationId: null }), false);
+  assert.equal(canUseTickets({ role: "superadmin", organizationId: null }), false);
+  assert.equal(canUseTickets({ role: "org_admin", organizationId: { type: "company" } }), true);
+  assert.equal(canUseTickets({ role: "employee", organizationId: { type: "company" }, toolAccess: { tickets: true } }), true);
+  assert.equal(canUseTickets({ role: "employee", organizationId: { type: "company" } }), false);
+  assert.equal(fillTemplate("Hi {name} from {org}, {missing}", { name: "Asha", org: "Acme" }), "Hi Asha from Acme, {missing}");
   assert.equal(canUseAcademy({ role: "teacher", organizationId: org }, "fees"), false);
   assert.equal(canUseAcademy({ role: "student", organizationId: org }, "fees"), true);
   assert.equal(canUseAcademy({ role: "manager", organizationId: { type: "company" } }, "fees"), false);

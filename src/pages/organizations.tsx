@@ -12,10 +12,21 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { Building2, Plus, GraduationCap, Briefcase, Users, Globe, Phone, MapPin, Eye, Pencil, Trash2, EyeIcon, EyeOff, LogIn } from "lucide-react";
+
+// What the superadmin can switch on or off for one organization. Each organization's
+// tickets and CRM are its own; the superadmin only decides whether it has them.
+const ORG_FEATURES: { key: string; label: string; academyOnly?: boolean }[] = [
+  { key: "tickets", label: "Tickets" }, { key: "crm", label: "CRM (Leads)" }, { key: "assistant", label: "AI Assistant" },
+  { key: "attendance", label: "Attendance" }, { key: "leaves", label: "Leaves" }, { key: "timeTracking", label: "Time Tracking" },
+  { key: "tasks", label: "Tasks" }, { key: "projects", label: "Projects" }, { key: "departments", label: "Departments" }, { key: "chat", label: "Chat" },
+  { key: "classes", label: "Classes", academyOnly: true }, { key: "assignments", label: "Assignments", academyOnly: true },
+  { key: "admissions", label: "Admissions", academyOnly: true }, { key: "fees", label: "Fees", academyOnly: true }, { key: "lectures", label: "Lectures", academyOnly: true },
+];
 
 export default function OrganizationsPage() {
   const { token, impersonate } = useAuth();
@@ -302,6 +313,18 @@ export default function OrganizationsPage() {
                 {orgDetail.address && <div className="col-span-2"><span className="text-muted-foreground">Address:</span> <span className="font-medium">{orgDetail.address}</span></div>}
                 <div><span className="text-muted-foreground">Members:</span> <span className="font-medium">{orgDetail.userCount}</span></div>
                 <div><span className="text-muted-foreground">Created:</span> <span className="font-medium">{new Date(orgDetail.createdAt).toLocaleDateString()}</span></div>
+              </div>
+
+              <div>
+                <h3 className="font-semibold text-sm mb-2">Features</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2" data-testid="org-features">
+                  {ORG_FEATURES.filter((f) => !f.academyOnly || orgDetail.type === "academy").map(({ key, label }) => (
+                    <div key={key} className="flex items-center justify-between rounded-md border px-3 py-2 text-sm">
+                      <Label htmlFor={`feature-${key}`}>{label}</Label>
+                      <Switch id={`feature-${key}`} checked={orgDetail.features?.[key] !== false} disabled={updateOrg.isPending} onCheckedChange={(enabled) => updateOrg.mutate({ id: orgDetail._id, data: { features: { [key]: enabled } } })} data-testid={`switch-org-feature-${key}`} />
+                    </div>
+                  ))}
+                </div>
               </div>
 
               {orgDetail.users && orgDetail.users.length > 0 && (

@@ -12,10 +12,11 @@ interface AcademyUser {
   toolAccess?: { tickets?: boolean; crm?: boolean };
 }
 
-// Admins always have every tool; other members only the ones an admin opened to them in Settings.
+// Org admins always have every tool; other members only the ones an admin opened to them in Settings.
+// The superadmin has none: tickets and the CRM belong to each organization.
 export type Tool = "tickets" | "crm";
 export const hasTool = (user: AcademyUser | null | undefined, tool: Tool): boolean =>
-  ["superadmin", "org_admin"].includes(user?.role || "") || user?.toolAccess?.[tool] === true;
+  user?.role === "org_admin" || user?.toolAccess?.[tool] === true;
 export const canUseTickets = (user: AcademyUser | null | undefined): boolean =>
   user?.organizationId?.features?.tickets !== false && hasTool(user, "tickets");
 
@@ -97,7 +98,12 @@ export const LECTURE_STATUSES = ["scheduled", "completed", "cancelled"] as const
 export interface Course { _id: string; title: string }
 export interface Batch { _id: string; batchName: string; courseId?: Course | null }
 
-export interface EnquiryNote { _id: string; body: string; kind?: "note" | "call"; outcome?: string; authorName: string; createdAt: string }
+export type NoteKind = "note" | "call" | "whatsapp" | "status" | "assigned";
+export interface EnquiryNote { _id: string; body: string; kind?: NoteKind; outcome?: string; authorName: string; createdAt: string }
+export interface LeadTemplate { name: string; body: string }
+// Previews a WhatsApp template for one lead; the server fills the same placeholders again before sending.
+export const fillTemplate = (text: string, values: Record<string, string | undefined>) =>
+  Object.entries(values).reduce((out, [key, value]) => out.split(`{${key}}`).join(value || ""), text);
 export interface Enquiry {
   _id: string;
   campaign?: { name?: string; adSet?: string; ad?: string };

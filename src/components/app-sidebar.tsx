@@ -106,7 +106,6 @@ export function AppSidebar() {
 
     if (user.role === "superadmin") {
       items.push({ group: "Platform", title: "Organizations", url: "/organizations", icon: Building2 });
-      items.push({ group: "Communication", title: "Tickets", url: "/tickets", icon: LifeBuoy });
       items.push({ group: "Administration", title: "AI Assistant", url: "/assistant-admin", icon: Bot });
       items.push({ group: "Administration", title: "Settings", url: "/settings", icon: Settings });
     } else {
