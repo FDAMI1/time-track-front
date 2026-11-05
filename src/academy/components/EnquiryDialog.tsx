@@ -10,8 +10,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useMcqApi } from "@/mcq/lib/api";
-import { CALL_OUTCOMES, ENQUIRY_STATUSES, labelOf, peopleOptions, toOptions, type Enquiry, type Person } from "@/academy/lib/academy";
-import { Picker } from "@/academy/components/common";
+import { useAuth } from "@/lib/auth";
+import { CALL_OUTCOMES, ENQUIRY_STATUSES, STAGE_TONES, canUseAcademy, labelOf, peopleOptions, stageOf, toOptions, type Enquiry, type Person } from "@/academy/lib/academy";
+import { Picker, StatusBadge } from "@/academy/components/common";
 
 interface Props {
   id: string;
@@ -22,6 +23,7 @@ interface Props {
 
 export default function EnquiryDialog({ id, staff, canAssign, onClose }: Props) {
   const api = useMcqApi();
+  const { user } = useAuth();
   const { toast } = useToast();
   const [note, setNote] = useState("");
   const [outcome, setOutcome] = useState("");
@@ -47,12 +49,17 @@ export default function EnquiryDialog({ id, staff, canAssign, onClose }: Props) 
     onSuccess: () => { refresh(); onClose(); },
     onError: failed,
   });
+  const escalate = useMutation({
+    mutationFn: () => api.post<{ ticket: { ticketKey: string } }>(`/api/enquiries/${id}/escalate`, {}),
+    onSuccess: ({ ticket }) => { refresh(); toast({ title: `Ticket ${ticket.ticketKey} raised` }); },
+    onError: failed,
+  });
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{enquiry?.name || "Enquiry"}</DialogTitle>
+          <DialogTitle className="flex items-center gap-2 flex-wrap">{enquiry?.name || "Lead"}{enquiry && <StatusBadge status={enquiry.status} tone={STAGE_TONES[enquiry.stage || stageOf(enquiry.status)]} />}</DialogTitle>
           <DialogDescription>{enquiry ? [enquiry.phone, enquiry.email, enquiry.courseId?.title, labelOf(enquiry.source)].filter(Boolean).join(" · ") : " "}</DialogDescription>
         </DialogHeader>
         {isLoading && <Skeleton className="h-48 w-full" />}
@@ -86,14 +93,17 @@ export default function EnquiryDialog({ id, staff, canAssign, onClose }: Props) 
               </form>
             </div>
 
-            {canAssign && (
-              <div className="flex gap-2 flex-wrap border-t pt-4">
-                {enquiry.status !== "converted" && (
-                  <Button asChild size="sm" variant="outline"><Link href={`/admissions?enquiry=${enquiry._id}`} data-testid="link-start-application">Start Application</Link></Button>
-                )}
-                <Button size="sm" variant="ghost" className="text-destructive" disabled={remove.isPending} onClick={() => remove.mutate()} data-testid="button-delete-enquiry">Delete</Button>
-              </div>
-            )}
+            <div className="flex gap-2 flex-wrap border-t pt-4">
+              {enquiry.ticketId ? (
+                <Button asChild size="sm" variant="outline"><Link href={`/tickets/${enquiry.ticketId._id}`} data-testid="link-lead-ticket">Ticket {enquiry.ticketId.ticketKey}</Link></Button>
+              ) : (
+                <Button size="sm" variant="outline" disabled={escalate.isPending} onClick={() => escalate.mutate()} data-testid="button-escalate-lead">Raise Ticket</Button>
+              )}
+              {canAssign && canUseAcademy(user, "admissions") && !["completed", "converted"].includes(enquiry.status) && (
+                <Button asChild size="sm" variant="outline"><Link href={`/admissions?enquiry=${enquiry._id}`} data-testid="link-start-application">Start Application</Link></Button>
+              )}
+              {canAssign && <Button size="sm" variant="ghost" className="text-destructive" disabled={remove.isPending} onClick={() => remove.mutate()} data-testid="button-delete-enquiry">Delete</Button>}
+            </div>
           </div>
         )}
       </DialogContent>

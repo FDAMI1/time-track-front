@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { addDays, canUseAcademy, formatMoney, mondayOf, toMinor, weekOf } from "../src/academy/lib/academy.ts";
+import { addDays, canUseAcademy, canUseCrm, formatMoney, mondayOf, toMinor, weekOf } from "../src/academy/lib/academy.ts";
 
 test("money text becomes exact paise", () => {
   assert.equal(toMinor("19.99"), 1999);
@@ -22,7 +22,12 @@ test("weeks start on Monday and cross month ends", () => {
 
 test("menus follow organization type, feature and role", () => {
   const org = { type: "academy", features: {} };
-  assert.equal(canUseAcademy({ role: "teacher", organizationId: org }, "enquiries"), true);
+  assert.equal(canUseAcademy({ role: "teacher", organizationId: org }, "lectures"), true);
+  assert.equal(canUseCrm({ role: "employee", organizationId: { type: "company" }, toolAccess: { crm: true } }), true);
+  assert.equal(canUseCrm({ role: "employee", organizationId: { type: "company" } }), false);
+  assert.equal(canUseCrm({ role: "org_admin", organizationId: { type: "company" } }), true);
+  assert.equal(canUseCrm({ role: "student", organizationId: org }), false);
+  assert.equal(canUseCrm({ role: "org_admin", organizationId: { type: "company", features: { crm: false } } }), false);
   assert.equal(canUseAcademy({ role: "teacher", organizationId: org }, "fees"), false);
   assert.equal(canUseAcademy({ role: "student", organizationId: org }, "fees"), true);
   assert.equal(canUseAcademy({ role: "manager", organizationId: { type: "company" } }, "fees"), false);

@@ -93,7 +93,7 @@ const TONES: Record<string, string> = {
   overdue: "bg-destructive/10 text-destructive",
 };
 
-export function StatusBadge({ status }: { status: string }) {
+export function StatusBadge({ status, tone }: { status: string; tone?: string }) {
   const text = status.replace(/_/g, " ");
-  return <span className={`rounded px-2 py-0.5 text-xs font-medium capitalize ${TONES[status] || "bg-muted"}`}>{text}</span>;
+  return <span className={`rounded px-2 py-0.5 text-xs font-medium capitalize ${tone || TONES[status] || "bg-muted"}`}>{text}</span>;
 }

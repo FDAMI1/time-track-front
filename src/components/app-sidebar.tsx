@@ -41,7 +41,7 @@ import {
   Wallet,
   CalendarDays,
 } from "lucide-react";
-import { canUseAcademy } from "@/academy/lib/academy";
+import { canUseAcademy, canUseCrm, canUseTickets } from "@/academy/lib/academy";
 
 const roleLabels: Record<string, string> = {
   superadmin: "Super Admin",
@@ -76,7 +76,7 @@ interface NavItem {
 }
 
 // Display order of the sidebar sections.
-const NAV_GROUPS = ["Main", "People", "Attendance", "Academic", "Communication", "Records", "Platform", "Administration"];
+const NAV_GROUPS = ["Main", "People", "Attendance", "CRM", "Academic", "Communication", "Records", "Platform", "Administration"];
 
 export function AppSidebar() {
   const { user, logout } = useAuth();
@@ -128,7 +128,7 @@ export function AppSidebar() {
       if (orgType === "company" && ["employee", "manager", "org_admin"].includes(user.role)) {
         items.push({ group: "Records", title: "Reimbursements", url: "/reimbursements", icon: Receipt });
       }
-      if ((user.organizationId as any)?.features?.tickets !== false) {
+      if (canUseTickets(user)) {
         items.push({ group: "Communication", title: "Tickets", url: "/tickets", icon: LifeBuoy });
       }
       if (user.role === "org_admin") {
@@ -141,7 +141,7 @@ export function AppSidebar() {
       if (orgType === "academy") {
         items.push({ group: "Academic", title: "MCQ", url: "/mcq", icon: ClipboardList });
       }
-      if (canUseAcademy(user, "enquiries")) items.push({ group: "Academic", title: "Enquiries", url: "/enquiries", icon: PhoneCall });
+      if (canUseCrm(user)) items.push({ group: "CRM", title: "Leads", url: "/enquiries", icon: PhoneCall });
       if (canUseAcademy(user, "admissions")) items.push({ group: "Academic", title: "Admissions", url: "/admissions", icon: UserPlus });
       if (canUseAcademy(user, "fees")) items.push({ group: "Academic", title: "Fees", url: "/fees", icon: Wallet });
       if (canUseAcademy(user, "lectures")) items.push({ group: "Academic", title: "Lectures", url: "/lectures", icon: CalendarDays });

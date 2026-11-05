@@ -10,7 +10,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { getInitials } from "@/lib/utils";
 import { hasMcqAccess } from "@/mcq/lib/roles";
-import { canUseAcademy } from "@/academy/lib/academy";
+import { canUseAcademy, canUseCrm, canUseTickets } from "@/academy/lib/academy";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -169,7 +169,7 @@ const PAGE_TITLES: Record<string, string> = {
   reimbursements: "Reimbursements",
   mcq: "MCQ",
   tickets: "Tickets",
-  enquiries: "Enquiries",
+  enquiries: "Leads",
   admissions: "Admissions",
   fees: "Fees",
   lectures: "Lectures",
@@ -271,7 +271,7 @@ function AuthenticatedRouter() {
           <Suspense fallback={<McqFallback />}><AssistantAdminPage /></Suspense>
         </Route>
       )}
-      {canUseAcademy(user, "enquiries") && (
+      {canUseCrm(user) && (
         <Route path="/enquiries">
           <Suspense fallback={<McqFallback />}><EnquiriesPage /></Suspense>
         </Route>
@@ -291,9 +291,11 @@ function AuthenticatedRouter() {
           <Suspense fallback={<McqFallback />}><LecturesPage /></Suspense>
         </Route>
       )}
-      <Route path="/tickets" nest>
-        <Suspense fallback={<McqFallback />}><TicketsRouter /></Suspense>
-      </Route>
+      {canUseTickets(user) && (
+        <Route path="/tickets" nest>
+          <Suspense fallback={<McqFallback />}><TicketsRouter /></Suspense>
+        </Route>
+      )}
       <Route component={NotFound} />
     </Switch>
   );
@@ -356,7 +358,7 @@ function AppLayout() {
               <PageHeading />
             </div>
             <div className="flex items-center gap-2">
-              {(user.organizationId as { features?: { tickets?: boolean } } | null)?.features?.tickets !== false && (
+              {canUseTickets(user) && (
                 <Suspense fallback={null}><GlobalTicketSearch /></Suspense>
               )}
               <NotificationBell />

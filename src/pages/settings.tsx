@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
+import ToolAccessCard from "@/components/settings/ToolAccessCard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
@@ -435,7 +436,6 @@ function LocationSetupCard({ token }: { token: string }) {
 }
 
 const ACADEMY_FEATURES = [
-  { key: "enquiries", label: "Enquiries", hint: "Track leads and follow-ups" },
   { key: "admissions", label: "Admissions", hint: "Take applications and enrol students" },
   { key: "fees", label: "Fees", hint: "Keep fee plans, invoices and payment records" },
   { key: "lectures", label: "Lectures", hint: "Schedule lectures for batches" },
@@ -1343,6 +1343,18 @@ export default function SettingsPage() {
                 onCheckedChange={(val) => updateTicketsFeature.mutate(val)}
               />
             </div>
+            <div className="flex items-center justify-between py-2 border-b">
+              <div>
+                <p className="font-medium text-sm">CRM</p>
+                <p className="text-xs text-muted-foreground">Leads, telecalling, follow-ups and lead sources</p>
+              </div>
+              <Switch
+                data-testid="switch-crm-enabled"
+                checked={(user?.organizationId as { features?: Record<string, boolean> } | undefined)?.features?.crm !== false}
+                disabled={updateAcademyFeature.isPending}
+                onCheckedChange={(enabled) => updateAcademyFeature.mutate({ feature: "crm", enabled })}
+              />
+            </div>
             {(user?.organizationId as { type?: string } | undefined)?.type === "academy" && ACADEMY_FEATURES.map(({ key, label, hint }) => (
               <div className="flex items-center justify-between" key={key}>
                 <div>
@@ -1360,6 +1372,8 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
       )}
+
+      {isOrgAdmin && <ToolAccessCard />}
 
       {isOrgAdmin && <OrganizationAssetsCard token={token!} />}
 

@@ -1,7 +1,6 @@
-export type AcademyFeature = "enquiries" | "admissions" | "fees" | "lectures";
+export type AcademyFeature = "admissions" | "fees" | "lectures";
 
 const FEATURE_ROLES: Record<AcademyFeature, string[]> = {
-  enquiries: ["org_admin", "manager", "teacher"],
   admissions: ["org_admin", "manager"],
   fees: ["org_admin", "manager", "student"],
   lectures: ["org_admin", "manager", "teacher", "student"],
@@ -10,7 +9,15 @@ const FEATURE_ROLES: Record<AcademyFeature, string[]> = {
 interface AcademyUser {
   role: string;
   organizationId?: { type?: string; features?: Partial<Record<string, boolean>> } | null;
+  toolAccess?: { tickets?: boolean; crm?: boolean };
 }
+
+// Admins always have every tool; other members only the ones an admin opened to them in Settings.
+export type Tool = "tickets" | "crm";
+export const hasTool = (user: AcademyUser | null | undefined, tool: Tool): boolean =>
+  ["superadmin", "org_admin"].includes(user?.role || "") || user?.toolAccess?.[tool] === true;
+export const canUseTickets = (user: AcademyUser | null | undefined): boolean =>
+  user?.organizationId?.features?.tickets !== false && hasTool(user, "tickets");
 
 // Decides what's shown. The server enforces the same rules on every request.
 export function canUseAcademy(user: AcademyUser | null | undefined, feature: AcademyFeature): boolean {
@@ -18,7 +25,17 @@ export function canUseAcademy(user: AcademyUser | null | undefined, feature: Aca
   return org?.type === "academy" && org.features?.[feature] !== false && FEATURE_ROLES[feature].includes(user?.role || "");
 }
 
+// The CRM is for every organization type. Teachers and employees are telecallers
+// and see only the leads assigned to them; admins and managers see all.
+export const CRM_ROLES = ["org_admin", "manager", "teacher", "employee"];
+export const TELECALLER_ROLES = ["teacher", "employee"];
+export function canUseCrm(user: AcademyUser | null | undefined): boolean {
+  return user?.organizationId?.features?.crm !== false && CRM_ROLES.includes(user?.role || "") && hasTool(user, "crm");
+}
+
+const LABELS: Record<string, string> = { nif_done: "NIF done" };
 export const labelOf = (value: string) => {
+  if (LABELS[value]) return LABELS[value];
   const text = value.replace(/_/g, " ");
   return text.charAt(0).toUpperCase() + text.slice(1);
 };
@@ -48,7 +65,28 @@ export function localToday(now = new Date()) {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 }
 
-export const ENQUIRY_STATUSES = ["new", "contacted", "follow_up", "converted", "lost"] as const;
+// Lead statuses and stages as in Baker CRM. The server works out the stage from
+// the status; the same map here only colours and groups the lists.
+export type LeadStage = "cold" | "hot" | "dead";
+export const LEAD_STAGES: Record<LeadStage, readonly string[]> = {
+  cold: ["new", "not_answered", "busy", "visa_rejected"],
+  hot: [
+    "answered", "follow_up", "meeting_scheduled", "meeting_done", "agreement_pending", "agreement_done", "payment_pending",
+    "payment_done", "documentation", "completed", "no_show", "appointment_booked", "visa_granted", "nif_done",
+    "incorporation_done", "decision_pending", "endorsement_granted",
+  ],
+  dead: ["not_interested", "not_eligible", "wrong_number", "refunded"],
+};
+export const ENQUIRY_STATUSES = [...LEAD_STAGES.cold, ...LEAD_STAGES.hot, ...LEAD_STAGES.dead] as const;
+const LEGACY_STAGE: Record<string, LeadStage> = { contacted: "hot", converted: "hot", lost: "dead" };
+export const stageOf = (status: string): LeadStage =>
+  (Object.keys(LEAD_STAGES) as LeadStage[]).find((stage) => LEAD_STAGES[stage].includes(status)) || LEGACY_STAGE[status] || "cold";
+export const isOpenLead = (status: string) => stageOf(status) !== "dead" && !["completed", "converted"].includes(status);
+export const STAGE_TONES: Record<LeadStage, string> = {
+  cold: "bg-chart-1/10 text-chart-1",
+  hot: "bg-chart-3/10 text-chart-3",
+  dead: "bg-muted text-muted-foreground",
+};
 export const ENQUIRY_SOURCES = ["walk_in", "phone", "website", "referral", "social_media", "meta_ads", "instagram_ads", "google_ads", "whatsapp", "import", "other"] as const;
 export const CALL_OUTCOMES = ["connected", "no_answer", "busy", "wrong_number", "call_back"] as const;
 export const ADMISSION_STATUSES = ["applied", "approved", "rejected", "enrolled"] as const;
@@ -71,10 +109,19 @@ export interface Enquiry {
   status: string;
   assignedTo?: Person | null;
   nextFollowUpDate: string;
+  stage?: LeadStage;
+  ticketId?: { _id: string; ticketKey: string; status: string } | null;
   notes?: EnquiryNote[];
   createdAt: string;
 }
-export interface EnquiryList { enquiries: Enquiry[]; total: number; pages: number; dueCount: number; today: string }
+export interface EnquiryList { enquiries: Enquiry[]; total: number; pages: number; dueCount: number; stages: Record<LeadStage, number>; today: string }
+export interface LeadReport {
+  total: number;
+  dueCount: number;
+  stages: Record<LeadStage, number>;
+  statuses: Record<string, number>;
+  byAssignee: { assignedTo: string | null; name: string; total: number; open: number; hot: number }[];
+}
 
 export interface Admission {
   _id: string;

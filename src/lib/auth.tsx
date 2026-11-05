@@ -19,6 +19,7 @@ interface User {
   isActive: boolean;
   mustChangePassword?: boolean;
   locationRestrictionEnabled?: boolean | null;
+  toolAccess?: { tickets?: boolean; crm?: boolean };
 }
 
 interface AuthContextType {
