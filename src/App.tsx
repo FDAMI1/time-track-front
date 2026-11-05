@@ -1,6 +1,6 @@
 import { apiFetch } from "@/lib/api";
 import { useState, useEffect, lazy, Suspense } from "react";
-import { Switch, Route, useLocation } from "wouter";
+import { Switch, Route, Redirect, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -10,7 +10,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { getInitials } from "@/lib/utils";
 import { hasMcqAccess } from "@/mcq/lib/roles";
-import { canUseAcademy, canUseCrm, canUseTickets } from "@/academy/lib/academy";
+import { canUseAcademy, canUseCrm, canUseTickets, canUseTimeTracking } from "@/academy/lib/academy";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -50,7 +50,8 @@ const McqFallback = () => (
   </div>
 );
 import ForcePasswordChange from "@/components/force-password-change";
-import { applyBrandingCss } from "@/lib/branding";
+import { applyBrandingCss, saveBranding, useBranding } from "@/lib/branding";
+import { RemoteImage } from "@/components/remote-image";
 
 function NotificationBell() {
   const { token } = useAuth();
@@ -177,6 +178,13 @@ const PAGE_TITLES: Record<string, string> = {
 };
 
 // Page title with a breadcrumb, derived from the first URL segment.
+// On phones the sidebar is closed, so the organization's logo also sits in the top bar.
+function HeaderLogo() {
+  const { logoType, logoUrl } = useBranding();
+  if (logoType !== "image" || !logoUrl) return null;
+  return <RemoteImage src={logoUrl} alt="Logo" className="md:hidden h-7 w-auto max-w-[96px] object-contain shrink-0" fallback={null} data-testid="img-header-logo" />;
+}
+
 function PageHeading() {
   const [location] = useLocation();
   const title = PAGE_TITLES[location.split("/")[1]];
@@ -217,6 +225,24 @@ function AuthenticatedRouter() {
   const { user, isImpersonating } = useAuth();
   const orgType = user?.organizationId?.type;
 
+  // A member opens only the features their admin ticked; every other address is Not Found.
+  if (user?.role === "member") {
+    const home = canUseTimeTracking(user) ? "/time-tracking" : hasMcqAccess(user) ? "/mcq" : "/settings";
+    return (
+      <Switch>
+        <Route path="/"><Redirect to={home} /></Route>
+        {canUseTimeTracking(user) && <Route path="/time-tracking" component={TimeTrackingPage} />}
+        {hasMcqAccess(user) && (
+          <Route path="/mcq" nest>
+            <Suspense fallback={<McqFallback />}><McqRouter /></Suspense>
+          </Route>
+        )}
+        <Route path="/settings" component={SettingsPage} />
+        <Route component={NotFound} />
+      </Switch>
+    );
+  }
+
   return (
     <Switch>
       <Route path="/" component={DashboardPage} />
@@ -232,7 +258,7 @@ function AuthenticatedRouter() {
       {user?.role !== "superadmin" && (
         <Route path="/leaves" component={LeavesPage} />
       )}
-      {["employee", "manager", "org_admin", "teacher"].includes(user?.role || "") && (
+      {canUseTimeTracking(user) && (
         <Route path="/time-tracking" component={TimeTrackingPage} />
       )}
       {["org_admin", "teacher", "manager"].includes(user?.role || "") && (
@@ -312,12 +338,7 @@ function AppLayout() {
     if (token && user?.organizationId) {
       apiFetch("/api/organizations/my/branding", { headers: { Authorization: `Bearer ${token}` } })
         .then(r => r.ok ? r.json() : null)
-        .then(data => {
-          if (data && Object.keys(data).length > 0) {
-            localStorage.setItem("app_theme", JSON.stringify(data));
-            applyBrandingCss(data);
-          }
-        })
+        .then(data => { if (data) saveBranding(data); })
         .catch(() => {});
     }
   }, [user?._id, token]);
@@ -355,6 +376,7 @@ function AppLayout() {
           <header className="flex items-center justify-between gap-3 px-4 border-b bg-card h-14 shrink-0">
             <div className="flex items-center gap-3 min-w-0">
               <SidebarTrigger data-testid="button-sidebar-toggle" />
+              <HeaderLogo />
               <PageHeading />
             </div>
             <div className="flex items-center gap-2">

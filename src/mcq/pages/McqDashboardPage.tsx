@@ -7,7 +7,7 @@ import TakerDashboard from "./dashboards/TakerDashboard";
 export default function McqDashboardPage() {
   const { user } = useAuth();
   if (isMcqAdmin(user?.role)) return <AdminDashboard />;
-  if (isMcqStaff(user?.role)) return <StaffDashboard />;
+  if (isMcqStaff(user)) return <StaffDashboard />;
   if (isMcqTaker(user?.role)) return <TakerDashboard />;
   return <p className="text-muted-foreground text-sm">The MCQ module is not available for your role.</p>;
 }

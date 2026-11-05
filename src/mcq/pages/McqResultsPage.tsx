@@ -174,5 +174,5 @@ function TakerResults() {
 
 export default function McqResultsPage() {
   const { user } = useAuth();
-  return isMcqStaff(user?.role) ? <StaffResults /> : <TakerResults />;
+  return isMcqStaff(user) ? <StaffResults /> : <TakerResults />;
 }

@@ -23,6 +23,7 @@ const roleLabels: Record<string, string> = {
   student: "Student",
   manager: "Manager",
   employee: "Employee",
+  member: "Member",
 };
 
 const roleBadgeColors: Record<string, string> = {
@@ -31,7 +32,10 @@ const roleBadgeColors: Record<string, string> = {
   student: "bg-chart-4/10 text-chart-4",
   manager: "bg-chart-1/10 text-chart-1",
   employee: "bg-chart-5/10 text-chart-5",
+  member: "bg-muted text-foreground",
 };
+
+const NO_MEMBER_ACCESS = { mcq: false, timeTracking: false };
 
 export default function MembersPage() {
   const { token, user } = useAuth();
@@ -49,7 +53,7 @@ export default function MembersPage() {
 
   const orgType = user?.organizationId?.type;
 
-  const SYSTEM_ROLE_NAMES = ["org_admin", "teacher", "student", "manager", "employee", "superadmin"];
+  const SYSTEM_ROLE_NAMES = ["org_admin", "teacher", "student", "manager", "employee", "superadmin", "member"];
 
   const fallbackRoles =
     orgType === "academy"
@@ -63,6 +67,7 @@ export default function MembersPage() {
     role: fallbackRoles[0]?.value || "system-employee",
     studentWhatsapp: "", parentWhatsapp: "",
     assignedSchedules: [] as string[],
+    memberAccess: NO_MEMBER_ACCESS,
   });
 
   const [editForm, setEditForm] = useState({
@@ -105,7 +110,8 @@ export default function MembersPage() {
     enabled: !!token && ["org_admin", "manager", "superadmin"].includes(user?.role || ""),
   });
 
-  const availableRoles: Array<{ value: string; label: string; roleName: string }> =
+  const canAddMembers = ["org_admin", "superadmin"].includes(user?.role || "");
+  const listedRoles: Array<{ value: string; label: string; roleName: string }> =
     rolesData && rolesData.length > 0
       ? (rolesData as any[])
           .filter((r: any) => !["org_admin", "superadmin"].includes(r.roleName))
@@ -115,6 +121,10 @@ export default function MembersPage() {
             roleName: r.roleName,
           }))
       : fallbackRoles;
+  // Member is built in and only admins may create one.
+  const availableRoles = canAddMembers && !listedRoles.some((r) => r.roleName === "member")
+    ? [...listedRoles, { value: "system-member", label: "Member", roleName: "member" }]
+    : listedRoles;
 
   const { data: orgDomains } = useQuery({
     queryKey: ["/api/organizations/my/domains"],
@@ -143,6 +153,7 @@ export default function MembersPage() {
         payload.roleId = data.role;
         delete payload.role;
       }
+      if (payload.role !== "member") delete payload.memberAccess;
       const res = await apiFetch("/api/users", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -155,7 +166,7 @@ export default function MembersPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       queryClient.invalidateQueries({ queryKey: ["/api/policy"] });
       setCreateOpen(false);
-      setForm({ firstName: "", lastName: "", email: "", emailDomain: "", phone: "", education: "", username: "", userId: "", biometricId: "", role: availableRoles[0]?.value || "system-employee", studentWhatsapp: "", parentWhatsapp: "", assignedSchedules: [] });
+      setForm({ firstName: "", lastName: "", email: "", emailDomain: "", phone: "", education: "", username: "", userId: "", biometricId: "", role: availableRoles[0]?.value || "system-employee", studentWhatsapp: "", parentWhatsapp: "", assignedSchedules: [], memberAccess: NO_MEMBER_ACCESS });
       setTempPwdState({ open: true, password: data.tempPassword, username: data.user?.username || "" });
     },
     onError: (err: Error) => {
@@ -294,8 +305,8 @@ export default function MembersPage() {
   };
 
   const roleHierarchy: Record<string, string[]> = {
-    superadmin: ["org_admin", "teacher", "student", "manager", "employee"],
-    org_admin: ["teacher", "student", "manager", "employee"],
+    superadmin: ["org_admin", "teacher", "student", "manager", "employee", "member"],
+    org_admin: ["teacher", "student", "manager", "employee", "member"],
     manager: ["employee"],
     teacher: ["student"],
   };
@@ -362,6 +373,24 @@ export default function MembersPage() {
                   </SelectContent>
                 </Select>
               </div>
+
+              {getRoleName(form.role) === "member" && (
+                <fieldset className="space-y-2 p-3 rounded-md border" data-testid="member-access">
+                  <legend className="text-sm font-medium px-1">Member Permissions</legend>
+                  <p className="text-xs text-muted-foreground">A member can open only the features ticked here. Choose at least one.</p>
+                  {orgType !== "company" && (
+                    <label className="flex items-center gap-2 text-sm">
+                      <Checkbox checked={form.memberAccess.mcq} onCheckedChange={(on) => setForm({ ...form, memberAccess: { ...form.memberAccess, mcq: !!on } })} data-testid="checkbox-member-mcq" />
+                      MCQ
+                    </label>
+                  )}
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox checked={form.memberAccess.timeTracking} onCheckedChange={(on) => setForm({ ...form, memberAccess: { ...form.memberAccess, timeTracking: !!on } })} data-testid="checkbox-member-time" />
+                    Time Tracking
+                  </label>
+                  <p className="text-xs text-muted-foreground">To give an existing user Member access without a new account, use Settings → Tool Access.</p>
+                </fieldset>
+              )}
 
               {isStudentOrEmployee(form.role) && (
                 <div className="space-y-3 p-3 rounded-md border border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-950/20">
@@ -468,7 +497,7 @@ export default function MembersPage() {
                 <KeyRound className="w-3 h-3" />
                 A temporary password will be auto-generated and shown after creation.
               </p>
-              <Button type="submit" className="w-full" disabled={createUser.isPending} data-testid="button-submit-member">
+              <Button type="submit" className="w-full" disabled={createUser.isPending || (getRoleName(form.role) === "member" && !form.memberAccess.mcq && !form.memberAccess.timeTracking)} data-testid="button-submit-member">
                 {createUser.isPending ? "Creating..." : "Create Member"}
               </Button>
             </form>
@@ -833,7 +862,7 @@ export default function MembersPage() {
               <Select value={editForm.role} onValueChange={(v) => setEditForm({ ...editForm, role: v })}>
                 <SelectTrigger data-testid="select-edit-role"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {availableRoles.map((r) => (
+                  {availableRoles.filter((r) => r.roleName !== "member" || getRoleName(editForm.role) === "member").map((r) => (
                     <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
                   ))}
                 </SelectContent>

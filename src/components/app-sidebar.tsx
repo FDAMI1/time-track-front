@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useBranding } from "@/lib/branding";
 import { useAuth } from "@/lib/auth";
 import { getInitials } from "@/lib/utils";
 import { useLocation, Link } from "wouter";
@@ -41,7 +41,8 @@ import {
   Wallet,
   CalendarDays,
 } from "lucide-react";
-import { canUseAcademy, canUseCrm, canUseTickets } from "@/academy/lib/academy";
+import { canUseAcademy, canUseCrm, canUseTickets, canUseTimeTracking } from "@/academy/lib/academy";
+import { hasMcqAccess } from "@/mcq/lib/roles";
 
 const roleLabels: Record<string, string> = {
   superadmin: "Super Admin",
@@ -50,6 +51,7 @@ const roleLabels: Record<string, string> = {
   student: "Student",
   manager: "Manager",
   employee: "Employee",
+  member: "Member",
 };
 
 const roleBadgeVariants: Record<string, string> = {
@@ -61,12 +63,6 @@ const roleBadgeVariants: Record<string, string> = {
   employee: "bg-chart-5/10 text-chart-5",
 };
 
-function getBranding() {
-  try {
-    const saved = localStorage.getItem("app_theme");
-    return saved ? JSON.parse(saved) : {};
-  } catch { return {}; }
-}
 
 interface NavItem {
   group: string;
@@ -82,12 +78,7 @@ export function AppSidebar() {
   const { user, logout } = useAuth();
   const [location] = useLocation();
   const { setOpenMobile } = useSidebar();
-  const [branding, setBranding] = useState(getBranding());
-  useEffect(() => {
-    const handler = () => setBranding(getBranding());
-    window.addEventListener("brandingUpdated", handler);
-    return () => window.removeEventListener("brandingUpdated", handler);
-  }, []);
+  const branding = useBranding();
 
   if (!user) return null;
 
@@ -102,6 +93,14 @@ export function AppSidebar() {
   const getNavItems = () => {
     const items: NavItem[] = [];
 
+    // A member sees only the features their admin ticked, plus Settings for their password.
+    if (user.role === "member") {
+      if (canUseTimeTracking(user)) items.push({ group: "Attendance", title: "Time Tracking", url: "/time-tracking", icon: Timer });
+      if (hasMcqAccess(user)) items.push({ group: "Academic", title: "MCQ", url: "/mcq", icon: ClipboardList });
+      items.push({ group: "Administration", title: "Settings", url: "/settings", icon: Settings });
+      return items;
+    }
+
     items.push({ group: "Main", title: "Dashboard", url: "/", icon: LayoutDashboard });
 
     if (user.role === "superadmin") {
@@ -114,7 +113,7 @@ export function AppSidebar() {
       }
       items.push({ group: "Attendance", title: "Attendance", url: "/attendance", icon: CalendarCheck });
       items.push({ group: "Attendance", title: "Leave Requests", url: "/leaves", icon: CalendarOff });
-      if (["employee", "manager", "org_admin", "teacher"].includes(user.role)) {
+      if (canUseTimeTracking(user)) {
         items.push({ group: "Attendance", title: "Time Tracking", url: "/time-tracking", icon: Timer });
       }
       if (["org_admin", "teacher", "manager"].includes(user.role)) {
@@ -137,7 +136,7 @@ export function AppSidebar() {
       if (chatEnabled) {
         items.push({ group: "Communication", title: "Chat", url: "/chat", icon: MessageCircle });
       }
-      if (orgType === "academy") {
+      if (hasMcqAccess(user)) {
         items.push({ group: "Academic", title: "MCQ", url: "/mcq", icon: ClipboardList });
       }
       if (canUseCrm(user)) items.push({ group: "CRM", title: "Leads", url: "/enquiries", icon: PhoneCall });

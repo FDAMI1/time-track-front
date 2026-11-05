@@ -1,4 +1,61 @@
+import { useEffect, useState } from "react";
 import { assetUrl } from "./asset-url";
+
+const DEFAULT_FAVICON = "/logo.png";
+const THEME_KEY = "app_theme";
+
+export interface Branding {
+  appName?: string;
+  logoText?: string;
+  logoType?: "text" | "image";
+  logoUrl?: string;
+  primaryColor?: string;
+  sidebarColor?: string;
+  accentColor?: string;
+  buttonColor?: string;
+}
+
+// The browser tab shows the organization's logo, or the platform icon without one.
+function setFavicon(url: string) {
+  let link = document.querySelector<HTMLLinkElement>("link[rel='icon']");
+  if (!link) {
+    link = document.createElement("link");
+    link.rel = "icon";
+    document.head.appendChild(link);
+  }
+  link.href = url;
+}
+
+export function getBranding(): Branding {
+  try {
+    const saved = localStorage.getItem(THEME_KEY);
+    return saved ? JSON.parse(saved) : {};
+  } catch {
+    return {};
+  }
+}
+
+// The signed-in organization's branding, kept current when it changes.
+export function useBranding(): Branding {
+  const [branding, setBranding] = useState(getBranding);
+  useEffect(() => {
+    const handler = () => setBranding(getBranding());
+    window.addEventListener("brandingUpdated", handler);
+    return () => window.removeEventListener("brandingUpdated", handler);
+  }, []);
+  return branding;
+}
+
+// Stores and applies one organization's branding; an empty one clears the last organization's.
+export function saveBranding(theme: Branding) {
+  if (Object.keys(theme).length) {
+    localStorage.setItem(THEME_KEY, JSON.stringify(theme));
+    applyBrandingCss(theme);
+  } else {
+    localStorage.removeItem(THEME_KEY);
+    resetBrandingCss();
+  }
+}
 
 function hexToHsl(hex: string): string {
   if (!hex || !hex.startsWith("#") || hex.length < 7) return "217 91% 35%";
@@ -20,13 +77,7 @@ function hexToHsl(hex: string): string {
   return `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
 }
 
-export function applyBrandingCss(theme: {
-  primaryColor?: string;
-  sidebarColor?: string;
-  accentColor?: string;
-  buttonColor?: string;
-  logoUrl?: string;
-}) {
+export function applyBrandingCss(theme: Branding) {
   const el = document.documentElement;
   const btn = theme.buttonColor || theme.primaryColor;
   if (theme.primaryColor) el.style.setProperty("--theme-primary", theme.primaryColor);
@@ -45,7 +96,7 @@ export function applyBrandingCss(theme: {
     el.style.setProperty("--sidebar-primary", hexToHsl(btn));
     el.style.setProperty("--sidebar-ring", hexToHsl(btn));
   }
-  if (theme.logoUrl) document.querySelector("link[rel='icon']")?.setAttribute("href", assetUrl(theme.logoUrl));
+  setFavicon(theme.logoType !== "text" && theme.logoUrl ? assetUrl(theme.logoUrl) : DEFAULT_FAVICON);
   window.dispatchEvent(new CustomEvent("brandingUpdated"));
 }
 
@@ -54,4 +105,6 @@ export function resetBrandingCss() {
   ["--theme-primary", "--theme-sidebar", "--theme-accent", "--theme-button",
    "--primary", "--ring", "--sidebar", "--accent", "--sidebar-primary", "--sidebar-ring"]
     .forEach((v) => el.style.removeProperty(v));
+  setFavicon(DEFAULT_FAVICON);
+  window.dispatchEvent(new CustomEvent("brandingUpdated"));
 }

@@ -11,8 +11,9 @@ interface NavItem {
 
 const iconClass = "w-4 h-4";
 
-function navFor(role: string | undefined): NavItem[] {
-  if (isMcqStaff(role)) {
+function navFor(user: Parameters<typeof isMcqStaff>[0]): NavItem[] {
+  const role = user?.role;
+  if (isMcqStaff(user)) {
     return [
       { label: "Dashboard", href: "/", icon: <LayoutDashboard className={iconClass} /> },
       { label: "Question Bank", href: "/questions", icon: <BookOpen className={iconClass} /> },
@@ -38,7 +39,7 @@ function navFor(role: string | undefined): NavItem[] {
 export default function McqLayout({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const [location] = useLocation();
-  const items = navFor(user?.role);
+  const items = navFor(user);
 
   const isActive = (href: string) => (href === "/" ? location === "/" : location === href || location.startsWith(`${href}/`));
 

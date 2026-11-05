@@ -9,7 +9,7 @@ const FEATURE_ROLES: Record<AcademyFeature, string[]> = {
 interface AcademyUser {
   role: string;
   organizationId?: { type?: string; features?: Partial<Record<string, boolean>> } | null;
-  toolAccess?: { tickets?: boolean; crm?: boolean };
+  toolAccess?: { tickets?: boolean; crm?: boolean; mcq?: boolean; timeTracking?: boolean };
 }
 
 // Org admins always have every tool; other members only the ones an admin opened to them in Settings.
@@ -19,6 +19,14 @@ export const hasTool = (user: AcademyUser | null | undefined, tool: Tool): boole
   user?.role === "org_admin" || user?.toolAccess?.[tool] === true;
 export const canUseTickets = (user: AcademyUser | null | undefined): boolean =>
   user?.organizationId?.features?.tickets !== false && hasTool(user, "tickets");
+
+// Member access adds MCQ or Time Tracking to a person's own role. A "member" account has
+// only what was ticked. MCQ access is decided in mcq/lib/roles.
+export type MemberFeature = "mcq" | "timeTracking";
+const TIME_TRACKING_ROLES = ["employee", "manager", "org_admin", "teacher"];
+export const canUseTimeTracking = (user: AcademyUser | null | undefined): boolean =>
+  TIME_TRACKING_ROLES.includes(user?.role || "") || user?.toolAccess?.timeTracking === true;
+
 
 // Decides what's shown. The server enforces the same rules on every request.
 export function canUseAcademy(user: AcademyUser | null | undefined, feature: AcademyFeature): boolean {
@@ -98,8 +106,8 @@ export const LECTURE_STATUSES = ["scheduled", "completed", "cancelled"] as const
 export interface Course { _id: string; title: string }
 export interface Batch { _id: string; batchName: string; courseId?: Course | null }
 
-export type NoteKind = "note" | "call" | "whatsapp" | "status" | "assigned";
-export interface EnquiryNote { _id: string; body: string; kind?: NoteKind; outcome?: string; authorName: string; createdAt: string }
+export type NoteKind = "note" | "call" | "discussion" | "whatsapp" | "status" | "assigned" | "followup";
+export interface EnquiryNote { _id: string; body: string; kind?: NoteKind; outcome?: string; authorId?: string; authorName: string; createdAt: string; editedAt?: string }
 export interface LeadTemplate { name: string; body: string }
 // Previews a WhatsApp template for one lead; the server fills the same placeholders again before sending.
 export const fillTemplate = (text: string, values: Record<string, string | undefined>) =>

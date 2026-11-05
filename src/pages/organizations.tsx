@@ -1,6 +1,6 @@
 import { apiFetch } from "@/lib/api";
 import { getInitials } from "@/lib/utils";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
 import { queryClient } from "@/lib/queryClient";
@@ -16,7 +16,10 @@ import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
-import { Building2, Plus, GraduationCap, Briefcase, Users, Globe, Phone, MapPin, Eye, Pencil, Trash2, EyeIcon, EyeOff, LogIn } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { RemoteImage } from "@/components/remote-image";
+import UserPermissionsPanel from "@/components/settings/UserPermissionsPanel";
+import { Building2, Plus, GraduationCap, Briefcase, Users, Globe, Phone, MapPin, Eye, Pencil, Trash2, EyeIcon, EyeOff, LogIn, Upload } from "lucide-react";
 
 // What the superadmin can switch on or off for one organization. Each organization's
 // tickets and CRM are its own; the superadmin only decides whether it has them.
@@ -27,6 +30,42 @@ const ORG_FEATURES: { key: string; label: string; academyOnly?: boolean }[] = [
   { key: "classes", label: "Classes", academyOnly: true }, { key: "assignments", label: "Assignments", academyOnly: true },
   { key: "admissions", label: "Admissions", academyOnly: true }, { key: "fees", label: "Fees", academyOnly: true }, { key: "lectures", label: "Lectures", academyOnly: true },
 ];
+
+// The organization's own logo. Every member of that organization sees it in the sidebar,
+// the top bar and the browser tab; no other organization changes.
+function OrgBranding({ org, token }: { org: { _id: string; name: string; branding?: { logoUrl?: string; logoType?: string } }; token: string | null }) {
+  const { toast } = useToast();
+  const input = useRef<HTMLInputElement>(null);
+  const upload = useMutation({
+    mutationFn: async (file: File) => {
+      const body = new FormData();
+      body.append("logo", file);
+      const res = await apiFetch(`/api/organizations/${org._id}/logo`, { method: "POST", headers: { Authorization: `Bearer ${token}` }, body });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || "Upload failed");
+      return res.json();
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/organizations", org._id] }); toast({ title: "Logo saved" }); },
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+  const logo = org.branding?.logoType === "image" ? org.branding.logoUrl : "";
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-4">
+        <div className="w-24 h-24 rounded-lg border bg-muted/40 flex items-center justify-center overflow-hidden" data-testid="org-logo-preview">
+          <RemoteImage src={logo || ""} alt={`${org.name} logo`} className="max-w-full max-h-full object-contain" fallback={<span className="text-xs text-muted-foreground text-center px-2">Default branding</span>} />
+        </div>
+        <div className="space-y-2">
+          <input ref={input} type="file" accept="image/png,image/jpeg" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) upload.mutate(file); e.target.value = ""; }} data-testid="input-org-logo" />
+          <Button size="sm" disabled={upload.isPending} onClick={() => input.current?.click()} data-testid="button-upload-org-logo">
+            <Upload className="w-3.5 h-3.5 mr-1" />{upload.isPending ? "Uploading..." : logo ? "Replace Logo" : "Upload Organisation Logo"}
+          </Button>
+          <p className="text-xs text-muted-foreground">PNG or JPG, up to 2 MB. A square logo looks best.</p>
+        </div>
+      </div>
+      <p className="text-xs text-muted-foreground">Shown to everyone in {org.name} in the sidebar, the top bar and the browser tab. Without a logo they see the default branding.</p>
+    </div>
+  );
+}
 
 export default function OrganizationsPage() {
   const { token, impersonate } = useAuth();
@@ -304,7 +343,13 @@ export default function OrganizationsPage() {
           {detailLoading ? (
             <Skeleton className="h-48 w-full" />
           ) : orgDetail ? (
-            <div className="space-y-4">
+            <Tabs defaultValue="overview">
+              <TabsList className="h-auto flex-wrap justify-start">
+                <TabsTrigger value="overview" data-testid="tab-org-overview">Overview</TabsTrigger>
+                <TabsTrigger value="people" data-testid="tab-org-people">Users & Permissions</TabsTrigger>
+                <TabsTrigger value="branding" data-testid="tab-org-branding">Branding</TabsTrigger>
+              </TabsList>
+            <TabsContent value="overview" className="space-y-4 mt-4">
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div><span className="text-muted-foreground">Type:</span> <span className="capitalize font-medium">{orgDetail.type}</span></div>
                 <div><span className="text-muted-foreground">Status:</span> <Badge variant={orgDetail.isActive ? "default" : "secondary"}>{orgDetail.isActive ? "Active" : "Inactive"}</Badge></div>
@@ -370,7 +415,14 @@ export default function OrganizationsPage() {
                   </Table>
                 </div>
               )}
-            </div>
+            </TabsContent>
+            <TabsContent value="people" className="mt-4">
+              <UserPermissionsPanel orgType={orgDetail.type} organizationId={orgDetail._id} />
+            </TabsContent>
+            <TabsContent value="branding" className="mt-4">
+              <OrgBranding org={orgDetail} token={token} />
+            </TabsContent>
+            </Tabs>
           ) : null}
         </DialogContent>
       </Dialog>

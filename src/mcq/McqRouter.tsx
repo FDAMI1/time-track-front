@@ -18,7 +18,7 @@ import McqSettingsPage from "@/mcq/pages/McqSettingsPage";
 // relative to that base. Backend authorization is enforced independently.
 export default function McqRouter() {
   const { user } = useAuth();
-  const staff = isMcqStaff(user?.role);
+  const staff = isMcqStaff(user);
   const taker = isMcqTaker(user?.role);
 
   return (

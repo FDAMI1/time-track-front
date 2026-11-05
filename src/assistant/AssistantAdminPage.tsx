@@ -7,25 +7,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Eye, EyeOff } from "lucide-react";
 import { useMcqApi } from "@/mcq/lib/api";
 import { formatDuration } from "@/tickets/lib/types";
-
-interface Article {
-  _id: string;
-  title: string;
-  category: string;
-  body?: string;
-  status: "draft" | "published";
-  roles: string[];
-  orgTypes: string[];
-  indexState: string;
-}
 
 interface Stats {
   messages: number;
@@ -43,118 +30,88 @@ interface Stats {
   frequentQuestions: { _id: string; count: number }[];
 }
 
-const ROLES = [
-  { value: "org_admin", label: "Admin" },
-  { value: "manager", label: "Manager" },
-  { value: "teacher", label: "Teacher" },
-  { value: "employee", label: "Employee" },
-  { value: "student", label: "Student" },
-];
-const EMPTY = { title: "", category: "General", body: "", status: "draft" as Article["status"], roles: [] as string[], orgTypes: [] as string[] };
-const INDEX_LABELS: Record<string, string> = { indexed: "Indexed", text_only: "Text search only", failed: "Failed", none: "Not indexed" };
-const URL = "/api/assistant/knowledge";
+interface Setup {
+  hasKey: boolean;
+  keyHint: string;
+  knowledge: string;
+  knowledgeUpdatedAt: string | null;
+  minWords: number;
+  maxWords: number;
+}
 
-function KnowledgeTab() {
+const SETUP_URL = "/api/assistant/admin/setup";
+const countWords = (text: string) => (text.trim().match(/\S+/g) || []).length;
+
+// The organization's own assistant: its Gemini key and what the assistant knows about the product.
+function SetupTab() {
   const api = useMcqApi();
   const { toast } = useToast();
-  const [editing, setEditing] = useState<string | undefined>();
-  const [form, setForm] = useState(EMPTY);
-  const { data: articles } = useQuery({ queryKey: [URL], queryFn: () => api.get<Article[]>(URL) });
-  const refresh = () => queryClient.invalidateQueries({ queryKey: [URL] });
+  const { data } = useQuery({ queryKey: [SETUP_URL], queryFn: () => api.get<Setup>(SETUP_URL) });
+  const [apiKey, setApiKey] = useState("");
+  const [showKey, setShowKey] = useState(false);
+  const [draft, setDraft] = useState<string | null>(null);
   const onError = (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" });
-  const reset = () => { setEditing(undefined); setForm(EMPTY); };
+  const saved = (next: Setup) => queryClient.setQueryData([SETUP_URL], next);
 
-  const save = useMutation({
-    mutationFn: () => (editing ? api.put(`${URL}/${editing}`, form) : api.post(URL, form)),
-    onSuccess: () => { refresh(); reset(); toast({ title: "Saved" }); },
+  const saveKey = useMutation({
+    mutationFn: () => api.put<Setup>(`${SETUP_URL}/key`, { apiKey }),
+    onSuccess: (next) => { saved(next); setApiKey(""); setShowKey(false); toast({ title: "API key saved" }); },
     onError,
   });
-  const edit = useMutation({
-    mutationFn: (id: string) => api.get<Article>(`${URL}/${id}`),
-    onSuccess: (a) => { setEditing(a._id); setForm({ title: a.title, category: a.category, body: a.body || "", status: a.status, roles: a.roles, orgTypes: a.orgTypes }); },
-    onError,
-  });
-  const remove = useMutation({ mutationFn: (id: string) => api.delete(`${URL}/${id}`), onSuccess: refresh, onError });
-  const reindex = useMutation({
-    mutationFn: () => api.post<{ reindexed: number }>(`${URL}/reindex/all`),
-    onSuccess: (r) => { refresh(); toast({ title: `${r.reindexed} articles re-indexed` }); },
-    onError,
-  });
-  const upload = useMutation({
-    mutationFn: (file: File) => {
-      const body = new FormData();
-      body.append("file", file);
-      return api.post(`${URL}/upload`, body);
-    },
-    onSuccess: () => { refresh(); toast({ title: "Uploaded as a draft", description: "Review it, then publish it." }); },
+  const saveKnowledge = useMutation({
+    mutationFn: (knowledge: string) => api.put<Setup>(`${SETUP_URL}/knowledge`, { knowledge }),
+    onSuccess: (next) => { saved(next); setDraft(null); toast({ title: "Product knowledge saved" }); },
     onError,
   });
 
-  const toggle = (list: string[], value: string, on: boolean) => (on ? [...list, value] : list.filter((v) => v !== value));
+  if (!data) return null;
+  const text = draft ?? data.knowledge;
+  const words = countWords(text);
+  const tooShort = words < data.minWords;
+  const tooLong = words > data.maxWords;
 
   return (
     <div className="space-y-4">
       <Card>
-        <CardContent className="p-4">
-          <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); save.mutate(); }}>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div className="space-y-1">
-                <Label htmlFor="article-title">Title</Label>
-                <Input id="article-title" required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} data-testid="input-article-title" />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="article-category">Category</Label>
-                <Input id="article-category" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
-              </div>
-              <div className="space-y-1">
-                <Label>Publication</Label>
-                <Select value={form.status} onValueChange={(status) => setForm({ ...form, status: status as Article["status"] })}>
-                  <SelectTrigger data-testid="select-article-status"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="draft">Draft</SelectItem>
-                    <SelectItem value="published">Published</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+        <CardHeader><CardTitle className="text-base">Gemini API Key</CardTitle></CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm" data-testid="text-key-status">
+            {data.hasKey ? `A key ending in ${data.keyHint} is saved. The assistant uses it to answer your members.` : "No key saved yet. The assistant stays off until you add one."}
+          </p>
+          <form className="flex flex-col sm:flex-row gap-2" onSubmit={(e) => { e.preventDefault(); saveKey.mutate(); }}>
+            <div className="relative flex-1">
+              <Label htmlFor="gemini-key" className="sr-only">Gemini API key</Label>
+              <Input id="gemini-key" type={showKey ? "text" : "password"} autoComplete="off" spellCheck={false} placeholder={data.hasKey ? "Paste a new key to replace it" : "Paste your Gemini API key"} value={apiKey} onChange={(e) => setApiKey(e.target.value)} className="pr-10" data-testid="input-gemini-key" />
+              <button type="button" onClick={() => setShowKey(!showKey)} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" aria-label={showKey ? "Hide key" : "Show key"} data-testid="button-toggle-key">
+                {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </div>
-            <div className="space-y-1">
-              <Label htmlFor="article-body">Content</Label>
-              <Textarea id="article-body" required rows={8} value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} data-testid="input-article-body" />
-            </div>
-            <fieldset className="flex gap-3 flex-wrap">
-              <legend className="text-sm font-medium mb-1">Visible to (none ticked means everyone)</legend>
-              {ROLES.map((role) => (
-                <label key={role.value} className="flex items-center gap-1.5 text-sm">
-                  <Checkbox checked={form.roles.includes(role.value)} onCheckedChange={(on) => setForm({ ...form, roles: toggle(form.roles, role.value, !!on) })} />
-                  {role.label}
-                </label>
-              ))}
-            </fieldset>
-            <div className="flex gap-2 flex-wrap items-center">
-              <Button type="submit" disabled={save.isPending} data-testid="button-save-article">{editing ? "Update Article" : "Add Article"}</Button>
-              {editing && <Button type="button" variant="ghost" onClick={reset}>Cancel</Button>}
-              <Button type="button" variant="outline" disabled={reindex.isPending} onClick={() => reindex.mutate()}>Re-index All</Button>
-              <Input type="file" accept=".pdf,.md,.txt" className="w-64" aria-label="Upload a PDF, Markdown or text file" onChange={(e) => { const file = e.target.files?.[0]; if (file) upload.mutate(file); e.target.value = ""; }} />
-            </div>
+            <Button type="submit" disabled={!apiKey.trim() || saveKey.isPending} data-testid="button-save-key">{saveKey.isPending ? "Checking..." : data.hasKey ? "Replace Key" : "Save Key"}</Button>
           </form>
+          <p className="text-xs text-muted-foreground">Create a key in Google AI Studio. We check it with Google before saving, store it encrypted, and never show it again.</p>
         </CardContent>
       </Card>
-      {articles?.length === 0 && <p className="text-sm text-muted-foreground">No articles yet</p>}
-      {articles?.map((a) => (
-        <Card key={a._id}>
-          <CardContent className="p-4 flex items-center justify-between gap-3 flex-wrap">
-            <div className="min-w-0">
-              <p className="font-medium truncate">{a.title}</p>
-              <p className="text-xs text-muted-foreground">{a.category} · {a.roles.length ? a.roles.join(", ") : "Everyone"} · {INDEX_LABELS[a.indexState]}</p>
-            </div>
+
+      <Card>
+        <CardHeader><CardTitle className="text-base">Product Knowledge</CardTitle></CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">Explain your portal in your own words: what it does, each module and how to use it, step-by-step tasks, roles and permissions, and common problems with their fixes. The assistant answers only from this text.</p>
+          <Label htmlFor="product-knowledge" className="sr-only">Product knowledge</Label>
+          <Textarea id="product-knowledge" rows={18} value={text} onChange={(e) => setDraft(e.target.value)} placeholder="Example: To raise a ticket, open Tickets in the sidebar and click New Ticket..." data-testid="input-product-knowledge" />
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <p className={`text-sm ${tooShort || tooLong ? "text-destructive" : "text-muted-foreground"}`} aria-live="polite" data-testid="text-word-count">
+              {words.toLocaleString()} / {data.maxWords.toLocaleString()} words
+              {tooShort && ` · at least ${data.minWords} needed`}
+              {tooLong && ` · ${(words - data.maxWords).toLocaleString()} over the limit`}
+            </p>
             <div className="flex items-center gap-2">
-              <Badge variant={a.status === "published" ? "default" : "secondary"}>{a.status === "published" ? "Published" : "Draft"}</Badge>
-              <Button variant="outline" size="sm" onClick={() => edit.mutate(a._id)}>Edit</Button>
-              <Button variant="ghost" size="sm" onClick={() => remove.mutate(a._id)}>Remove</Button>
+              {data.knowledgeUpdatedAt && <span className="text-xs text-muted-foreground">Last saved {new Date(data.knowledgeUpdatedAt).toLocaleString()}</span>}
+              {draft !== null && <Button variant="ghost" onClick={() => setDraft(null)}>Discard Changes</Button>}
+              <Button disabled={tooShort || tooLong || draft === null || saveKnowledge.isPending} onClick={() => saveKnowledge.mutate(text)} data-testid="button-save-knowledge">{data.knowledge ? "Update" : "Save"}</Button>
             </div>
-          </CardContent>
-        </Card>
-      ))}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -239,7 +196,7 @@ function SettingsTab() {
         <CardHeader><CardTitle className="text-base">AI Provider</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <p className="text-sm">Provider: {config?.provider || "Not set"} · API key: {config?.hasKey ? "set" : "not set"} · {config?.configured ? "Ready" : "Not ready"}</p>
-          <p className="text-xs text-muted-foreground">The API key is set in the server environment and can't be viewed or changed here.</p>
+          <p className="text-xs text-muted-foreground">This is the platform key, set in the server environment. It is used only by organizations that haven't added their own key under AI Assistant → Setup.</p>
           <form className="grid grid-cols-1 md:grid-cols-3 gap-3" onSubmit={(e) => { e.preventDefault(); saveConfig.mutate(); }}>
             <div className="space-y-1">
               <Label htmlFor="ai-model">Model</Label>
@@ -278,19 +235,21 @@ function SettingsTab() {
 }
 
 export default function AssistantAdminPage() {
+  const { user } = useAuth();
+  const superadmin = user?.role === "superadmin";
   return (
     <div className="p-4 sm:p-6 space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground">AI Assistant</h1>
-        <p className="text-muted-foreground text-sm mt-1">Manage what the assistant knows and see how it's used</p>
+        <p className="text-muted-foreground text-sm mt-1">{superadmin ? "See how the assistant is used across organizations" : "Set up the assistant that answers your members' questions"}</p>
       </div>
-      <Tabs defaultValue="knowledge">
+      <Tabs defaultValue={superadmin ? "monitoring" : "setup"}>
         <TabsList>
-          <TabsTrigger value="knowledge">Knowledge</TabsTrigger>
+          {!superadmin && <TabsTrigger value="setup" data-testid="tab-assistant-setup">Setup</TabsTrigger>}
           <TabsTrigger value="monitoring" data-testid="tab-assistant-monitoring">Monitoring</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
-        <TabsContent value="knowledge" className="mt-4"><KnowledgeTab /></TabsContent>
+        {!superadmin && <TabsContent value="setup" className="mt-4"><SetupTab /></TabsContent>}
         <TabsContent value="monitoring" className="mt-4"><MonitoringTab /></TabsContent>
         <TabsContent value="settings" className="mt-4"><SettingsTab /></TabsContent>
       </Tabs>

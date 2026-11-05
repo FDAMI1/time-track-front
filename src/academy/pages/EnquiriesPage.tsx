@@ -177,7 +177,7 @@ export default function EnquiriesPage() {
       <ListState isLoading={isLoading} error={error} isEmpty={enquiries.length === 0} emptyText="No leads found" icon={PhoneCall}>
         <div className="space-y-2">
           {enquiries.map((enquiry) => (
-            <Card key={enquiry._id} data-testid={`card-enquiry-${enquiry._id}`}>
+            <Card key={enquiry._id} className="cursor-pointer transition-colors hover:bg-muted/50" onClick={() => setOpenId(enquiry._id)} data-testid={`card-enquiry-${enquiry._id}`}>
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 flex-wrap">
                   <button type="button" className="font-medium hover:underline text-left" onClick={() => setOpenId(enquiry._id)} data-testid={`button-open-enquiry-${enquiry._id}`}>{enquiry.name}</button>

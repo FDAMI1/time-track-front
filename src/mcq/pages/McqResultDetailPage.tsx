@@ -22,7 +22,7 @@ export default function McqResultDetailPage() {
   const { user, token } = useAuth();
   const { toast } = useToast();
   const [, navigate] = useLocation();
-  const isStaff = isMcqStaff(user?.role);
+  const isStaff = isMcqStaff(user);
   const [screenshot, setScreenshot] = useState<{ fileId: string; label: string } | null>(null);
 
   const url = isStaff ? `/api/mcq/attempts/${id}` : `/api/mcq/student/attempts/${id}`;
