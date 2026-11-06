@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Bot, Flag, History, Loader2, Maximize2, Minimize2, Plus, Send, ThumbsDown, ThumbsUp, Trash2, X } from "lucide-react";
+import { Bot, Flag, History, Loader2, Maximize2, Minimize2, Minus, Plus, Send, ThumbsDown, ThumbsUp, Trash2, X } from "lucide-react";
 import { useMcqApi } from "@/mcq/lib/api";
 import ActionCard, { type AssistantAction } from "./ActionCard";
 
@@ -75,7 +75,7 @@ export default function AssistantWidget() {
   const end = useRef<HTMLDivElement>(null);
 
   const scope = ["/api/assistant", user?._id];
-  const { data: status } = useQuery({
+  const { data: status, isError: statusRefused } = useQuery({
     queryKey: [...scope, "status"],
     queryFn: () => api.get<Status>("/api/assistant/status"),
     refetchInterval: false,
@@ -182,21 +182,40 @@ export default function AssistantWidget() {
     if (message && !ask.isPending) ask.mutate(message);
   };
 
+  // An admin whose assistant has no key yet still sees the button, so they know to set it up.
+  // A refused check (assistant switched off) keeps the last answer in the cache, so it is checked too.
+  const needsSetup = !!status && !statusRefused && !status.available && user?.role === "org_admin";
+
   // Hidden during a proctored test, so it can't be used as a source of answers.
-  if (location.startsWith("/mcq/take-test") || !status?.available) return null;
+  if (location.startsWith("/mcq/take-test") || !status || statusRefused || (!status.available && !needsSetup)) return null;
+
+  if (open && needsSetup) {
+    return (
+      <section className="fixed z-40 inset-x-4 bottom-4 sm:inset-x-auto sm:right-4 sm:w-96 rounded-lg bg-card border shadow-xl p-4 space-y-3" aria-label="Portal assistant" data-testid="panel-assistant-setup">
+        <div className="flex items-center gap-2">
+          <Bot className="w-5 h-5 text-primary" />
+          <h2 className="flex-1 text-sm font-semibold">Assistant</h2>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setOpen(false)} aria-label="Close assistant"><X className="w-4 h-4" /></Button>
+        </div>
+        <p className="text-sm text-muted-foreground">The assistant isn't set up yet. Add your organization's Gemini API key in AI Assistant settings and it will start answering your members. Only admins see this message.</p>
+        <Button asChild className="w-full"><Link href="/assistant-admin" onClick={() => setOpen(false)} data-testid="link-assistant-setup">Set up the assistant</Link></Button>
+      </section>
+    );
+  }
 
   if (!open) {
     // Wrapped, because the Button's own `relative` class would beat `fixed`.
     return (
       <div className={`fixed right-4 z-40 ${location.startsWith("/chat") ? "bottom-36" : "bottom-4"}`}>
         <Button
-          size="icon"
-          className="h-12 w-12 rounded-full shadow-lg"
+          className="h-12 rounded-full shadow-lg px-3 sm:px-4 gap-2"
           onClick={() => setOpen(true)}
-          aria-label="Open portal assistant"
+          aria-label="Open AI Assistant"
           data-testid="button-open-assistant"
         >
           <Bot className="w-6 h-6" />
+          <span className="hidden sm:inline text-sm font-medium">AI Assistant</span>
+          {messages.length > 0 && <span className="h-2 w-2 rounded-full bg-primary-foreground" aria-hidden="true" />}
         </Button>
       </div>
     );
@@ -210,13 +229,15 @@ export default function AssistantWidget() {
     >
       <header className="flex items-center gap-1 border-b p-2">
         <Bot className="w-5 h-5 text-primary ml-1" />
-        <h2 className="flex-1 text-sm font-semibold ml-1">Assistant</h2>
+        <h2 className="flex-1 text-sm font-semibold ml-1">AI Assistant</h2>
         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={reset} aria-label="New conversation" data-testid="button-new-conversation"><Plus className="w-4 h-4" /></Button>
         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowHistory((v) => !v)} aria-label="Conversation history" data-testid="button-assistant-history"><History className="w-4 h-4" /></Button>
         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setFull((v) => !v)} aria-label={full ? "Exit full screen" : "Full screen"} data-testid="button-assistant-full">
           {full ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
         </Button>
-        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setOpen(false)} aria-label="Close assistant"><X className="w-4 h-4" /></Button>
+        {/* Minimise keeps the conversation for later; close ends it (it stays in History). */}
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={leaveFor} aria-label="Minimise assistant" data-testid="button-assistant-minimise"><Minus className="w-4 h-4" /></Button>
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { leaveFor(); reset(); }} aria-label="Close assistant" data-testid="button-assistant-close"><X className="w-4 h-4" /></Button>
       </header>
 
       {showHistory ? (

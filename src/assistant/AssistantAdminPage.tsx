@@ -40,6 +40,8 @@ interface Setup {
 }
 
 const SETUP_URL = "/api/assistant/admin/setup";
+// The chat widget checks availability once per page load; ask it again after a setting changes.
+const refreshWidget = () => queryClient.invalidateQueries({ queryKey: ["/api/assistant"] });
 const countWords = (text: string) => (text.trim().match(/\S+/g) || []).length;
 
 // The organization's own assistant: its Gemini key and what the assistant knows about the product.
@@ -55,7 +57,7 @@ function SetupTab() {
 
   const saveKey = useMutation({
     mutationFn: () => api.put<Setup>(`${SETUP_URL}/key`, { apiKey }),
-    onSuccess: (next) => { saved(next); setApiKey(""); setShowKey(false); toast({ title: "API key saved" }); },
+    onSuccess: (next) => { saved(next); setApiKey(""); setShowKey(false); refreshWidget(); toast({ title: "API key saved" }); },
     onError,
   });
   const testKey = useMutation({
@@ -186,7 +188,7 @@ function SettingsTab() {
 
   const setFeature = useMutation({
     mutationFn: (change: Record<string, boolean>) => api.patch("/api/organizations/my/features", { features: change }),
-    onSuccess: () => { refreshUser(); toast({ title: "Saved" }); },
+    onSuccess: () => { refreshUser(); refreshWidget(); toast({ title: "Saved" }); },
     onError,
   });
 
