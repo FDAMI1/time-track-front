@@ -22,6 +22,10 @@ export interface StudentProgress {
   attendance: ProgressAttendance[];
   dailyAttendance: Record<string, number>;
   fees: { billed: number; paid: number; balance: number };
+  mcq?: {
+    assigned: number; completed: number; attempted: number; pending: number; missed: number;
+    tests: { testId: string; title: string; state: string; attempts: number; lastAttemptAt?: string | null; score?: number; totalMarks?: number; percentage?: number; result?: string; endDate?: string | null }[];
+  };
 }
 
 export const VIA: Record<string, string> = { lecture: "Lecture", makeup: "Make-up lecture", manual: "Teacher, by hand" };

@@ -19,6 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Search, Users, Pencil, Trash2, Eye, EyeOff, Phone, GraduationCap, MessageCircle, Clock, KeyRound, Copy, Check } from "lucide-react";
 import PersonPermissions from "@/components/settings/PersonPermissions";
+import { Link } from "wouter";
 
 const roleLabels: Record<string, string> = {
   org_admin: "Admin",
@@ -592,7 +593,7 @@ export default function MembersPage() {
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <p className="font-medium text-sm">{m.firstName} {m.lastName}</p>
+                          <Link href={`/members/${m._id}`} className="font-medium text-sm hover:underline text-left" data-testid={`link-member-profile-${m._id}`}>{m.firstName} {m.lastName}</Link>
                           <div className="flex items-center gap-1">
                             <p className="text-xs text-muted-foreground">{m.email}</p>
                             <button

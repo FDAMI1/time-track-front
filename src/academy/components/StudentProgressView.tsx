@@ -114,6 +114,26 @@ export default function StudentProgressView({ data, canEdit }: { data: StudentPr
         </CardContent>
       </Card>
 
+      {data.mcq && !!data.mcq.assigned && (
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-base">MCQ tests</CardTitle></CardHeader>
+          <CardContent className="space-y-2">
+            <p className="text-sm text-muted-foreground" data-testid="text-mcq-summary">{data.mcq.assigned} assigned · {data.mcq.completed} completed · {data.mcq.pending} pending{data.mcq.missed ? ` · ${data.mcq.missed} missed` : ""}</p>
+            <ul className="divide-y text-sm" data-testid="list-mcq-tests">
+              {data.mcq.tests.map((t) => (
+                <li key={t.testId} className="py-2 flex justify-between gap-2 flex-wrap">
+                  <span>{t.title}{t.lastAttemptAt && <span className="block text-xs text-muted-foreground">Last attempt {new Date(t.lastAttemptAt).toLocaleDateString()}</span>}</span>
+                  <span className="text-right">
+                    <Badge variant="outline" className="capitalize">{t.state}</Badge>
+                    {t.totalMarks ? <span className="block text-xs mt-0.5">{t.score}/{t.totalMarks} ({t.percentage}%)</span> : t.result ? <span className="block text-xs text-muted-foreground mt-0.5">Result {t.result}</span> : null}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader className="pb-2"><CardTitle className="text-base">Lecture history</CardTitle></CardHeader>
         <CardContent>

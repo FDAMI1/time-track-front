@@ -138,6 +138,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = () => {
+    // Records when this session ended; signing out locally never waits for it.
+    const current = localStorage.getItem("token");
+    if (current && !localStorage.getItem("superadminToken")) {
+      apiFetch("/api/auth/logout", { method: "POST", headers: { Authorization: `Bearer ${current}` } }).catch(() => {});
+    }
     localStorage.removeItem("token");
     localStorage.removeItem("superadminToken");
     localStorage.removeItem("impersonatedOrgName");
