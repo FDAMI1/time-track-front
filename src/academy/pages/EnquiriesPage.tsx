@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth";
@@ -15,6 +15,7 @@ import { ENQUIRY_SOURCES, ENQUIRY_STATUSES, STAGE_TONES, TELECALLER_ROLES, isOpe
 import { ListState, Pager, Picker, StatusBadge } from "@/academy/components/common";
 import EnquiryDialog from "@/academy/components/EnquiryDialog";
 import LeadSourcesSheet from "@/academy/components/LeadSourcesSheet";
+import ImportLeadsDialog from "@/academy/components/ImportLeadsDialog";
 
 const EMPTY = { name: "", phone: "", email: "", courseId: "", source: "walk_in", assignedTo: "", nextFollowUpDate: "", note: "" };
 
@@ -33,7 +34,7 @@ export default function EnquiriesPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [openId, setOpenId] = useState("");
   const [sourcesOpen, setSourcesOpen] = useState(false);
-  const fileInput = useRef<HTMLInputElement>(null);
+  const [importOpen, setImportOpen] = useState(false);
   const canAssign = !TELECALLER_ROLES.includes(user?.role || "");
   // A telecaller hands their own leads on only with the admin's "Transfer leads" permission.
   const canTransfer = canAssign || user?.toolAccess?.crmTransfer === true;
@@ -71,24 +72,6 @@ export default function EnquiriesPage() {
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
-  const importFile = useMutation({
-    mutationFn: async (file: File) => {
-      const XLSX = await import("xlsx");
-      const book = XLSX.read(await file.arrayBuffer());
-      const sheet = XLSX.utils.sheet_to_json<Record<string, unknown>>(book.Sheets[book.SheetNames[0]], { defval: "" });
-      const rows = sheet.map((row) => {
-        const cells = Object.fromEntries(Object.entries(row).map(([k, v]) => [k.trim().toLowerCase(), String(v)]));
-        return { name: cells.name || "", phone: cells.phone || "", email: cells.email || "" };
-      });
-      return api.post<{ created: number; duplicates: number; failed: { row: number; message: string }[] }>("/api/enquiries/import", { rows });
-    },
-    onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/enquiries"] });
-      toast({ title: `${result.created} added`, description: `${result.duplicates} already existed, ${result.failed.length} could not be read${result.failed[0] ? ` (row ${result.failed[0].row}: ${result.failed[0].message})` : ""}` });
-    },
-    onError: (err: Error) => toast({ title: "Import failed", description: err.message, variant: "destructive" }),
-  });
-
   const filter = (setter: (value: string) => void) => (value: string) => { setter(value); setPage(1); };
   const enquiries = data?.enquiries || [];
 
@@ -102,8 +85,7 @@ export default function EnquiriesPage() {
         <div className="flex gap-2 flex-wrap">
           {canAssign && (
             <>
-              <input ref={fileInput} type="file" accept=".csv,.xlsx" className="hidden" aria-label="Import file" data-testid="input-enquiry-import" onChange={(e) => { const file = e.target.files?.[0]; if (file) importFile.mutate(file); e.target.value = ""; }} />
-              <Button variant="outline" disabled={importFile.isPending} onClick={() => fileInput.current?.click()} data-testid="button-import-enquiries"><Upload className="w-4 h-4 mr-2" />Import</Button>
+              <Button variant="outline" onClick={() => setImportOpen(true)} data-testid="button-import-enquiries"><Upload className="w-4 h-4 mr-2" />Import</Button>
               <Button variant="outline" onClick={() => downloadFile("/api/enquiries/export", token).catch((err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }))} data-testid="button-export-enquiries"><Download className="w-4 h-4 mr-2" />Export</Button>
             </>
           )}
@@ -240,6 +222,7 @@ export default function EnquiriesPage() {
       </Dialog>
 
       <LeadSourcesSheet open={sourcesOpen} onOpenChange={setSourcesOpen} />
+      {canAssign && <ImportLeadsDialog open={importOpen} onOpenChange={setImportOpen} />}
       {openId && <EnquiryDialog id={openId} staff={staff} canAssign={canTransfer} onClose={() => setOpenId("")} />}
     </div>
   );

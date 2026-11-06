@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import LeadRotationCard from "@/academy/components/LeadRotationCard";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -15,7 +16,7 @@ import { labelOf, type LeadTemplate } from "@/academy/lib/academy";
 const KEY = "/api/lead-integrations";
 const TEMPLATES = ["/api/enquiries", "templates"];
 const PROVIDERS = [
-  { value: "meta", label: "Meta (Facebook and Instagram) Lead Ads", secrets: [["appSecret", "App secret"], ["accessToken", "Page access token"]] },
+  { value: "meta", label: "Meta (Facebook and Instagram) Lead Ads", secrets: [["appSecret", "App secret"], ["accessToken", "Page access token"], ["verifyToken", "Verify token (the same one you type in Meta's webhook setup)"]] },
   { value: "whatsapp", label: "WhatsApp Business", secrets: [["appSecret", "App secret"]] },
   { value: "google", label: "Google Ads lead forms", secrets: [["googleKey", "Webhook key"]] },
   { value: "website", label: "Website enquiry form", secrets: [] },
@@ -75,6 +76,11 @@ export default function LeadSourcesSheet({ open, onOpenChange }: { open: boolean
     },
     onError: failed,
   });
+  const retry = useMutation({
+    mutationFn: (eventId: string) => api.post(`${KEY}/events/${eventId}/retry`),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: [KEY] }); toast({ title: "Lead received" }); },
+    onError: (err: Error) => { queryClient.invalidateQueries({ queryKey: [KEY] }); toast({ title: "Still failing", description: err.message, variant: "destructive" }); },
+  });
   const rotate = useMutation({
     mutationFn: () => api.post<{ _id: string; token: string }>(`${KEY}/${provider}/rotate`),
     onSuccess: (result) => showAddress(result._id, result.token),
@@ -133,6 +139,8 @@ export default function LeadSourcesSheet({ open, onOpenChange }: { open: boolean
           {item?.lastError && <p className="text-sm text-destructive">Last error: {item.lastError}</p>}
           {item?.lastReceivedAt && <p className="text-sm text-muted-foreground">Last lead received {new Date(item.lastReceivedAt).toLocaleString()}</p>}
 
+          <LeadRotationCard />
+
           <div className="space-y-3 border-t pt-4">
             <p className="text-sm font-medium">WhatsApp templates</p>
             <p className="text-xs text-muted-foreground">{"{name}"}, {"{org}"}, {"{course}"} and {"{agent}"} are filled in for each lead.</p>
@@ -156,6 +164,9 @@ export default function LeadSourcesSheet({ open, onOpenChange }: { open: boolean
               <div key={event._id} className="text-xs" data-testid={`lead-event-${event.status}`}>
                 <span className="font-medium">{labelOf(event.status)}</span>
                 {` · ${event.integrationId?.provider || ""} · ${event.enquiryId?.name || event.error || ""} · ${new Date(event.createdAt).toLocaleString()}`}
+                {event.status === "failed" && event.integrationId?.provider === "meta" && (
+                  <Button size="sm" variant="ghost" className="h-6 px-2 text-xs ml-1" disabled={retry.isPending} onClick={() => retry.mutate(event._id)} data-testid={`button-retry-${event._id}`}>Retry</Button>
+                )}
               </div>
             ))}
           </div>
