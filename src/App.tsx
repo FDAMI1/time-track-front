@@ -10,7 +10,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { getInitials } from "@/lib/utils";
 import { hasMcqAccess } from "@/mcq/lib/roles";
-import { canUseAcademy, canUseCrm, canUseTickets, canUseTimeTracking, featureOn, permitted } from "@/academy/lib/academy";
+import { canUseAcademy, canUseCrm, canUseProgress, canUseTickets, canUseTimeTracking, featureOn, permitted } from "@/academy/lib/academy";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -41,6 +41,7 @@ const EnquiriesPage = lazy(() => import("@/academy/pages/EnquiriesPage"));
 const AdmissionsPage = lazy(() => import("@/academy/pages/AdmissionsPage"));
 const FeesPage = lazy(() => import("@/academy/pages/FeesPage"));
 const LecturesPage = lazy(() => import("@/academy/pages/LecturesPage"));
+const ProgressPage = lazy(() => import("@/academy/pages/ProgressPage"));
 const AssistantWidget = lazy(() => import("@/assistant/AssistantWidget"));
 const GlobalTicketSearch = lazy(() => import("@/tickets/components/GlobalTicketSearch"));
 const AssistantAdminPage = lazy(() => import("@/assistant/AssistantAdminPage"));
@@ -174,6 +175,7 @@ const PAGE_TITLES: Record<string, string> = {
   admissions: "Admissions",
   fees: "Fees",
   lectures: "Lectures",
+  progress: "Student Progress",
   "assistant-admin": "AI Assistant",
 };
 
@@ -315,6 +317,11 @@ function AuthenticatedRouter() {
       {canUseAcademy(user, "lectures") && (
         <Route path="/lectures">
           <Suspense fallback={<McqFallback />}><LecturesPage /></Suspense>
+        </Route>
+      )}
+      {canUseProgress(user) && (
+        <Route path="/progress">
+          <Suspense fallback={<McqFallback />}><ProgressPage /></Suspense>
         </Route>
       )}
       {canUseTickets(user) && (

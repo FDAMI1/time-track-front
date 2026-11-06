@@ -8,6 +8,7 @@ import { useMcqApi } from "@/mcq/lib/api";
 import { addDays, dayLabel, localToday, mondayOf, nameOf, weekOf, type Lecture } from "@/academy/lib/academy";
 import { ListState, StatusBadge } from "@/academy/components/common";
 import LectureDialog from "@/academy/components/LectureDialog";
+import LectureAttendanceDialog from "@/academy/components/LectureAttendanceDialog";
 
 const isLink = (room: string) => /^https?:\/\//i.test(room);
 
@@ -18,6 +19,7 @@ export default function LecturesPage() {
   const [monday, setMonday] = useState(mondayOf(today));
   // null is closed, "new" is the create form, otherwise the lecture being edited.
   const [editing, setEditing] = useState<Lecture | "new" | null>(null);
+  const [marking, setMarking] = useState<Lecture | null>(null);
   const canManage = user?.role !== "student";
   const days = weekOf(monday);
   const url = `/api/lectures?from=${days[0]}&to=${days[6]}`;
@@ -61,7 +63,13 @@ export default function LecturesPage() {
                       {lecture.room && (isLink(lecture.room)
                         ? <a className="text-xs text-primary underline break-all" href={lecture.room} target="_blank" rel="noreferrer">Join link</a>
                         : <p className="text-xs text-muted-foreground break-words">{lecture.room}</p>)}
+                      {(lecture.subject || lecture.portion) && <p className="text-xs break-words">{[lecture.subject, lecture.portion].filter(Boolean).join(" · ")}</p>}
                       {lecture.status !== "scheduled" && <StatusBadge status={lecture.status} />}
+                      {canManage && lecture.status !== "cancelled" && lecture.date <= today && (
+                        <Button type="button" size="sm" variant="outline" className="h-7 text-xs w-full mt-1" onClick={() => setMarking(lecture)} data-testid={`button-attendance-${lecture._id}`}>
+                          {lecture.status === "completed" ? "Attendance" : "Mark Attendance"}
+                        </Button>
+                      )}
                       {!canManage && lecture.notes && <p className="text-xs break-words">{lecture.notes}</p>}
                     </CardContent>
                   </Card>
@@ -72,6 +80,7 @@ export default function LecturesPage() {
         </div>
       </ListState>
 
+      {marking && <LectureAttendanceDialog lecture={marking} onClose={() => setMarking(null)} />}
       {editing && <LectureDialog lecture={editing === "new" ? null : editing} defaultDate={days.includes(today) ? today : days[0]} onClose={() => setEditing(null)} />}
     </div>
   );

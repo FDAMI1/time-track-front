@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Loader2 } from "lucide-react";
 import { useMcqApi } from "@/mcq/lib/api";
-import { LECTURE_STATUSES, peopleOptions, toOptions, type Batch, type Lecture, type Person } from "@/academy/lib/academy";
+import { LECTURE_STATUSES, peopleOptions, toOptions, type Batch, type CourseTopic, type Lecture, type Person } from "@/academy/lib/academy";
 import { Picker } from "@/academy/components/common";
 
 interface Props {
@@ -33,11 +33,22 @@ export default function LectureDialog({ lecture, defaultDate, onClose }: Props) 
     room: lecture?.room || "",
     status: lecture?.status || "scheduled",
     notes: lecture?.notes || "",
+    subject: lecture?.subject || "",
+    topicId: lecture?.topicId?._id || "",
+    portion: lecture?.portion || "",
+    description: lecture?.description || "",
   });
   const set = (field: keyof typeof form, value: string) => setForm((f) => ({ ...f, [field]: value }));
   const chooseTeacher = user?.role !== "teacher";
 
   const { data: batches } = useQuery({ queryKey: ["/api/batches"], queryFn: () => api.get<Batch[]>("/api/batches") });
+  // The syllabus of the chosen batch's course, so the lecture can name the topic it covers.
+  const courseId = (batches || []).find((b) => b._id === form.batchId)?.courseId?._id;
+  const { data: topics } = useQuery({
+    queryKey: ["/api/progress/courses", courseId, "topics"],
+    queryFn: () => api.get<CourseTopic[]>(`/api/progress/courses/${courseId}/topics`).catch(() => [] as CourseTopic[]),
+    enabled: !!courseId,
+  });
   const { data: teachers } = useQuery({
     queryKey: ["/api/lectures/teachers"],
     queryFn: () => api.get<Person[]>("/api/lectures/teachers"),
@@ -52,8 +63,8 @@ export default function LectureDialog({ lecture, defaultDate, onClose }: Props) 
 
   const save = useMutation({
     mutationFn: () => {
-      const { teacherId, status, ...rest } = form;
-      const body = { ...rest, ...(chooseTeacher && teacherId ? { teacherId } : {}) };
+      const { teacherId, status, topicId, ...rest } = form;
+      const body = { ...rest, topicId: topicId || null, ...(chooseTeacher && teacherId ? { teacherId } : {}) };
       return lecture ? api.put(`/api/lectures/${lecture._id}`, { ...body, status }) : api.post("/api/lectures", body);
     },
     onSuccess: done,
@@ -74,7 +85,7 @@ export default function LectureDialog({ lecture, defaultDate, onClose }: Props) 
         </DialogHeader>
         <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); save.mutate(); }}>
           <div className="space-y-1">
-            <Label htmlFor="lecture-title">Title or topic</Label>
+            <Label htmlFor="lecture-title">Lecture topic</Label>
             <Input id="lecture-title" required maxLength={200} value={form.title} onChange={(e) => set("title", e.target.value)} data-testid="input-lecture-title" />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -99,6 +110,23 @@ export default function LectureDialog({ lecture, defaultDate, onClose }: Props) 
               <Input id="lecture-room" maxLength={300} value={form.room} onChange={(e) => set("room", e.target.value)} data-testid="input-lecture-room" />
             </div>
             {lecture && <Picker label="Status" value={form.status} onChange={(v) => set("status", v)} options={toOptions(LECTURE_STATUSES)} testId="select-lecture-status" />}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <Label htmlFor="lecture-subject">Subject or module</Label>
+              <Input id="lecture-subject" maxLength={200} value={form.subject} onChange={(e) => set("subject", e.target.value)} data-testid="input-lecture-subject" />
+            </div>
+            {!!topics?.length && (
+              <Picker label="Syllabus topic" value={form.topicId} onChange={(v) => { const t = topics.find((x) => x._id === v); setForm((f) => ({ ...f, topicId: v, subject: f.subject || t?.subject || "", title: f.title || t?.title || "" })); }} options={topics.map((t) => ({ value: t._id, label: t.subject ? `${t.subject} · ${t.title}` : t.title }))} placeholder="Not from the syllabus" testId="select-lecture-topic" />
+            )}
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="lecture-portion">Portion taught</Label>
+            <Input id="lecture-portion" maxLength={1000} placeholder="e.g. Chapter 1, pages 1-10" value={form.portion} onChange={(e) => set("portion", e.target.value)} data-testid="input-lecture-portion" />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="lecture-description">What was taught</Label>
+            <Textarea id="lecture-description" rows={2} maxLength={2000} value={form.description} onChange={(e) => set("description", e.target.value)} data-testid="input-lecture-description" />
           </div>
           <div className="space-y-1">
             <Label htmlFor="lecture-notes">Notes</Label>

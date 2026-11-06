@@ -40,8 +40,9 @@ import {
   UserPlus,
   Wallet,
   CalendarDays,
+  TrendingUp,
 } from "lucide-react";
-import { canUseAcademy, canUseCrm, canUseTickets, canUseTimeTracking, permitted } from "@/academy/lib/academy";
+import { canUseAcademy, canUseCrm, canUseProgress, canUseTickets, canUseTimeTracking, permitted } from "@/academy/lib/academy";
 import { hasMcqAccess } from "@/mcq/lib/roles";
 
 const roleLabels: Record<string, string> = {
@@ -142,6 +143,7 @@ export function AppSidebar() {
       if (canUseAcademy(user, "admissions")) items.push({ group: "Academic", title: "Admissions", url: "/admissions", icon: UserPlus });
       if (canUseAcademy(user, "fees")) items.push({ group: "Academic", title: "Fees", url: "/fees", icon: Wallet });
       if (canUseAcademy(user, "lectures")) items.push({ group: "Academic", title: "Lectures", url: "/lectures", icon: CalendarDays });
+      if (canUseProgress(user)) items.push({ group: "Academic", title: user.role === "student" ? "My Progress" : "Student Progress", url: "/progress", icon: TrendingUp });
     }
 
     return items;

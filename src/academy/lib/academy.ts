@@ -46,6 +46,11 @@ export function canUseAcademy(user: AcademyUser | null | undefined, feature: Aca
   return org?.type === "academy" && permitted(user, feature) && FEATURE_ROLES[feature].includes(user?.role || "");
 }
 
+// Lecture-wise progress: staff follow their students, a student sees their own.
+export const canUseProgress = (user: AcademyUser | null | undefined): boolean =>
+  user?.organizationId?.type === "academy" && featureOn(user, "lectures") && ["org_admin", "manager", "teacher", "student"].includes(user?.role || "")
+  && (user?.role === "org_admin" || user?.permissions?.studentProgress !== false);
+
 // The CRM is for every organization type. Teachers and employees are telecallers
 // and see only the leads assigned to them; admins and managers see all.
 export const CRM_ROLES = ["org_admin", "manager", "teacher", "employee"];
@@ -221,6 +226,11 @@ export interface Lecture {
   room: string;
   status: string;
   notes: string;
+  subject?: string;
+  topicId?: { _id: string; title: string; subject?: string } | null;
+  portion?: string;
+  description?: string;
   batchId?: Batch | null;
   teacherId?: Person | null;
 }
+export interface CourseTopic { _id: string; title: string; subject: string; order: number }
