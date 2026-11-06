@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
 import { queryClient } from "@/lib/queryClient";
+import { featureOn } from "@/academy/lib/academy";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -284,7 +285,7 @@ export default function MemberDashboard() {
         </Select>
       </div>
 
-      <Card>
+      {featureOn(user, "attendance") && <Card>
         <CardContent className="p-6">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
@@ -352,7 +353,7 @@ export default function MemberDashboard() {
             </div>
           </div>
         </CardContent>
-      </Card>
+      </Card>}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setDetailType("attendance")} data-testid="card-attendance-rate">

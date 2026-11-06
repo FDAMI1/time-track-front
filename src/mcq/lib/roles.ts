@@ -6,13 +6,13 @@ export const MCQ_TAKER_ROLES = ["student"];
 
 interface McqUser {
   role?: string;
-  organizationId?: { type?: string } | null;
+  organizationId?: { type?: string; features?: Partial<Record<string, boolean>> } | null;
   toolAccess?: { mcq?: boolean };
 }
 
-// A "member" account opens MCQ only when its admin ticked it.
+// A "member" account opens MCQ only when its admin ticked it. The organization's MCQ switch closes it for everyone.
 export const hasMcqAccess = (user?: McqUser | null) =>
-  user?.organizationId?.type === "academy" && (user.role !== "member" || user.toolAccess?.mcq === true);
+  user?.organizationId?.type === "academy" && user.organizationId.features?.mcq !== false && (user.role !== "member" || user.toolAccess?.mcq === true);
 
 export const isMcqAdmin = (role?: string | null) => !!role && MCQ_ADMIN_ROLES.includes(role);
 // Member access to MCQ makes anyone except a student MCQ staff, like a teacher.

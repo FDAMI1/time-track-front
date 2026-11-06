@@ -439,6 +439,7 @@ const ACADEMY_FEATURES = [
   { key: "admissions", label: "Admissions", hint: "Take applications and enrol students" },
   { key: "fees", label: "Fees", hint: "Keep fee plans, invoices and payment records" },
   { key: "lectures", label: "Lectures", hint: "Schedule lectures for batches" },
+  { key: "mcq", label: "MCQ Tests", hint: "Create, assign and take MCQ tests" },
 ];
 
 export default function SettingsPage() {

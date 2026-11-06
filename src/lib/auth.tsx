@@ -90,12 +90,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [token, fetchUser]);
 
   // Features and permissions change on the server (the Super Admin's switches, the admin's
-  // Tool Access), so the signed-in user is re-read whenever the tab comes back into view.
+  // Tool Access), so the signed-in user is re-read whenever the tab comes back into view
+  // and every minute while it is open. The server refuses switched-off features at once either way.
   useEffect(() => {
     if (!token) return;
     const onVisible = () => { if (document.visibilityState === "visible") fetchUser(token); };
     document.addEventListener("visibilitychange", onVisible);
-    return () => document.removeEventListener("visibilitychange", onVisible);
+    const timer = window.setInterval(onVisible, 60_000);
+    return () => { document.removeEventListener("visibilitychange", onVisible); window.clearInterval(timer); };
   }, [token, fetchUser]);
 
   const login = async (credential: string, password: string, isEmail?: boolean, extras?: Record<string, number>) => {

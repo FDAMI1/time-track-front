@@ -25,7 +25,11 @@ export const canUseTickets = (user: AcademyUser | null | undefined): boolean =>
 export type MemberFeature = "mcq" | "timeTracking";
 const TIME_TRACKING_ROLES = ["employee", "manager", "org_admin", "teacher"];
 export const canUseTimeTracking = (user: AcademyUser | null | undefined): boolean =>
-  TIME_TRACKING_ROLES.includes(user?.role || "") || user?.toolAccess?.timeTracking === true;
+  featureOn(user, "timeTracking") && (TIME_TRACKING_ROLES.includes(user?.role || "") || user?.toolAccess?.timeTracking === true);
+
+// The organization's feature switches (Super Admin / org admin). Missing means on.
+export const featureOn = (user: AcademyUser | null | undefined, feature: string): boolean =>
+  user?.organizationId?.features?.[feature] !== false;
 
 
 // Decides what's shown. The server enforces the same rules on every request.

@@ -29,7 +29,15 @@ const ORG_FEATURES: { key: string; label: string; academyOnly?: boolean }[] = [
   { key: "tasks", label: "Tasks" }, { key: "projects", label: "Projects" }, { key: "departments", label: "Departments" }, { key: "chat", label: "Chat" },
   { key: "classes", label: "Classes", academyOnly: true }, { key: "assignments", label: "Assignments", academyOnly: true },
   { key: "admissions", label: "Admissions", academyOnly: true }, { key: "fees", label: "Fees", academyOnly: true }, { key: "lectures", label: "Lectures", academyOnly: true },
+  { key: "mcq", label: "MCQ Tests", academyOnly: true },
 ];
+const featuresFor = (type: string) => ORG_FEATURES.filter((f) => !f.academyOnly || type === "academy");
+const allFeatures = (on: boolean) => Object.fromEntries(ORG_FEATURES.map((f) => [f.key, on]));
+const EMPTY_FORM = {
+  name: "", type: "academy", address: "", phone: "", domain: "",
+  adminFirstName: "", adminLastName: "", adminEmail: "", adminUsername: "", adminPassword: "",
+  features: allFeatures(true),
+};
 
 // The organization's own logo. Every member of that organization sees it in the sidebar,
 // the top bar and the browser tab; no other organization changes.
@@ -75,10 +83,7 @@ export default function OrganizationsPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [selectedOrg, setSelectedOrg] = useState<any>(null);
   const [showAdminPassword, setShowAdminPassword] = useState(false);
-  const [form, setForm] = useState({
-    name: "", type: "academy" as string, address: "", phone: "", domain: "",
-    adminFirstName: "", adminLastName: "", adminEmail: "", adminUsername: "", adminPassword: "",
-  });
+  const [form, setForm] = useState(EMPTY_FORM);
   const [editForm, setEditForm] = useState({ name: "", domain: "", phone: "", address: "" });
 
   const { data: orgs, isLoading } = useQuery({
@@ -109,7 +114,8 @@ export default function OrganizationsPage() {
       const res = await apiFetch("/api/organizations", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify(data),
+        // Only the switches shown for this type are sent; the rest keep their defaults.
+        body: JSON.stringify({ ...data, features: Object.fromEntries(featuresFor(data.type).map((f) => [f.key, data.features[f.key]])) }),
       });
       if (!res.ok) { const err = await res.json(); throw new Error(err.message); }
       return res.json();
@@ -118,7 +124,7 @@ export default function OrganizationsPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/organizations"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/superadmin"] });
       setCreateOpen(false);
-      setForm({ name: "", type: "academy", address: "", phone: "", domain: "", adminFirstName: "", adminLastName: "", adminEmail: "", adminUsername: "", adminPassword: "" });
+      setForm(EMPTY_FORM);
       setShowAdminPassword(false);
       toast({ title: "Organization created successfully" });
     },
@@ -237,6 +243,25 @@ export default function OrganizationsPage() {
                   <div><Label>Phone</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
                   <div className="col-span-2"><Label>Address</Label><Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></div>
                 </div>
+              </div>
+
+              <div className="space-y-3 pt-2 border-t">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-medium text-muted-foreground">Features</p>
+                  <div className="flex gap-1">
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setForm({ ...form, features: allFeatures(true) })} data-testid="button-features-all">All</Button>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setForm({ ...form, features: allFeatures(false) })} data-testid="button-features-none">None</Button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2" data-testid="create-org-features">
+                  {featuresFor(form.type).map(({ key, label }) => (
+                    <div key={key} className="flex items-center justify-between gap-2 rounded-md border px-3 py-2">
+                      <Label htmlFor={`new-feature-${key}`} className="text-sm font-normal">{label}</Label>
+                      <Switch id={`new-feature-${key}`} checked={form.features[key]} onCheckedChange={(on) => setForm({ ...form, features: { ...form.features, [key]: on } })} data-testid={`switch-new-feature-${key}`} />
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">Features switched off here are locked: the organization's admin can't turn them on.</p>
               </div>
 
               <div className="space-y-3 pt-2 border-t">

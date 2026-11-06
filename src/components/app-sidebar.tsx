@@ -41,7 +41,7 @@ import {
   Wallet,
   CalendarDays,
 } from "lucide-react";
-import { canUseAcademy, canUseCrm, canUseTickets, canUseTimeTracking } from "@/academy/lib/academy";
+import { canUseAcademy, canUseCrm, canUseTickets, canUseTimeTracking, featureOn } from "@/academy/lib/academy";
 import { hasMcqAccess } from "@/mcq/lib/roles";
 
 const roleLabels: Record<string, string> = {
@@ -111,8 +111,8 @@ export function AppSidebar() {
       if (["org_admin", "manager", "teacher"].includes(user.role)) {
         items.push({ group: "People", title: "Members", url: "/members", icon: Users });
       }
-      items.push({ group: "Attendance", title: "Attendance", url: "/attendance", icon: CalendarCheck });
-      items.push({ group: "Attendance", title: "Leave Requests", url: "/leaves", icon: CalendarOff });
+      if (featureOn(user, "attendance")) items.push({ group: "Attendance", title: "Attendance", url: "/attendance", icon: CalendarCheck });
+      if (featureOn(user, "leaves")) items.push({ group: "Attendance", title: "Leave Requests", url: "/leaves", icon: CalendarOff });
       if (canUseTimeTracking(user)) {
         items.push({ group: "Attendance", title: "Time Tracking", url: "/time-tracking", icon: Timer });
       }
@@ -132,8 +132,7 @@ export function AppSidebar() {
       if (user.role === "org_admin") {
         items.push({ group: "Administration", title: "AI Assistant", url: "/assistant-admin", icon: Bot });
       }
-      const chatEnabled = (user.organizationId as any)?.features?.chat !== false;
-      if (chatEnabled) {
+      if (featureOn(user, "chat")) {
         items.push({ group: "Communication", title: "Chat", url: "/chat", icon: MessageCircle });
       }
       if (hasMcqAccess(user)) {
