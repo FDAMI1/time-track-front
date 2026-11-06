@@ -41,6 +41,7 @@ import {
   Wallet,
   CalendarDays,
   TrendingUp,
+  BarChart3,
 } from "lucide-react";
 import { canUseAcademy, canUseCrm, canUseProgress, canUseTickets, canUseTimeTracking, permitted } from "@/academy/lib/academy";
 import { hasMcqAccess } from "@/mcq/lib/roles";
@@ -123,6 +124,7 @@ export function AppSidebar() {
         }
       }
       items.push({ group: "Records", title: "Documents", url: "/documents", icon: Files });
+      if (user.role === "org_admin" || user.permissions?.performanceReports === true) items.push({ group: "Records", title: "Reports", url: "/reports", icon: BarChart3 });
       items.push({ group: "Administration", title: "Settings", url: "/settings", icon: Settings });
       if (orgType === "company" && ["employee", "manager", "org_admin"].includes(user.role) && permitted(user, "reimbursements")) {
         items.push({ group: "Records", title: "Reimbursements", url: "/reimbursements", icon: Receipt });

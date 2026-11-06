@@ -43,6 +43,7 @@ const FeesPage = lazy(() => import("@/academy/pages/FeesPage"));
 const LecturesPage = lazy(() => import("@/academy/pages/LecturesPage"));
 const ProgressPage = lazy(() => import("@/academy/pages/ProgressPage"));
 const MemberProfilePage = lazy(() => import("@/pages/member-profile"));
+const ReportsPage = lazy(() => import("@/pages/reports"));
 const AssistantWidget = lazy(() => import("@/assistant/AssistantWidget"));
 const GlobalTicketSearch = lazy(() => import("@/tickets/components/GlobalTicketSearch"));
 const AssistantAdminPage = lazy(() => import("@/assistant/AssistantAdminPage"));
@@ -177,6 +178,7 @@ const PAGE_TITLES: Record<string, string> = {
   fees: "Fees",
   lectures: "Lectures",
   progress: "Student Progress",
+  reports: "Reports",
   "assistant-admin": "AI Assistant",
 };
 
@@ -254,6 +256,11 @@ function AuthenticatedRouter() {
       )}
       {["org_admin", "manager", "teacher"].includes(user?.role || "") && (
         <Route path="/members" component={MembersPage} />
+      )}
+      {(user?.role === "org_admin" || user?.permissions?.performanceReports === true) && (
+        <Route path="/reports">
+          <Suspense fallback={<McqFallback />}><ReportsPage /></Suspense>
+        </Route>
       )}
       {user?.role !== "superadmin" && (
         <Route path="/members/:id">
