@@ -13,7 +13,11 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Clock, Timer, Trash2, BarChart3, Calendar, Play, Square, Edit, Check, X } from "lucide-react";
+import { Clock, Timer, Trash2, BarChart3, Calendar, Play, Square, Edit, Check, X, Plus, Hourglass, ClipboardCheck } from "lucide-react";
+import { getCurrentCoordinates, isLocationRequired } from "@/lib/geolocation";
+import ManualEntryDialog from "@/components/time/ManualEntryDialog";
+import ApprovalsPanel from "@/components/time/ApprovalsPanel";
+import { EntryHistory, StatusBadge, statusOf } from "@/components/time/EntryStatus";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
 
 const COLORS = ["hsl(217, 91%, 45%)", "hsl(142, 76%, 36%)", "hsl(271, 81%, 46%)", "hsl(37, 91%, 45%)", "hsl(0, 84%, 45%)", "hsl(180, 70%, 35%)", "hsl(330, 70%, 45%)", "hsl(50, 90%, 40%)"];
@@ -32,10 +36,6 @@ function formatElapsed(seconds: number) {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-function getCurrentTime() {
-  const now = new Date();
-  return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-}
 
 export default function TimeTrackingPage() {
   const { token, user } = useAuth();
@@ -43,23 +43,22 @@ export default function TimeTrackingPage() {
   const today = localDateString();
   const [fromDate, setFromDate] = useState(today);
   const [toDate, setToDate] = useState(today);
-  const [viewTab, setViewTab] = useState<"entries" | "report">("entries");
+  const [viewTab, setViewTab] = useState<"entries" | "report" | "approvals">("entries");
+  const [manualOpen, setManualOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string>("");
 
   const [newTaskName, setNewTaskName] = useState("");
   const [newDescription, setNewDescription] = useState("");
-  const [isTimerRunning, setIsTimerRunning] = useState(false);
-  const [timerStartTime, setTimerStartTime] = useState<string>("");
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const startTimeRef = useRef<Date | null>(null);
-  const [capturedCoords, setCapturedCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTaskName, setEditTaskName] = useState("");
   const [editDescription, setEditDescription] = useState("");
 
   const isAdmin = ["org_admin", "manager"].includes(user?.role || "");
+  const canApprove = user?.role === "org_admin" || user?.permissions?.timeApproval === true;
+  const needsApproval = user?.role !== "org_admin";
 
   const roleLabel: Record<string, string> = {
     teacher: "Teacher",
@@ -69,11 +68,26 @@ export default function TimeTrackingPage() {
     student: "Student",
   };
 
+  // The running timer lives on the server, so it survives a reload or a second tab.
+  const { data: running } = useQuery({
+    queryKey: ["/api/timetracking/timer"],
+    queryFn: async () => {
+      const res = await apiFetch("/api/timetracking/timer", { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) return null;
+      return safeJson(res);
+    },
+    enabled: !!token,
+  });
+  const isTimerRunning = !!running;
+
   useEffect(() => {
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, []);
+    if (!running?.startedAt) { setElapsedSeconds(0); return; }
+    const started = new Date(running.startedAt).getTime();
+    const tick = () => setElapsedSeconds(Math.max(0, Math.floor((Date.now() - started) / 1000)));
+    tick();
+    timerRef.current = setInterval(tick, 1000);
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [running?.startedAt]);
 
   const { data: orgData } = useQuery({
     queryKey: ["/api/organizations/my"],
@@ -128,29 +142,6 @@ export default function TimeTrackingPage() {
     enabled: isAdmin,
   });
 
-  const addMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const res = await apiFetch("/api/timetracking", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message);
-      }
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/timetracking"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/timetracking/report"] });
-      toast({ title: "Time entry saved" });
-    },
-    onError: (err: Error) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-    },
-  });
-
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: any }) => {
       const res = await apiFetch(`/api/timetracking/${id}`, {
@@ -191,73 +182,49 @@ export default function TimeTrackingPage() {
     },
   });
 
-  async function handleStart() {
+  // Location, when the organization requires it. Throws a message the user can act on.
+  async function locationIfRequired() {
+    return isLocationRequired(user, orgData) ? getCurrentCoordinates() : null;
+  }
+
+  // The server records the start and stop times; the browser only shows the running clock.
+  const timerMutation = useMutation({
+    mutationFn: async (action: "start" | "stop") => {
+      const location = await locationIfRequired();
+      const body = action === "start"
+        ? { taskName: newTaskName.trim(), description: newDescription.trim(), ...(location || {}) }
+        : { ...(location || {}) };
+      const res = await apiFetch(`/api/timetracking/timer/${action}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || "Something went wrong");
+      return data;
+    },
+    onSuccess: (_d, action) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/timetracking/timer"] });
+      if (action === "stop") {
+        queryClient.invalidateQueries({ queryKey: ["/api/timetracking"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/timetracking/report"] });
+        setNewTaskName("");
+        setNewDescription("");
+        toast({ title: "Time entry saved" });
+      }
+    },
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  function handleStart() {
     if (!newTaskName.trim()) {
       toast({ title: "Error", description: "Please enter a task name before starting", variant: "destructive" });
       return;
     }
-    const locationRequired = orgData?.isLocationRestrictionEnabled && orgData?.location?.latitude != null;
-    if (locationRequired) {
-      if (!navigator.geolocation) {
-        toast({ title: "Location unavailable", description: "Your browser does not support geolocation", variant: "destructive" });
-        return;
-      }
-      try {
-        const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
-          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000, enableHighAccuracy: true })
-        );
-        setCapturedCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-      } catch {
-        toast({ title: "Location required", description: "Please allow location access in your browser to start time tracking", variant: "destructive" });
-        return;
-      }
-    } else {
-      setCapturedCoords(null);
-    }
-    const now = getCurrentTime();
-    setTimerStartTime(now);
-    setIsTimerRunning(true);
-    setElapsedSeconds(0);
-    startTimeRef.current = new Date();
-
-    timerRef.current = setInterval(() => {
-      if (startTimeRef.current) {
-        const diff = Math.floor((Date.now() - startTimeRef.current.getTime()) / 1000);
-        setElapsedSeconds(diff);
-      }
-    }, 1000);
+    timerMutation.mutate("start");
   }
 
-  function handleStop() {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-    const endTime = getCurrentTime();
-    // The entry belongs to the day the timer started; a timer that runs past
-    // midnight ends "earlier" on the clock, which the server needs to be told.
-    const startedAt = startTimeRef.current || new Date();
-    const today = localDateString(startedAt);
-    const overnight = endTime < timerStartTime;
-
-    addMutation.mutate({
-      taskName: newTaskName.trim(),
-      description: newDescription.trim(),
-      startTime: timerStartTime,
-      endTime,
-      date: today,
-      ...(overnight ? { overnight: true } : {}),
-      ...(capturedCoords ? { latitude: capturedCoords.lat, longitude: capturedCoords.lng } : {}),
-    });
-
-    setIsTimerRunning(false);
-    setTimerStartTime("");
-    setElapsedSeconds(0);
-    startTimeRef.current = null;
-    setCapturedCoords(null);
-    setNewTaskName("");
-    setNewDescription("");
-  }
+  const handleStop = () => timerMutation.mutate("stop");
 
   function startEdit(entry: any) {
     setEditingId(entry._id);
@@ -278,7 +245,9 @@ export default function TimeTrackingPage() {
     groupedEntries[e.date].push(e);
   });
 
-  const totalMinutes = (entries || []).reduce((sum: number, e: any) => sum + (e.duration || 0), 0);
+  // Approved time only; the server reports pending minutes beside it.
+  const totalMinutes = report?.totalMinutes ?? 0;
+  const pendingMinutes = report?.pendingMinutes ?? 0;
 
   return (
     <div className="p-6 space-y-6">
@@ -360,7 +329,7 @@ export default function TimeTrackingPage() {
                 <div className="flex-1">
                   <Label className="text-xs text-muted-foreground mb-1 block">Task Name</Label>
                   <Input
-                    value={newTaskName}
+                    value={isTimerRunning ? running.taskName : newTaskName}
                     onChange={(e) => setNewTaskName(e.target.value)}
                     placeholder="What are you working on?"
                     disabled={isTimerRunning}
@@ -370,7 +339,7 @@ export default function TimeTrackingPage() {
                 <div className="flex-1">
                   <Label className="text-xs text-muted-foreground mb-1 block">Description</Label>
                   <Input
-                    value={newDescription}
+                    value={isTimerRunning ? running.description || "" : newDescription}
                     onChange={(e) => setNewDescription(e.target.value)}
                     placeholder="Brief description (optional)"
                     disabled={isTimerRunning}
@@ -390,6 +359,7 @@ export default function TimeTrackingPage() {
                     <Button
                       onClick={handleStart}
                       className="gap-2"
+                      disabled={timerMutation.isPending}
                       data-testid="button-start-timer"
                     >
                       <Play className="w-4 h-4" />
@@ -400,26 +370,31 @@ export default function TimeTrackingPage() {
                       onClick={handleStop}
                       variant="destructive"
                       className="gap-2"
-                      disabled={addMutation.isPending}
+                      disabled={timerMutation.isPending}
                       data-testid="button-stop-timer"
                     >
                       <Square className="w-4 h-4" />
                       Stop
                     </Button>
                   )}
+                  <Button variant="outline" className="gap-2" onClick={() => setManualOpen(true)} data-testid="button-add-manual">
+                    <Plus className="w-4 h-4" />
+                    Manual Entry
+                  </Button>
                 </div>
               </div>
             </div>
           </CardContent>
         </Card>
       )}
+      <ManualEntryDialog open={manualOpen} onOpenChange={setManualOpen} needsApproval={needsApproval} coords={locationIfRequired} />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardContent className="p-5">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-muted-foreground">Total Time</p>
+                <p className="text-xs text-muted-foreground">Approved Time</p>
                 <p className="text-2xl font-bold mt-1" data-testid="text-total-time">{formatDuration(totalMinutes)}</p>
               </div>
               <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
@@ -432,11 +407,12 @@ export default function TimeTrackingPage() {
           <CardContent className="p-5">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-muted-foreground">Total Entries</p>
-                <p className="text-2xl font-bold mt-1" data-testid="text-total-entries">{(entries || []).length}</p>
+                <p className="text-xs text-muted-foreground">Waiting for Approval</p>
+                <p className="text-2xl font-bold mt-1" data-testid="text-pending-time">{formatDuration(pendingMinutes)}</p>
+                <p className="text-xs text-muted-foreground" data-testid="text-total-entries">{(entries || []).length} entries</p>
               </div>
-              <div className="w-10 h-10 rounded-full bg-chart-2/10 flex items-center justify-center">
-                <Timer className="w-5 h-5 text-chart-2" />
+              <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center">
+                <Hourglass className="w-5 h-5 text-amber-600" />
               </div>
             </div>
           </CardContent>
@@ -465,7 +441,15 @@ export default function TimeTrackingPage() {
           <BarChart3 className="w-4 h-4 mr-2" />
           Report
         </Button>
+        {canApprove && (
+          <Button variant={viewTab === "approvals" ? "default" : "outline"} onClick={() => setViewTab("approvals")} data-testid="button-tab-approvals">
+            <ClipboardCheck className="w-4 h-4 mr-2" />
+            Approvals
+          </Button>
+        )}
       </div>
+
+      {viewTab === "approvals" && canApprove && <ApprovalsPanel fromDate={fromDate} toDate={toDate} />}
 
       {viewTab === "entries" && (
         <div className="space-y-4">
@@ -481,14 +465,14 @@ export default function TimeTrackingPage() {
               <CardContent className="p-8 text-center">
                 <Timer className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
                 <p className="text-muted-foreground">No time entries found for this period</p>
-                <p className="text-sm text-muted-foreground mt-1">Enter a task name above and click Start to begin tracking</p>
+                <p className="text-sm text-muted-foreground mt-1">Start the timer above, or add a manual entry for time already worked</p>
               </CardContent>
             </Card>
           )}
           {Object.entries(groupedEntries)
             .sort(([a], [b]) => b.localeCompare(a))
             .map(([date, dateEntries]) => {
-              const dayTotal = dateEntries.reduce((sum: number, e: any) => sum + (e.duration || 0), 0);
+              const dayTotal = dateEntries.filter((e: any) => statusOf(e) === "approved").reduce((sum: number, e: any) => sum + (e.duration || 0), 0);
               return (
                 <Card key={date}>
                   <CardHeader className="pb-3">
@@ -534,8 +518,10 @@ export default function TimeTrackingPage() {
                             <div className="flex items-center gap-3 min-w-0 flex-1">
                               <div className="w-1 h-10 rounded-full bg-primary shrink-0" />
                               <div className="min-w-0 flex-1">
-                                <p className="text-sm font-medium truncate">{entry.taskName}</p>
+                                <p className="text-sm font-medium truncate">{entry.taskName}{entry.category ? <span className="text-muted-foreground font-normal"> · {entry.category}</span> : null}</p>
                                 {entry.description && <p className="text-xs text-muted-foreground truncate">{entry.description}</p>}
+                                <div className="mt-1 flex items-center gap-2 flex-wrap"><StatusBadge entry={entry} /><EntryHistory entry={entry} /></div>
+                                {statusOf(entry) === "rejected" && entry.rejectionReason && <p className="text-xs text-destructive mt-1">Rejected: {entry.rejectionReason}</p>}
                               </div>
                             </div>
                             <div className="flex items-center gap-3 shrink-0">
@@ -546,9 +532,11 @@ export default function TimeTrackingPage() {
                                   <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => startEdit(entry)} data-testid={`button-edit-entry-${entry._id}`}>
                                     <Edit className="w-3.5 h-3.5" />
                                   </Button>
-                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteMutation.mutate(entry._id)} data-testid={`button-delete-entry-${entry._id}`}>
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </Button>
+                                  {!(entry.source === "manual" && statusOf(entry) === "approved" && !isAdmin) && (
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteMutation.mutate(entry._id)} aria-label="Delete entry" data-testid={`button-delete-entry-${entry._id}`}>
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </Button>
+                                  )}
                                 </div>
                               )}
                             </div>
