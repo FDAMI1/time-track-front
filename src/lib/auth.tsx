@@ -20,6 +20,8 @@ interface User {
   mustChangePassword?: boolean;
   locationRestrictionEnabled?: boolean | null;
   toolAccess?: { tickets?: boolean; crm?: boolean; crmTransfer?: boolean; mcq?: boolean; timeTracking?: boolean };
+  // Decided by the server (utils/permissions.js): what this person may open.
+  permissions?: Record<string, boolean>;
 }
 
 interface AuthContextType {

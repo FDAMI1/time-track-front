@@ -18,6 +18,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Search, Users, Pencil, Trash2, Eye, EyeOff, Phone, GraduationCap, MessageCircle, Clock, KeyRound, Copy, Check } from "lucide-react";
+import PersonPermissions from "@/components/settings/PersonPermissions";
 
 const roleLabels: Record<string, string> = {
   org_admin: "Admin",
@@ -918,6 +919,12 @@ export default function MembersPage() {
               {updateUser.isPending ? "Updating..." : "Update Member"}
             </Button>
           </form>
+          {user?.role === "org_admin" && selectedMember && selectedMember.role !== "org_admin" && (
+            <div className="border-t pt-4 space-y-2">
+              <p className="text-sm font-medium">Permissions</p>
+              <PersonPermissions key={selectedMember._id} userId={selectedMember._id} />
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

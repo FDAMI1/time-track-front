@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -93,6 +94,7 @@ interface Role {
   roleName: string;
   description: string;
   isSystem?: boolean;
+  baseRole?: string;
   permissions: Permission[];
   createdAt: string;
 }
@@ -220,8 +222,28 @@ function PermissionsSelector({
   );
 }
 
+// A custom role is a job title on top of one of these; access follows the built-in role.
+const BASE_ROLES: Record<string, string[]> = { academy: ["teacher", "student", "manager", "employee", "member"], company: ["manager", "employee", "member"] };
+const BASE_LABELS: Record<string, string> = { teacher: "Teacher", student: "Student", manager: "Manager", employee: "Employee", member: "Member" };
+
+function BaseRoleSelect({ value, onChange, orgType }: { value: string; onChange: (v: string) => void; orgType: string }) {
+  return (
+    <div className="space-y-1.5">
+      <Label>Works as</Label>
+      <Select value={value || undefined} onValueChange={onChange}>
+        <SelectTrigger data-testid="select-role-base"><SelectValue placeholder="Choose a built-in role" /></SelectTrigger>
+        <SelectContent>
+          {(BASE_ROLES[orgType] || BASE_ROLES.company).map((r) => <SelectItem key={r} value={r}>{BASE_LABELS[r]}</SelectItem>)}
+        </SelectContent>
+      </Select>
+      <p className="text-xs text-muted-foreground">People with this role get the pages and data of the built-in role you choose. Adjust one person further from their Permissions.</p>
+    </div>
+  );
+}
+
 export default function RolesPermissionsPage() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  const orgType = user?.organizationId?.type || "company";
   const { toast } = useToast();
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -229,7 +251,7 @@ export default function RolesPermissionsPage() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
 
-  const [form, setForm] = useState({ roleName: "", description: "" });
+  const [form, setForm] = useState({ roleName: "", description: "", baseRole: "" });
   const [selectedPermIds, setSelectedPermIds] = useState<string[]>([]);
 
   const { data: roles = [], isLoading: loadingRoles } = useQuery<Role[]>({
@@ -256,7 +278,7 @@ export default function RolesPermissionsPage() {
   const grouped = permsData?.grouped ?? {};
 
   const createMutation = useMutation({
-    mutationFn: async (data: { roleName: string; description: string; permissionIds: string[] }) => {
+    mutationFn: async (data: { roleName: string; description: string; baseRole: string; permissionIds: string[] }) => {
       const res = await apiFetch("/api/roles", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -321,13 +343,13 @@ export default function RolesPermissionsPage() {
   });
 
   function resetForm() {
-    setForm({ roleName: "", description: "" });
+    setForm({ roleName: "", description: "", baseRole: "" });
     setSelectedPermIds([]);
   }
 
   function openEdit(role: Role) {
     setEditRole(role);
-    setForm({ roleName: role.roleName, description: role.description });
+    setForm({ roleName: role.roleName, description: role.description, baseRole: role.baseRole || "" });
     setSelectedPermIds(role.permissions.map((p) => p._id));
   }
 
@@ -382,7 +404,7 @@ export default function RolesPermissionsPage() {
                       )}
                     </div>
                     {role.description && <p className="text-xs text-muted-foreground truncate mt-0.5">{role.description}</p>}
-                    <p className="text-xs text-muted-foreground mt-1">{role.permissions.length} permissions</p>
+                    <p className="text-xs text-muted-foreground mt-1">{role.isSystem ? `${role.permissions.length} permissions` : role.baseRole ? `Works as ${BASE_LABELS[role.baseRole]}` : "Choose what it works as"}</p>
                   </div>
                   {!role.isSystem && (
                     <div className="flex gap-1 shrink-0 ml-2">
@@ -485,6 +507,7 @@ export default function RolesPermissionsPage() {
                 data-testid="input-role-description"
               />
             </div>
+            <BaseRoleSelect value={form.baseRole} onChange={(baseRole) => setForm({ ...form, baseRole })} orgType={orgType} />
             <div className="space-y-2">
               <Label>Permissions</Label>
               {Object.keys(grouped).length === 0 ? (
@@ -503,7 +526,7 @@ export default function RolesPermissionsPage() {
             <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
             <Button
               onClick={() => createMutation.mutate({ ...form, permissionIds: selectedPermIds })}
-              disabled={createMutation.isPending || !form.roleName.trim()}
+              disabled={createMutation.isPending || !form.roleName.trim() || !form.baseRole}
               data-testid="button-submit-create-role"
             >
               {createMutation.isPending ? "Creating..." : "Create Role"}
@@ -534,6 +557,7 @@ export default function RolesPermissionsPage() {
                 data-testid="input-edit-role-description"
               />
             </div>
+            <BaseRoleSelect value={form.baseRole} onChange={(baseRole) => setForm({ ...form, baseRole })} orgType={orgType} />
             <div className="space-y-2">
               <Label>Permissions</Label>
               {Object.keys(grouped).length === 0 ? (
@@ -552,7 +576,7 @@ export default function RolesPermissionsPage() {
             <Button variant="outline" onClick={() => setEditRole(null)}>Cancel</Button>
             <Button
               onClick={() => updateMutation.mutate({ id: editRole!._id, data: { ...form, permissionIds: selectedPermIds } })}
-              disabled={updateMutation.isPending || !form.roleName.trim()}
+              disabled={updateMutation.isPending || !form.roleName.trim() || !form.baseRole}
               data-testid="button-submit-edit-role"
             >
               {updateMutation.isPending ? "Saving..." : "Save Changes"}

@@ -10,6 +10,7 @@ interface AcademyUser {
   role: string;
   organizationId?: { type?: string; features?: Partial<Record<string, boolean>> } | null;
   toolAccess?: { tickets?: boolean; crm?: boolean; mcq?: boolean; timeTracking?: boolean };
+  permissions?: Record<string, boolean>;
 }
 
 // Org admins always have every tool; other members only the ones an admin opened to them in Settings.
@@ -25,17 +26,24 @@ export const canUseTickets = (user: AcademyUser | null | undefined): boolean =>
 export type MemberFeature = "mcq" | "timeTracking";
 const TIME_TRACKING_ROLES = ["employee", "manager", "org_admin", "teacher"];
 export const canUseTimeTracking = (user: AcademyUser | null | undefined): boolean =>
-  featureOn(user, "timeTracking") && (TIME_TRACKING_ROLES.includes(user?.role || "") || user?.toolAccess?.timeTracking === true);
+  featureOn(user, "timeTracking") && (user?.permissions
+    ? user.permissions.timeTracking === true
+    : TIME_TRACKING_ROLES.includes(user?.role || "") || user?.toolAccess?.timeTracking === true);
 
 // The organization's feature switches (Super Admin / org admin). Missing means on.
 export const featureOn = (user: AcademyUser | null | undefined, feature: string): boolean =>
   user?.organizationId?.features?.[feature] !== false;
 
+// The person's own permission (role default, plus grants, minus revokes), as the server computed it.
+// Before /me has loaded the map is absent and the role-based menu shows; the server decides either way.
+export const permitted = (user: AcademyUser | null | undefined, key: string): boolean =>
+  featureOn(user, key) && user?.permissions?.[key] !== false;
+
 
 // Decides what's shown. The server enforces the same rules on every request.
 export function canUseAcademy(user: AcademyUser | null | undefined, feature: AcademyFeature): boolean {
   const org = user?.organizationId;
-  return org?.type === "academy" && org.features?.[feature] !== false && FEATURE_ROLES[feature].includes(user?.role || "");
+  return org?.type === "academy" && permitted(user, feature) && FEATURE_ROLES[feature].includes(user?.role || "");
 }
 
 // The CRM is for every organization type. Teachers and employees are telecallers

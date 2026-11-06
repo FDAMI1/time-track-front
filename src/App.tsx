@@ -10,7 +10,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { getInitials } from "@/lib/utils";
 import { hasMcqAccess } from "@/mcq/lib/roles";
-import { canUseAcademy, canUseCrm, canUseTickets, canUseTimeTracking, featureOn } from "@/academy/lib/academy";
+import { canUseAcademy, canUseCrm, canUseTickets, canUseTimeTracking, featureOn, permitted } from "@/academy/lib/academy";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -252,10 +252,10 @@ function AuthenticatedRouter() {
       {["org_admin", "manager", "teacher"].includes(user?.role || "") && (
         <Route path="/members" component={MembersPage} />
       )}
-      {user?.role !== "superadmin" && featureOn(user, "attendance") && (
+      {user?.role !== "superadmin" && permitted(user, "attendance") && (
         <Route path="/attendance" component={AttendancePage} />
       )}
-      {user?.role !== "superadmin" && featureOn(user, "leaves") && (
+      {user?.role !== "superadmin" && permitted(user, "leaves") && (
         <Route path="/leaves" component={LeavesPage} />
       )}
       {canUseTimeTracking(user) && (
@@ -270,7 +270,7 @@ function AuthenticatedRouter() {
       {["org_admin", "teacher", "manager"].includes(user?.role || "") && (
         <Route path="/activity-logs" component={ActivityLogsPage} />
       )}
-      {featureOn(user, "chat") && <Route path="/chat" component={ChatPage} />}
+      {permitted(user, "chat") && <Route path="/chat" component={ChatPage} />}
       <Route path="/settings" component={SettingsPage} />
       {["org_admin", "teacher", "manager"].includes(user?.role || "") && (
         <Route path="/document-templates" component={DocumentTemplatesPage} />
@@ -284,7 +284,7 @@ function AuthenticatedRouter() {
       {user?.role === "org_admin" && (
         <Route path="/salary-setup" component={SalarySetupPage} />
       )}
-      {["org_admin", "manager", "employee"].includes(user?.role || "") && (
+      {["org_admin", "manager", "employee"].includes(user?.role || "") && permitted(user, "reimbursements") && (
         <Route path="/reimbursements" component={ReimbursementsPage} />
       )}
       {hasMcqAccess(user) && (

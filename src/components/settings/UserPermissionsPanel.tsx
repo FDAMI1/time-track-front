@@ -4,13 +4,13 @@ import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search } from "lucide-react";
 import { useMcqApi } from "@/mcq/lib/api";
 import { labelOf } from "@/academy/lib/academy";
+import PersonPermissions from "./PersonPermissions";
 
 type Flag = "tickets" | "crm" | "crmTransfer" | "mcq" | "timeTracking";
 interface Person {
@@ -23,26 +23,11 @@ interface Person {
   managerId?: string | null;
   toolAccess?: Partial<Record<Flag, boolean>>;
 }
-type Draft = Record<Flag, boolean> & { managerId: string };
 
-// Who this screen assigns work to. Students are never listed here.
-const ROLES: Record<string, string[]> = { academy: ["teacher", "member"], company: ["manager", "employee"] };
-const FLAGS: { key: Flag; label: string; hint: string; academyOnly?: boolean }[] = [
-  { key: "tickets", label: "Tickets", hint: "Raise and work their own tickets" },
-  { key: "crm", label: "CRM (Leads)", hint: "Work the leads assigned to them" },
-  { key: "crmTransfer", label: "Transfer leads", hint: "Hand their own leads to a colleague" },
-  { key: "mcq", label: "MCQ", hint: "Question bank, tests and results", academyOnly: true },
-  { key: "timeTracking", label: "Time Tracking", hint: "Log their working time" },
-];
-// A Member account opens only MCQ and Time Tracking; the server refuses everything else.
-const flagsFor = (role: string, orgType: string) =>
-  FLAGS.filter((f) => (!f.academyOnly || orgType === "academy") && (role !== "member" || f.key === "mcq" || f.key === "timeTracking"));
+// Everyone an admin can set permissions for, by organization type.
+const ROLES: Record<string, string[]> = { academy: ["teacher", "student", "manager", "employee", "member"], company: ["manager", "employee", "member"] };
 const NONE: string[] = [];
 const nameOf = (p: Person) => `${p.firstName} ${p.lastName}`.trim() || p.username;
-const draftOf = (p: Person): Draft => ({
-  tickets: !!p.toolAccess?.tickets, crm: !!p.toolAccess?.crm, crmTransfer: !!p.toolAccess?.crmTransfer,
-  mcq: !!p.toolAccess?.mcq, timeTracking: !!p.toolAccess?.timeTracking, managerId: p.managerId || "",
-});
 
 interface Props {
   orgType: string;
@@ -59,7 +44,7 @@ export default function UserPermissionsPanel({ orgType, organizationId }: Props)
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
   const [selectedId, setSelectedId] = useState("");
-  const [draft, setDraft] = useState<Draft | null>(null);
+  const [managerDraft, setManagerDraft] = useState("");
 
   const roles = ROLES[orgType] || NONE;
   const people = useMemo(() => (everyone || []).filter((p) => roles.includes(p.role)), [everyone, roles]);
@@ -69,20 +54,15 @@ export default function UserPermissionsPanel({ orgType, organizationId }: Props)
   const matches = people.filter((p) => (!roleFilter || p.role === roleFilter) && (!term || `${nameOf(p)} ${p.username} ${p.email || ""}`.toLowerCase().includes(term)));
   const selected = people.find((p) => p._id === selectedId);
 
-  const choose = (p: Person) => { setSelectedId(p._id); setDraft(draftOf(p)); };
-  const save = useMutation({
+  const choose = (p: Person) => { setSelectedId(p._id); setManagerDraft(p.managerId || ""); };
+  const saveManager = useMutation({
     mutationFn: () => {
-      if (!selected || !draft) throw new Error("Choose a person first");
-      const flags = Object.fromEntries(flagsFor(selected.role, orgType).map((f) => [f.key, f.key === "crmTransfer" ? draft.crm && draft.crmTransfer : draft[f.key]]));
-      const update = { userId: selected._id, ...flags, ...(selected.role === "employee" ? { managerId: draft.managerId || null } : {}) };
-      return api.put<Person[]>("/api/tool-access", { updates: [update], ...(organizationId ? { organizationId } : {}) });
+      if (!selected) throw new Error("Choose a person first");
+      return api.put<Person[]>("/api/tool-access", { updates: [{ userId: selected._id, managerId: managerDraft || null }], ...(organizationId ? { organizationId } : {}) });
     },
     onSuccess: (list) => {
       queryClient.setQueryData(["/api/tool-access", organizationId || "mine"], list);
-      queryClient.invalidateQueries({ queryKey: ["/api/tool-access"], exact: true });
-      const fresh = list.find((p) => p._id === selectedId);
-      if (fresh) setDraft(draftOf(fresh));
-      toast({ title: "Permissions saved" });
+      toast({ title: "Manager saved" });
     },
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
@@ -91,9 +71,7 @@ export default function UserPermissionsPanel({ orgType, organizationId }: Props)
   if (presentRoles.length === 0) {
     return <p className="text-sm text-muted-foreground">No {roles.map((r) => labelOf(r).toLowerCase() + "s").join(" or ")} yet. Add them on the Members page first.</p>;
   }
-  const access = selected ? flagsFor(selected.role, orgType).filter((f) => selected.toolAccess?.[f.key]) : [];
   const supervised = selected?.role === "manager" ? people.filter((p) => p.role === "employee" && p.managerId === selected._id).length : 0;
-  const dirty = !!selected && !!draft && JSON.stringify(draft) !== JSON.stringify(draftOf(selected));
 
   return (
     <div className="space-y-3" data-testid="user-permissions">
@@ -122,28 +100,18 @@ export default function UserPermissionsPanel({ orgType, organizationId }: Props)
         ))}
       </ul>
 
-      {selected && draft && (
+      {selected && (
         <div className="rounded-lg border p-3 space-y-3" data-testid="selected-person">
           <div>
             <p className="font-medium">{nameOf(selected)} <Badge variant="secondary" className="ml-1 text-xs">{labelOf(selected.role)}</Badge></p>
             <p className="text-xs text-muted-foreground break-all">{selected.email || `@${selected.username}`}</p>
-            <p className="text-xs mt-1" data-testid="text-current-access">
-              Can open now: {access.length ? access.map((f) => f.label).join(", ") : "nothing extra"}
-              {selected.role === "manager" && ` · supervises ${supervised} employee${supervised === 1 ? "" : "s"}`}
-            </p>
+            {selected.role === "manager" && <p className="text-xs mt-1">Supervises {supervised} employee{supervised === 1 ? "" : "s"}</p>}
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {flagsFor(selected.role, orgType).map((f) => (
-              <label key={f.key} className={`flex items-start gap-2 rounded-md border p-2 text-sm ${f.key === "crmTransfer" && !draft.crm ? "opacity-50" : ""}`}>
-                <Checkbox className="mt-0.5" checked={draft[f.key]} disabled={f.key === "crmTransfer" && !draft.crm} onCheckedChange={(on) => setDraft({ ...draft, [f.key]: !!on })} data-testid={`checkbox-permission-${f.key}`} />
-                <span><span className="font-medium">{f.label}</span><span className="block text-xs text-muted-foreground">{f.hint}</span></span>
-              </label>
-            ))}
-          </div>
+          <PersonPermissions key={selected._id} userId={selected._id} organizationId={organizationId} />
           {selected.role === "employee" && (
-            <div className="space-y-1 max-w-xs">
+            <div className="space-y-1 max-w-xs border-t pt-3">
               <Label>Reports to</Label>
-              <Select value={draft.managerId || "none"} onValueChange={(v) => setDraft({ ...draft, managerId: v === "none" ? "" : v })}>
+              <Select value={managerDraft || "none"} onValueChange={(v) => setManagerDraft(v === "none" ? "" : v)}>
                 <SelectTrigger data-testid="select-permission-manager"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">No manager</SelectItem>
@@ -151,9 +119,9 @@ export default function UserPermissionsPanel({ orgType, organizationId }: Props)
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">Their manager sees and supervises their leads and tickets.</p>
+              <Button size="sm" variant="outline" disabled={managerDraft === (selected.managerId || "") || saveManager.isPending} onClick={() => saveManager.mutate()} data-testid="button-save-manager">{saveManager.isPending ? "Saving..." : "Save Manager"}</Button>
             </div>
           )}
-          <Button size="sm" disabled={!dirty || save.isPending} onClick={() => save.mutate()} data-testid="button-save-permissions">{save.isPending ? "Saving..." : "Save Changes"}</Button>
         </div>
       )}
     </div>
