@@ -39,6 +39,7 @@ export default function EnquiryDialog({ id, staff, canAssign, onClose }: Props) 
   const [details, setDetails] = useState<Details | null>(null);
   const [template, setTemplate] = useState("");
   const [message, setMessage] = useState("");
+  const [transferReason, setTransferReason] = useState("");
   const key = ["/api/enquiries", "detail", id];
 
   const { data: enquiry, isLoading, error } = useQuery({ queryKey: key, queryFn: () => api.get<Enquiry>(`/api/enquiries/${id}`) });
@@ -48,8 +49,18 @@ export default function EnquiryDialog({ id, staff, canAssign, onClose }: Props) 
   const failed = (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" });
 
   const update = useMutation({
-    mutationFn: (body: Partial<Record<"status" | "assignedTo" | "nextFollowUpDate" | keyof Details, string>>) => api.put(`/api/enquiries/${id}`, body),
-    onSuccess: () => { setDetails(null); refresh(); },
+    mutationFn: (body: Partial<Record<"status" | "assignedTo" | "transferReason" | "nextFollowUpDate" | keyof Details, string>>) => api.put(`/api/enquiries/${id}`, body),
+    onSuccess: (_data, body) => {
+      setDetails(null);
+      refresh();
+      if (body.assignedTo === undefined) return;
+      setTransferReason("");
+      // A telecaller who hands a lead on can no longer open it.
+      if (["teacher", "employee"].includes(user?.role || "") && body.assignedTo !== user?._id) {
+        toast({ title: "Lead transferred", description: "It has left your inbox." });
+        onClose();
+      }
+    },
     onError: failed,
   });
   const addNote = useMutation({
@@ -145,7 +156,12 @@ export default function EnquiryDialog({ id, staff, canAssign, onClose }: Props) 
                 )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Picker label="Status" value={enquiry.status} onChange={(status) => update.mutate({ status })} options={toOptions(ENQUIRY_STATUSES)} testId="select-enquiry-status" />
-                  {canAssign && <Picker label="Assigned telecaller" value={enquiry.assignedTo?._id || ""} onChange={(assignedTo) => update.mutate({ assignedTo })} options={peopleOptions(staff)} testId="select-enquiry-reassign" />}
+                  {canAssign && (
+                    <div className="space-y-2">
+                      <Picker label="Owner" value={enquiry.assignedTo?._id || ""} onChange={(assignedTo) => update.mutate({ assignedTo, transferReason: transferReason.trim() })} options={peopleOptions(staff)} testId="select-enquiry-reassign" />
+                      <Input aria-label="Reason for transfer (optional)" placeholder="Reason for transfer (optional, fill in before choosing)" maxLength={500} value={transferReason} onChange={(e) => setTransferReason(e.target.value)} data-testid="input-lead-transfer-reason" />
+                    </div>
+                  )}
                   {followUp("input-enquiry-next")}
                 </div>
                 <p className="text-xs text-muted-foreground">The stage (cold, hot or dead) follows the status you choose.</p>

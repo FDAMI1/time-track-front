@@ -33,6 +33,7 @@ export default function NewTicketDialog({ open, onOpenChange, meta }: Props) {
   const [files, setFiles] = useState<File[]>([]);
   const [requester, setRequester] = useState<NamedRef | null>(null);
   const [cc, setCc] = useState<NamedRef | null>(null);
+  const [assignee, setAssignee] = useState("none");
   const [custom, setCustom] = useState<Record<string, CustomValue>>({});
   const [major, setMajor] = useState<MajorIncident>({});
   const set = (field: keyof typeof EMPTY, value: string) => setForm((f) => ({ ...f, [field]: value }));
@@ -53,6 +54,7 @@ export default function NewTicketDialog({ open, onOpenChange, meta }: Props) {
       body.append("customFields", JSON.stringify(shown));
       if (requester) body.append("requesterId", requester._id);
       if (cc) body.append("cc", cc._id);
+      if (assignee !== "none") body.append("agentId", assignee);
       if (agent && form.type === "major_incident") body.append("majorIncident", JSON.stringify(major));
       files.forEach((file) => body.append("files", file));
       return api.post<Ticket>("/api/tickets", body);
@@ -135,6 +137,18 @@ export default function NewTicketDialog({ open, onOpenChange, meta }: Props) {
                 <Select value={form.priority} onValueChange={(v) => set("priority", v)}>
                   <SelectTrigger data-testid="select-ticket-priority"><SelectValue /></SelectTrigger>
                   <SelectContent>{PRIORITIES.map((p) => <SelectItem key={p} value={p}>{capitalize(p)}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+            )}
+            {!!meta?.assignees?.length && (
+              <div className="space-y-2">
+                <Label>Assign to (optional)</Label>
+                <Select value={assignee} onValueChange={setAssignee}>
+                  <SelectTrigger data-testid="select-ticket-assignee"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Let the team pick it up</SelectItem>
+                    {meta.assignees.map((p) => <SelectItem key={p._id} value={p._id}>{`${p.firstName || ""} ${p.lastName || ""}`.trim() || p.username}</SelectItem>)}
+                  </SelectContent>
                 </Select>
               </div>
             )}

@@ -172,6 +172,7 @@ export interface TicketMeta {
   categories: { _id: string; name: string; subcategories: string[] }[];
   groups: { _id: string; name: string; memberIds: string[]; leadId?: string }[];
   agents: { _id: string; firstName: string; lastName: string; username: string }[];
+  assignees?: { _id: string; firstName: string; lastName: string; username: string }[];
   canned: { _id: string; title: string; body: string }[];
   departments: { _id: string; departmentName: string }[];
   fields: TicketField[];

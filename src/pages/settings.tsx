@@ -727,14 +727,17 @@ export default function SettingsPage() {
     },
   });
 
+  // Features the Super Admin switched off stay off here until they switch them back on.
+  const lockedFeatures = (user?.organizationId as { lockedFeatures?: string[] } | undefined)?.lockedFeatures || [];
+  const isLocked = (feature: string) => lockedFeatures.includes(feature);
+
   const updateChatFeature = useMutation({
     mutationFn: async (enabled: boolean) => {
-      const org = user?.organizationId as any;
-      const currentFeatures = org?.features || {};
+      // Only this switch: sending every feature would undo changes the Super Admin made since sign-in.
       const res = await apiFetch("/api/organizations/my/features", {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ features: { ...currentFeatures, chat: enabled } }),
+        body: JSON.stringify({ features: { chat: enabled } }),
       });
       if (!res.ok) { const err = await res.json(); throw new Error(err.message); }
       return res.json();
@@ -1319,6 +1322,11 @@ export default function SettingsPage() {
             <CardDescription>Enable or disable platform features for all members of your organization</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {lockedFeatures.length > 0 && (
+              <p className="text-xs text-muted-foreground rounded-md border bg-muted/40 p-2" data-testid="text-locked-features">
+                Switches that are greyed out were turned off by the platform administrator. Ask them to turn the feature back on.
+              </p>
+            )}
             <div className="flex items-center justify-between py-2 border-b">
               <div>
                 <p className="font-medium text-sm">Chat</p>
@@ -1327,7 +1335,7 @@ export default function SettingsPage() {
               <Switch
                 data-testid="switch-chat-enabled"
                 checked={chatEnabled}
-                disabled={updateChatFeature.isPending}
+                disabled={updateChatFeature.isPending || isLocked("chat")}
                 onCheckedChange={(val) => updateChatFeature.mutate(val)}
               />
             </div>
@@ -1339,7 +1347,7 @@ export default function SettingsPage() {
               <Switch
                 data-testid="switch-tickets-enabled"
                 checked={ticketsEnabled}
-                disabled={updateTicketsFeature.isPending}
+                disabled={updateTicketsFeature.isPending || isLocked("tickets")}
                 onCheckedChange={(val) => updateTicketsFeature.mutate(val)}
               />
             </div>
@@ -1351,7 +1359,7 @@ export default function SettingsPage() {
               <Switch
                 data-testid="switch-crm-enabled"
                 checked={(user?.organizationId as { features?: Record<string, boolean> } | undefined)?.features?.crm !== false}
-                disabled={updateAcademyFeature.isPending}
+                disabled={updateAcademyFeature.isPending || isLocked("crm")}
                 onCheckedChange={(enabled) => updateAcademyFeature.mutate({ feature: "crm", enabled })}
               />
             </div>
@@ -1364,7 +1372,7 @@ export default function SettingsPage() {
                 <Switch
                   data-testid={`switch-${key}-enabled`}
                   checked={(user?.organizationId as { features?: Record<string, boolean> } | undefined)?.features?.[key] !== false}
-                  disabled={updateAcademyFeature.isPending}
+                  disabled={updateAcademyFeature.isPending || isLocked(key)}
                   onCheckedChange={(enabled) => updateAcademyFeature.mutate({ feature: key, enabled })}
                 />
               </div>

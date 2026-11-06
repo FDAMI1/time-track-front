@@ -165,7 +165,7 @@ export default function McqExternalResultsPage() {
         <h1 className="text-2xl font-bold text-foreground" data-testid="text-page-title">External Tests</h1>
         <p className="text-muted-foreground text-sm mt-1">Results from students who took tests through a public share link, and the external student roster.</p>
       </div>
-      <Tabs defaultValue="results">
+      <Tabs defaultValue={new URLSearchParams(window.location.search).get("tab") === "students" ? "students" : "results"}>
         <TabsList>
           <TabsTrigger value="results" data-testid="tab-external-results">Results</TabsTrigger>
           <TabsTrigger value="students" data-testid="tab-external-students">External Students</TabsTrigger>

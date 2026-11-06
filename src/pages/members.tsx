@@ -7,6 +7,8 @@ import { queryClient } from "@/lib/queryClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import AddExternalUserDialog from "@/components/members/AddExternalUserDialog";
+import { isMcqStaff } from "@/mcq/lib/roles";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -229,6 +231,25 @@ export default function MembersPage() {
     },
   });
 
+  // The server ends a deactivated person's sessions and refuses their sign-in.
+  const setStatus = useMutation({
+    mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
+      const res = await apiFetch(`/api/users/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ isActive }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || "Failed to change the status");
+      return data;
+    },
+    onSuccess: (_data, { isActive }) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      toast({ title: isActive ? "Member activated" : "Member deactivated", description: isActive ? "They can sign in again." : "They are signed out and can't sign in." });
+    },
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
   const locationOverride = useMutation({
     mutationFn: async ({ id, value }: { id: string; value: boolean | null }) => {
       const res = await apiFetch(`/api/users/${id}/location-override`, {
@@ -344,6 +365,8 @@ export default function MembersPage() {
           <h1 className="text-2xl font-bold" data-testid="text-members-title">Members</h1>
           <p className="text-muted-foreground">Manage team members in your organization</p>
         </div>
+        <div className="flex items-center gap-2 flex-wrap">
+        {(user?.organizationId as { type?: string } | undefined)?.type === "academy" && isMcqStaff(user) && <AddExternalUserDialog />}
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
             <Button data-testid="button-create-member">
@@ -503,6 +526,7 @@ export default function MembersPage() {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <div className="flex gap-3 flex-wrap">
@@ -633,14 +657,27 @@ export default function MembersPage() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <div className="inline-flex rounded-full border text-xs font-medium overflow-hidden">
-                        <span className={`px-2.5 py-1 transition-colors ${m.isActive ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>
-                          Active
+                      {canManageRole(m.role) && m._id !== user?._id ? (
+                        <div className="inline-flex rounded-full border text-xs font-medium overflow-hidden" role="group" aria-label={`Status of ${m.firstName} ${m.lastName}`}>
+                          {([true, false] as const).map((active) => (
+                            <button
+                              key={String(active)}
+                              type="button"
+                              aria-pressed={m.isActive === active}
+                              disabled={setStatus.isPending || m.isActive === active}
+                              onClick={() => setStatus.mutate({ id: m._id, isActive: active })}
+                              className={`px-2.5 py-1 transition-colors disabled:cursor-default ${m.isActive === active ? (active ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground") : "text-muted-foreground hover:bg-muted"}`}
+                              data-testid={`button-status-${active ? "active" : "inactive"}-${m._id}`}
+                            >
+                              {active ? "Active" : "Inactive"}
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className={`inline-block rounded-full border px-2.5 py-1 text-xs font-medium ${m.isActive ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"}`} title={m._id === user?._id ? "You can't deactivate your own account" : undefined} data-testid={`text-status-${m._id}`}>
+                          {m.isActive ? "Active" : "Inactive"}
                         </span>
-                        <span className={`px-2.5 py-1 transition-colors ${!m.isActive ? "bg-secondary text-secondary-foreground" : "text-muted-foreground"}`}>
-                          Inactive
-                        </span>
-                      </div>
+                      )}
                     </TableCell>
                     <TableCell>
                       {canManageRole(m.role) ? (

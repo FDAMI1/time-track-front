@@ -19,7 +19,7 @@ interface User {
   isActive: boolean;
   mustChangePassword?: boolean;
   locationRestrictionEnabled?: boolean | null;
-  toolAccess?: { tickets?: boolean; crm?: boolean; mcq?: boolean; timeTracking?: boolean };
+  toolAccess?: { tickets?: boolean; crm?: boolean; crmTransfer?: boolean; mcq?: boolean; timeTracking?: boolean };
 }
 
 interface AuthContextType {
@@ -87,6 +87,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } else {
       setIsLoading(false);
     }
+  }, [token, fetchUser]);
+
+  // Features and permissions change on the server (the Super Admin's switches, the admin's
+  // Tool Access), so the signed-in user is re-read whenever the tab comes back into view.
+  useEffect(() => {
+    if (!token) return;
+    const onVisible = () => { if (document.visibilityState === "visible") fetchUser(token); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
   }, [token, fetchUser]);
 
   const login = async (credential: string, password: string, isEmail?: boolean, extras?: Record<string, number>) => {

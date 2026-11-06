@@ -35,6 +35,8 @@ export default function EnquiriesPage() {
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const canAssign = !TELECALLER_ROLES.includes(user?.role || "");
+  // A telecaller hands their own leads on only with the admin's "Transfer leads" permission.
+  const canTransfer = canAssign || user?.toolAccess?.crmTransfer === true;
   const isAcademy = (user?.organizationId as { type?: string } | undefined)?.type === "academy";
   const set = (field: keyof typeof EMPTY, value: string) => setForm((f) => ({ ...f, [field]: value }));
 
@@ -55,7 +57,7 @@ export default function EnquiriesPage() {
   const { data: staff } = useQuery({
     queryKey: ["/api/enquiries/staff"],
     queryFn: () => api.get<Person[]>("/api/enquiries/staff"),
-    enabled: canAssign,
+    enabled: canTransfer,
   });
 
   const create = useMutation({
@@ -238,7 +240,7 @@ export default function EnquiriesPage() {
       </Dialog>
 
       <LeadSourcesSheet open={sourcesOpen} onOpenChange={setSourcesOpen} />
-      {openId && <EnquiryDialog id={openId} staff={staff} canAssign={canAssign} onClose={() => setOpenId("")} />}
+      {openId && <EnquiryDialog id={openId} staff={staff} canAssign={canTransfer} onClose={() => setOpenId("")} />}
     </div>
   );
 }

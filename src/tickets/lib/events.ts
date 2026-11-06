@@ -6,7 +6,13 @@ export function eventText(event: TicketEvent, statusLabel: (key: string) => stri
   switch (event.kind) {
     case "created": return "created this ticket";
     case "status": return `changed status to ${statusLabel(String(meta.to))}`;
-    case "assignment": return meta.reason === "sla_breach" ? "escalated this ticket after an SLA breach" : "changed the assignment";
+    case "assignment": {
+      if (meta.reason === "sla_breach") return "escalated this ticket after an SLA breach";
+      const why = meta.transferReason ? ` (reason: ${String(meta.transferReason)})` : "";
+      if (meta.fromName && meta.toName) return `transferred ownership from ${String(meta.fromName)} to ${String(meta.toName)}${why}`;
+      if (meta.toName) return `assigned this ticket to ${String(meta.toName)}${why}`;
+      return `changed the assignment${why}`;
+    }
     case "update": return `updated ${Object.keys((meta.changes as object) || {}).join(", ") || "the ticket"}`;
     case "related": return `${meta.linked ? "linked" : "unlinked"} ${String(meta.ticketKey)}`;
     case "reopened": return "reopened this ticket";

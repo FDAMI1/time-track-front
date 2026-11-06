@@ -40,10 +40,10 @@ type Draft = ReturnType<typeof draftOf>;
 
 function Choice({ label, testId, value, onChange, options }: { label: string; testId?: string; value: string; onChange: (value: string) => void; options: { value: string; label: string }[] }) {
   return (
-    <div className="space-y-1">
-      <Label>{label}</Label>
+    <div className="space-y-1 min-w-0">
+      <Label className="text-xs">{label}</Label>
       <Select value={value} onValueChange={onChange}>
-        <SelectTrigger aria-label={label} data-testid={testId}><SelectValue placeholder="Choose" /></SelectTrigger>
+        <SelectTrigger aria-label={label} className="h-9" data-testid={testId}><SelectValue placeholder="Choose" /></SelectTrigger>
         <SelectContent>{options.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
       </Select>
     </div>
@@ -75,6 +75,9 @@ export default function PropertiesCard({ controls, meta }: Props) {
   const [draft, setDraft] = useState<Draft | null>(ticket ? draftOf(ticket) : null);
   const [custom, setCustom] = useState<Record<string, CustomValue>>(ticket?.customFields || {});
   const [major, setMajor] = useState<MajorIncident>(ticket?.majorIncident || {});
+  const [transferReason, setTransferReason] = useState("");
+  // Anyone allowed to use Tickets can take one on; the server checks each choice.
+  const people = meta?.assignees?.length ? meta.assignees : meta?.agents || [];
   useEffect(() => {
     if (!ticket) return;
     setDraft(draftOf(ticket));
@@ -101,13 +104,14 @@ export default function PropertiesCard({ controls, meta }: Props) {
 
       if (changed("groupId") || changed("agentId")) {
         const agentId = draft.agentId === "none" ? null : draft.agentId;
+        const reason = transferReason.trim() || undefined;
         await api.post(`${url}/assign`, changed("groupId")
-          ? { groupId: draft.groupId === "none" ? null : draft.groupId, agentId: changed("agentId") ? agentId : null }
-          : { agentId });
+          ? { groupId: draft.groupId === "none" ? null : draft.groupId, agentId: changed("agentId") ? agentId : null, reason }
+          : { agentId, reason });
       }
       if (changed("status")) await api.post(`${url}/status`, { status: draft.status });
     },
-    onSuccess: () => { refresh(); toast({ title: "Ticket updated" }); },
+    onSuccess: () => { setTransferReason(""); refresh(); toast({ title: "Ticket updated" }); },
     onError: (err: Error) => { refresh(); onError(err); },
   });
 
@@ -116,41 +120,55 @@ export default function PropertiesCard({ controls, meta }: Props) {
 
   return (
     <Card data-testid="card-properties">
-      <CardHeader className="pb-2"><CardTitle className="text-sm">Properties</CardTitle></CardHeader>
-      <CardContent className="space-y-3 text-sm">
+      {/* The header stays in view so changes can be saved without scrolling to the end. */}
+      <CardHeader className="pb-2 flex-row items-center justify-between gap-2 space-y-0 sticky top-0 z-10 bg-card rounded-t-lg border-b">
+        <CardTitle className="text-sm">Properties</CardTitle>
+        {permissions.manage && draft && (
+          <Button size="sm" disabled={save.isPending} onClick={() => save.mutate()} aria-busy={save.isPending} data-testid="button-update-properties">
+            {save.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}{save.isPending ? "Saving..." : "Update"}
+          </Button>
+        )}
+      </CardHeader>
+      <CardContent className="space-y-3 text-sm pt-3">
         {!permissions.manage || !draft ? <ReadOnly ticket={ticket} meta={meta} permissions={permissions} action={action} /> : (
           <>
-            <Choice label="Status *" testId="select-ticket-status" value={draft.status} onChange={(status) => setDraft({ ...draft, status })} options={(meta?.statuses || []).map((s) => ({ value: s.key, label: s.label }))} />
-            <Choice label="Priority *" testId="select-properties-priority" value={draft.priority} onChange={(priority) => setDraft({ ...draft, priority })} options={PRIORITIES.map((p) => ({ value: p, label: capitalize(p) }))} />
-            <Choice label="Urgency" value={draft.urgency} onChange={(urgency) => setDraft({ ...draft, urgency })} options={SCALE.map((s) => ({ value: s, label: capitalize(s) }))} />
-            <Choice label="Impact" value={draft.impact} onChange={(impact) => setDraft({ ...draft, impact })} options={SCALE.map((s) => ({ value: s, label: capitalize(s) }))} />
-            <Choice label="Type" testId="select-properties-type" value={draft.type} onChange={(type) => setDraft({ ...draft, type })} options={TICKET_TYPES} />
-            <Choice label="Source" value={draft.source} onChange={(source) => setDraft({ ...draft, source })} options={ticket.source === "assistant" ? [{ value: "assistant", label: "Assistant" }, ...AGENT_SOURCES] : AGENT_SOURCES} />
-            <Choice label="Group" testId="select-ticket-group" value={draft.groupId} onChange={(groupId) => setDraft({ ...draft, groupId })} options={[{ value: "none", label: "Unassigned" }, ...(meta?.groups || []).map((g) => ({ value: g._id, label: g.name }))]} />
-            <Choice label="Agent" testId="select-ticket-agent" value={draft.agentId} onChange={(agentId) => setDraft({ ...draft, agentId })} options={[{ value: "none", label: "Unassigned" }, ...(meta?.agents || []).map((a) => ({ value: a._id, label: personName(a) || a.username }))]} />
-            <Choice label="Department" value={draft.departmentId} onChange={(departmentId) => setDraft({ ...draft, departmentId })} options={[{ value: "none", label: "None" }, ...(meta?.departments || []).map((d) => ({ value: d._id, label: d.departmentName }))]} />
-            <Choice label="Category" value={draft.categoryId} onChange={(categoryId) => setDraft({ ...draft, categoryId })} options={[{ value: "none", label: "None" }, ...(meta?.categories || []).map((c) => ({ value: c._id, label: c.name }))]} />
-            <div className="space-y-1">
-              <Label htmlFor="properties-start">Planned Start Date</Label>
-              <Input id="properties-start" type="date" value={draft.plannedStartAt} onChange={(e) => setDraft({ ...draft, plannedStartAt: e.target.value })} data-testid="input-properties-start" />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="properties-end">Planned End Date</Label>
-              <Input id="properties-end" type="date" value={draft.plannedEndAt} onChange={(e) => setDraft({ ...draft, plannedEndAt: e.target.value })} />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="properties-effort">Planned Effort</Label>
-              <Input id="properties-effort" maxLength={40} value={draft.plannedEffort} onChange={(e) => setDraft({ ...draft, plannedEffort: e.target.value })} />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="properties-tags">Tags (separated by commas)</Label>
-              <Input id="properties-tags" value={draft.tags} onChange={(e) => setDraft({ ...draft, tags: e.target.value })} />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-2.5" data-testid="grid-properties">
+              <Choice label="Status *" testId="select-ticket-status" value={draft.status} onChange={(status) => setDraft({ ...draft, status })} options={(meta?.statuses || []).map((st) => ({ value: st.key, label: st.label }))} />
+              <Choice label="Priority *" testId="select-properties-priority" value={draft.priority} onChange={(priority) => setDraft({ ...draft, priority })} options={PRIORITIES.map((pr) => ({ value: pr, label: capitalize(pr) }))} />
+              <Choice label="Urgency" testId="select-properties-urgency" value={draft.urgency} onChange={(urgency) => setDraft({ ...draft, urgency })} options={SCALE.map((sc) => ({ value: sc, label: capitalize(sc) }))} />
+              <Choice label="Impact" testId="select-properties-impact" value={draft.impact} onChange={(impact) => setDraft({ ...draft, impact })} options={SCALE.map((sc) => ({ value: sc, label: capitalize(sc) }))} />
+              <Choice label="Type" testId="select-properties-type" value={draft.type} onChange={(type) => setDraft({ ...draft, type })} options={TICKET_TYPES} />
+              <Choice label="Source" testId="select-properties-source" value={draft.source} onChange={(source) => setDraft({ ...draft, source })} options={ticket.source === "assistant" ? [{ value: "assistant", label: "Assistant" }, ...AGENT_SOURCES] : AGENT_SOURCES} />
+              <Choice label="Group" testId="select-ticket-group" value={draft.groupId} onChange={(groupId) => setDraft({ ...draft, groupId })} options={[{ value: "none", label: "Unassigned" }, ...(meta?.groups || []).map((g) => ({ value: g._id, label: g.name }))]} />
+              <Choice label="Owner" testId="select-ticket-agent" value={draft.agentId} onChange={(agentId) => setDraft({ ...draft, agentId })} options={[{ value: "none", label: "Unassigned" }, ...people.map((a) => ({ value: a._id, label: personName(a) || a.username }))]} />
+              {ticket.agentId && draft.agentId !== draftOf(ticket).agentId && (
+                <div className="space-y-1 sm:col-span-2">
+                  <Label htmlFor="transfer-reason" className="text-xs">Reason for transfer (optional)</Label>
+                  <Input id="transfer-reason" className="h-9" maxLength={500} value={transferReason} onChange={(e) => setTransferReason(e.target.value)} data-testid="input-transfer-reason" />
+                  <p className="text-xs text-muted-foreground">Once you hand it on, the ticket leaves your inbox and you can no longer open it.</p>
+                </div>
+              )}
+              <Choice label="Department" testId="select-properties-department" value={draft.departmentId} onChange={(departmentId) => setDraft({ ...draft, departmentId })} options={[{ value: "none", label: "None" }, ...(meta?.departments || []).map((d) => ({ value: d._id, label: d.departmentName }))]} />
+              <Choice label="Category" testId="select-properties-category" value={draft.categoryId} onChange={(categoryId) => setDraft({ ...draft, categoryId })} options={[{ value: "none", label: "None" }, ...(meta?.categories || []).map((c) => ({ value: c._id, label: c.name }))]} />
+              <div className="space-y-1 min-w-0">
+                <Label htmlFor="properties-start" className="text-xs">Planned Start</Label>
+                <Input id="properties-start" className="h-9" type="date" value={draft.plannedStartAt} onChange={(e) => setDraft({ ...draft, plannedStartAt: e.target.value })} data-testid="input-properties-start" />
+              </div>
+              <div className="space-y-1 min-w-0">
+                <Label htmlFor="properties-end" className="text-xs">Planned End</Label>
+                <Input id="properties-end" className="h-9" type="date" value={draft.plannedEndAt} onChange={(e) => setDraft({ ...draft, plannedEndAt: e.target.value })} data-testid="input-properties-end" />
+              </div>
+              <div className="space-y-1 min-w-0">
+                <Label htmlFor="properties-effort" className="text-xs">Planned Effort</Label>
+                <Input id="properties-effort" className="h-9" maxLength={40} placeholder="e.g. 2h" value={draft.plannedEffort} onChange={(e) => setDraft({ ...draft, plannedEffort: e.target.value })} data-testid="input-properties-effort" />
+              </div>
+              <div className="space-y-1 min-w-0">
+                <Label htmlFor="properties-tags" className="text-xs">Tags (comma separated)</Label>
+                <Input id="properties-tags" className="h-9" value={draft.tags} onChange={(e) => setDraft({ ...draft, tags: e.target.value })} data-testid="input-properties-tags" />
+              </div>
             </div>
             {draft.type === "major_incident" && <MajorIncidentInputs value={major} onChange={setMajor} />}
             <CustomFieldInputs fields={fieldsForType(meta?.fields, draft.type)} values={custom} onChange={(key, value) => setCustom((c) => ({ ...c, [key]: value }))} />
-            <Button className="w-full" disabled={save.isPending} onClick={() => save.mutate()} data-testid="button-update-properties">
-              {save.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}Update
-            </Button>
             {permissions.reopen && <Button variant="outline" className="w-full" onClick={() => action.mutate({ path: "reopen" })} data-testid="button-reopen-ticket">Reopen Ticket</Button>}
           </>
         )}

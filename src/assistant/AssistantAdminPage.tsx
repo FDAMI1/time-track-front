@@ -46,7 +46,7 @@ const countWords = (text: string) => (text.trim().match(/\S+/g) || []).length;
 function SetupTab() {
   const api = useMcqApi();
   const { toast } = useToast();
-  const { data } = useQuery({ queryKey: [SETUP_URL], queryFn: () => api.get<Setup>(SETUP_URL) });
+  const { data, isError, refetch } = useQuery({ queryKey: [SETUP_URL], queryFn: () => api.get<Setup>(SETUP_URL) });
   const [apiKey, setApiKey] = useState("");
   const [showKey, setShowKey] = useState(false);
   const [draft, setDraft] = useState<string | null>(null);
@@ -58,12 +58,25 @@ function SetupTab() {
     onSuccess: (next) => { saved(next); setApiKey(""); setShowKey(false); toast({ title: "API key saved" }); },
     onError,
   });
+  const testKey = useMutation({
+    mutationFn: () => api.post<{ message: string }>(`${SETUP_URL}/test`),
+    onSuccess: (res) => toast({ title: "Connection works", description: res.message }),
+    onError,
+  });
   const saveKnowledge = useMutation({
     mutationFn: (knowledge: string) => api.put<Setup>(`${SETUP_URL}/knowledge`, { knowledge }),
     onSuccess: (next) => { saved(next); setDraft(null); toast({ title: "Product knowledge saved" }); },
     onError,
   });
 
+  if (isError) {
+    return (
+      <div className="flex items-center gap-3 text-sm" role="alert" data-testid="text-setup-error">
+        <p className="text-destructive">The AI Assistant setup could not be loaded.</p>
+        <Button variant="outline" size="sm" onClick={() => refetch()}>Try again</Button>
+      </div>
+    );
+  }
   if (!data) return null;
   const text = draft ?? data.knowledge;
   const words = countWords(text);
@@ -88,6 +101,7 @@ function SetupTab() {
             </div>
             <Button type="submit" disabled={!apiKey.trim() || saveKey.isPending} data-testid="button-save-key">{saveKey.isPending ? "Checking..." : data.hasKey ? "Replace Key" : "Save Key"}</Button>
           </form>
+          <Button variant="outline" size="sm" disabled={!data.hasKey || testKey.isPending} onClick={() => testKey.mutate()} data-testid="button-test-key">{testKey.isPending ? "Testing..." : "Test Connection"}</Button>
           <p className="text-xs text-muted-foreground">Create a key in Google AI Studio. We check it with Google before saving, store it encrypted, and never show it again.</p>
         </CardContent>
       </Card>
