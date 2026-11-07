@@ -23,7 +23,7 @@ export default function LectureAttendanceDialog({ lecture, onClose }: { lecture:
   const api = useMcqApi();
   const { toast } = useToast();
   const key = ["/api/lectures", lecture._id, "attendance"];
-  const { data, isLoading } = useQuery({ queryKey: key, queryFn: () => api.get<{ students: Row[] }>(`/api/lectures/${lecture._id}/attendance`) });
+  const { data, isLoading } = useQuery({ queryKey: key, queryFn: () => api.get<{ students: Row[]; today: string }>(`/api/lectures/${lecture._id}/attendance`) });
   const [marks, setMarks] = useState<Record<string, "present" | "absent">>({});
   const [makeupFor, setMakeupFor] = useState<string | null>(null);
   const [makeup, setMakeup] = useState({ date: localToday(), notes: "" });
@@ -48,8 +48,10 @@ export default function LectureAttendanceDialog({ lecture, onClose }: { lecture:
     onError: (err: Error) => toast({ title: "Not saved", description: err.message, variant: "destructive" }),
   });
 
+  // "Today" is the organization's date (its time zone), which is what the server checks.
+  const today = data?.today || localToday();
   const rows = data?.students || [];
-  const future = lecture.date > localToday();
+  const future = lecture.date > today;
   const unmarked = rows.filter((r) => !marks[r.student._id]).length;
   const saved = Object.fromEntries(rows.map((r) => [r.student._id, r.status]));
   const dirty = rows.some((r) => marks[r.student._id] && marks[r.student._id] !== saved[r.student._id]);
@@ -64,7 +66,7 @@ export default function LectureAttendanceDialog({ lecture, onClose }: { lecture:
             {lecture.subject ? ` · ${lecture.subject}` : ""}{lecture.portion ? ` · ${lecture.portion}` : ""}
           </DialogDescription>
         </DialogHeader>
-        {future && <p className="text-sm text-muted-foreground">Attendance opens on the lecture date.</p>}
+        {future && <p className="text-sm text-muted-foreground" data-testid="text-attendance-future">Attendance opens on the lecture date. Today is {today} in your organization's time zone.</p>}
         {isLoading && <Skeleton className="h-40 w-full" />}
         {!isLoading && !rows.length && <p className="text-sm text-muted-foreground">This batch has no students yet.</p>}
         {!!rows.length && !future && (
@@ -99,13 +101,13 @@ export default function LectureAttendanceDialog({ lecture, onClose }: { lecture:
                       <Badge variant="secondary" className="text-xs">Made up on {r.makeup.date}</Badge>
                     ) : makeupFor === id ? (
                       <form className="flex gap-2 flex-wrap" onSubmit={(e) => { e.preventDefault(); saveMakeup.mutate(id); }}>
-                        <Input type="date" className="w-auto" min={lecture.date} max={localToday()} value={makeup.date} onChange={(e) => setMakeup({ ...makeup, date: e.target.value })} aria-label="Date attended" data-testid={`input-makeup-date-${id}`} />
+                        <Input type="date" className="w-auto" min={lecture.date} max={today} value={makeup.date} onChange={(e) => setMakeup({ ...makeup, date: e.target.value })} aria-label="Date attended" data-testid={`input-makeup-date-${id}`} />
                         <Input className="flex-1 min-w-[140px]" placeholder="Where or how (optional)" value={makeup.notes} onChange={(e) => setMakeup({ ...makeup, notes: e.target.value })} aria-label="Make-up notes" />
                         <Button type="submit" size="sm" disabled={saveMakeup.isPending} data-testid={`button-save-makeup-${id}`}>Save</Button>
                         <Button type="button" size="sm" variant="ghost" onClick={() => setMakeupFor(null)}>Cancel</Button>
                       </form>
                     ) : (
-                      <Button type="button" size="sm" variant="ghost" className="h-auto px-1 py-0.5 text-xs text-primary underline-offset-2 hover:underline" onClick={() => { setMakeupFor(id); setMakeup({ date: localToday(), notes: "" }); }} data-testid={`button-makeup-${id}`}>
+                      <Button type="button" size="sm" variant="ghost" className="h-auto px-1 py-0.5 text-xs text-primary underline-offset-2 hover:underline" onClick={() => { setMakeupFor(id); setMakeup({ date: today, notes: "" }); }} data-testid={`button-makeup-${id}`}>
                         Record make-up attendance
                       </Button>
                     ))}

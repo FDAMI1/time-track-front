@@ -628,7 +628,7 @@ export default function SettingsPage() {
   }, [orgSettingsData]);
 
   const updateOrgSettings = useMutation({
-    mutationFn: async (data: typeof orgSettings) => {
+    mutationFn: async (data: Partial<typeof orgSettings>) => {
       const res = await apiFetch("/api/policy/org-settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -1082,9 +1082,8 @@ export default function SettingsPage() {
                     <Switch
                       checked={orgSettings.attendancePolicyEnabled}
                       onCheckedChange={(v) => {
-                        const updated = { ...orgSettings, attendancePolicyEnabled: v };
-                        setOrgSettings(updated);
-                        updateOrgSettings.mutate(updated);
+                        setOrgSettings({ ...orgSettings, attendancePolicyEnabled: v });
+                        updateOrgSettings.mutate({ attendancePolicyEnabled: v });
                       }}
                       data-testid="switch-policy-enabled"
                     />
@@ -1109,9 +1108,8 @@ export default function SettingsPage() {
                       <Select
                         value={orgSettings.timezone}
                         onValueChange={(v) => {
-                          const updated = { ...orgSettings, timezone: v };
-                          setOrgSettings(updated);
-                          updateOrgSettings.mutate(updated);
+                          setOrgSettings({ ...orgSettings, timezone: v });
+                          updateOrgSettings.mutate({ timezone: v });
                         }}
                       >
                         <SelectTrigger className="w-full mt-1" data-testid="select-timezone">
@@ -1123,7 +1121,7 @@ export default function SettingsPage() {
                           ))}
                         </SelectContent>
                       </Select>
-                      <p className="text-xs text-muted-foreground mt-1">Attendance marking will follow this timezone</p>
+                      <p className="text-xs text-muted-foreground mt-1">Attendance, lectures and reports follow this timezone</p>
                     </div>
                   )}
                 </div>

@@ -65,7 +65,7 @@ export default function LecturesPage() {
                         : <p className="text-xs text-muted-foreground break-words">{lecture.room}</p>)}
                       {(lecture.subject || lecture.portion) && <p className="text-xs break-words">{[lecture.subject, lecture.portion].filter(Boolean).join(" · ")}</p>}
                       {lecture.status !== "scheduled" && <StatusBadge status={lecture.status} />}
-                      {canManage && lecture.status !== "cancelled" && lecture.date <= today && (
+                      {canManage && lecture.status !== "cancelled" && lecture.date <= addDays(today, 1) && (
                         <Button type="button" size="sm" variant="outline" className="h-7 text-xs w-full mt-1" onClick={() => setMarking(lecture)} data-testid={`button-attendance-${lecture._id}`}>
                           {lecture.status === "completed" ? "Attendance" : "Mark Attendance"}
                         </Button>
