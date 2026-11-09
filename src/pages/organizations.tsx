@@ -18,7 +18,6 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RemoteImage } from "@/components/remote-image";
-import UserPermissionsPanel from "@/components/settings/UserPermissionsPanel";
 import { Building2, Plus, GraduationCap, Briefcase, Users, Globe, Phone, MapPin, Eye, Pencil, Trash2, EyeIcon, EyeOff, LogIn, Upload } from "lucide-react";
 
 // What the superadmin can switch on or off for one organization. Each organization's
@@ -399,7 +398,6 @@ export default function OrganizationsPage() {
             <Tabs defaultValue="overview">
               <TabsList className="h-auto flex-wrap justify-start">
                 <TabsTrigger value="overview" data-testid="tab-org-overview">Overview</TabsTrigger>
-                <TabsTrigger value="people" data-testid="tab-org-people">Users & Permissions</TabsTrigger>
                 <TabsTrigger value="branding" data-testid="tab-org-branding">Branding</TabsTrigger>
               </TabsList>
             <TabsContent value="overview" className="space-y-4 mt-4">
@@ -468,9 +466,6 @@ export default function OrganizationsPage() {
                   </Table>
                 </div>
               )}
-            </TabsContent>
-            <TabsContent value="people" className="mt-4">
-              <UserPermissionsPanel orgType={orgDetail.type} organizationId={orgDetail._id} />
             </TabsContent>
             <TabsContent value="branding" className="mt-4">
               <OrgBranding org={orgDetail} token={token} />

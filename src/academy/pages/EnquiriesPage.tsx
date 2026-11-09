@@ -37,7 +37,7 @@ export default function EnquiriesPage() {
   const [importOpen, setImportOpen] = useState(false);
   const canAssign = !TELECALLER_ROLES.includes(user?.role || "");
   // A telecaller hands their own leads on only with the admin's "Transfer leads" permission.
-  const canTransfer = canAssign || user?.toolAccess?.crmTransfer === true;
+  const canTransfer = canAssign || user?.permissions?.crmTransfer === true;
   const isAcademy = (user?.organizationId as { type?: string } | undefined)?.type === "academy";
   const set = (field: keyof typeof EMPTY, value: string) => setForm((f) => ({ ...f, [field]: value }));
 

@@ -1,6 +1,6 @@
 import { apiFetch } from "@/lib/api";
 import { getInitials } from "@/lib/utils";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
 import { queryClient } from "@/lib/queryClient";
@@ -19,6 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Search, Users, Pencil, Trash2, Eye, EyeOff, Phone, GraduationCap, MessageCircle, Clock, KeyRound, Copy, Check } from "lucide-react";
 import PersonPermissions from "@/components/settings/PersonPermissions";
+import AccessSwitches, { type AccessItem } from "@/components/members/AccessSwitches";
 import { Link } from "wouter";
 
 const roleLabels: Record<string, string> = {
@@ -39,7 +40,6 @@ const roleBadgeColors: Record<string, string> = {
   member: "bg-muted text-foreground",
 };
 
-const NO_MEMBER_ACCESS = { mcq: false, timeTracking: false };
 
 export default function MembersPage() {
   const { token, user } = useAuth();
@@ -67,15 +67,15 @@ export default function MembersPage() {
       : [{ value: "system-teacher", label: "Teacher", roleName: "teacher" }, { value: "system-student", label: "Student", roleName: "student" }, { value: "system-manager", label: "Manager", roleName: "manager" }, { value: "system-employee", label: "Employee", roleName: "employee" }];
 
   const [form, setForm] = useState({
-    firstName: "", lastName: "", email: "", emailDomain: "", phone: "", education: "", username: "", userId: "", biometricId: "",
+    firstName: "", lastName: "", email: "", emailDomain: "", phone: "", education: "", username: "", biometricId: "",
     role: fallbackRoles[0]?.value || "system-employee",
     studentWhatsapp: "", parentWhatsapp: "",
     assignedSchedules: [] as string[],
-    memberAccess: NO_MEMBER_ACCESS,
+    access: [] as string[],
   });
 
   const [editForm, setEditForm] = useState({
-    firstName: "", lastName: "", email: "", phone: "", education: "", role: "", password: "", userId: "", biometricId: "",
+    firstName: "", lastName: "", email: "", phone: "", education: "", role: "", password: "", biometricId: "", managerId: "",
     studentWhatsapp: "", parentWhatsapp: "",
     assignedSchedules: [] as string[],
   });
@@ -115,7 +115,7 @@ export default function MembersPage() {
   });
 
   const canAddMembers = ["org_admin", "superadmin"].includes(user?.role || "");
-  const listedRoles: Array<{ value: string; label: string; roleName: string }> =
+  const listedRoles: Array<{ value: string; label: string; roleName: string; baseRole?: string }> =
     rolesData && rolesData.length > 0
       ? (rolesData as any[])
           .filter((r: any) => !["org_admin", "superadmin"].includes(r.roleName))
@@ -123,6 +123,7 @@ export default function MembersPage() {
             value: r._id.toString(),
             label: r.roleName,
             roleName: r.roleName,
+            baseRole: r.baseRole,
           }))
       : fallbackRoles;
   // Member is built in and only admins may create one.
@@ -157,7 +158,8 @@ export default function MembersPage() {
         payload.roleId = data.role;
         delete payload.role;
       }
-      if (payload.role !== "member") delete payload.memberAccess;
+      // Only an admin chooses switches; for anyone else the server applies the role's defaults.
+      if (user?.role !== "org_admin" || !catalog) delete payload.access;
       const res = await apiFetch("/api/users", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -170,7 +172,7 @@ export default function MembersPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       queryClient.invalidateQueries({ queryKey: ["/api/policy"] });
       setCreateOpen(false);
-      setForm({ firstName: "", lastName: "", email: "", emailDomain: "", phone: "", education: "", username: "", userId: "", biometricId: "", role: availableRoles[0]?.value || "system-employee", studentWhatsapp: "", parentWhatsapp: "", assignedSchedules: [], memberAccess: NO_MEMBER_ACCESS });
+      setForm({ firstName: "", lastName: "", email: "", emailDomain: "", phone: "", education: "", username: "", biometricId: "", role: availableRoles[0]?.value || "system-employee", studentWhatsapp: "", parentWhatsapp: "", assignedSchedules: [], access: catalog?.defaults || [] });
       setTempPwdState({ open: true, password: data.tempPassword, username: data.user?.username || "" });
     },
     onError: (err: Error) => {
@@ -317,8 +319,8 @@ export default function MembersPage() {
       education: member.education || "",
       role: roleValue,
       password: "",
-      userId: member.userId || "",
       biometricId: member.biometricId || "",
+      managerId: member.managerId ? String(member.managerId._id || member.managerId) : "",
       studentWhatsapp: member.studentWhatsapp || "",
       parentWhatsapp: member.parentWhatsapp || "",
       assignedSchedules: memberSchedules,
@@ -351,14 +353,46 @@ export default function MembersPage() {
 
   const getRoleName = (roleValue: string) => {
     if (roleValue.startsWith("system-")) return roleValue.replace("system-", "");
-    const found = availableRoles.find(r => r.value === roleValue);
-    return found?.roleName || roleValue;
+    // A custom role "works as" a built-in one; that one decides the rules.
+    const found: { roleName: string; baseRole?: string } | undefined = availableRoles.find(r => r.value === roleValue);
+    return found?.baseRole || found?.roleName || roleValue;
   };
 
   const isStudentOrEmployee = (roleValue: string) => {
     const name = getRoleName(roleValue);
     return ["student", "employee"].includes(name);
   };
+
+  // The switches a new person of the chosen role can have; the role's defaults start ticked.
+  const createRole = getRoleName(form.role);
+  const { data: catalog } = useQuery({
+    queryKey: ["/api/tool-access/catalog", createRole],
+    queryFn: async () => {
+      const res = await apiFetch(`/api/tool-access/catalog?role=${encodeURIComponent(createRole)}`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) throw new Error("Couldn't load permissions");
+      return res.json() as Promise<{ permissions: AccessItem[]; defaults: string[] }>;
+    },
+    enabled: !!token && user?.role === "org_admin" && createOpen,
+  });
+  useEffect(() => {
+    if (catalog) setForm((prev) => ({ ...prev, access: catalog.defaults }));
+  }, [catalog]);
+  const createFeatures = (catalog?.permissions || []).filter((p) => !p.isModule && form.access.includes(p.key)).length;
+
+  const { data: managers } = useQuery({
+    queryKey: ["/api/users", "managers"],
+    queryFn: async () => {
+      const res = await apiFetch("/api/users?role=manager", { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!token && user?.role === "org_admin" && orgType !== "academy",
+  });
+
+  // Current Education is required for students. An older student saved without it can still be
+  // edited while the field stays empty (the server applies the same rule).
+  const educationRequiredOnEdit = getRoleName(editForm.role) === "student"
+    && (!!selectedMember?.education || selectedMember?.role !== "student" || editForm.education !== "");
 
   return (
     <div className="p-6 space-y-6">
@@ -399,22 +433,13 @@ export default function MembersPage() {
                 </Select>
               </div>
 
-              {getRoleName(form.role) === "member" && (
-                <fieldset className="space-y-2 p-3 rounded-md border" data-testid="member-access">
-                  <legend className="text-sm font-medium px-1">Member Permissions</legend>
-                  <p className="text-xs text-muted-foreground">A member can open only the features ticked here. Choose at least one.</p>
-                  {orgType !== "company" && (
-                    <label className="flex items-center gap-2 text-sm">
-                      <Checkbox checked={form.memberAccess.mcq} onCheckedChange={(on) => setForm({ ...form, memberAccess: { ...form.memberAccess, mcq: !!on } })} data-testid="checkbox-member-mcq" />
-                      MCQ
-                    </label>
-                  )}
-                  <label className="flex items-center gap-2 text-sm">
-                    <Checkbox checked={form.memberAccess.timeTracking} onCheckedChange={(on) => setForm({ ...form, memberAccess: { ...form.memberAccess, timeTracking: !!on } })} data-testid="checkbox-member-time" />
-                    Time Tracking
-                  </label>
-                  <p className="text-xs text-muted-foreground">To give an existing user Member access without a new account, use Settings → Tool Access.</p>
-                </fieldset>
+              {user?.role === "org_admin" && catalog && (
+                <div className="space-y-2 p-3 rounded-md border" data-testid="member-access">
+                  <p className="text-sm font-medium">Feature Access</p>
+                  <p className="text-xs text-muted-foreground">The person gets exactly what is switched on here. The role's usual features start on.</p>
+                  <AccessSwitches items={catalog.permissions} value={form.access} onChange={(access) => setForm({ ...form, access })} />
+                  {getRoleName(form.role) === "member" && createFeatures === 0 && <p className="text-xs text-destructive">A Member needs at least one feature.</p>}
+                </div>
               )}
 
               {isStudentOrEmployee(form.role) && (
@@ -476,7 +501,11 @@ export default function MembersPage() {
                 </div>
               )}
 
-              <div><Label>Current Education</Label><Input data-testid="input-member-education" value={form.education} onChange={(e) => setForm({ ...form, education: e.target.value })} placeholder="e.g. BSc Computer Science" /></div>
+              <div>
+                <Label htmlFor="input-member-education">Current Education{getRoleName(form.role) === "student" ? <span className="text-destructive"> *</span> : <span className="text-muted-foreground text-xs"> (optional)</span>}</Label>
+                <Input id="input-member-education" data-testid="input-member-education" value={form.education} onChange={(e) => setForm({ ...form, education: e.target.value })} placeholder="e.g. BSc Computer Science" required={getRoleName(form.role) === "student"} aria-required={getRoleName(form.role) === "student"} />
+                {getRoleName(form.role) === "student" && <p className="text-xs text-muted-foreground mt-1">Required for students.</p>}
+              </div>
               <div className="space-y-1">
                 <Label>Username &amp; Email</Label>
                 <div className="flex gap-2">
@@ -516,13 +545,13 @@ export default function MembersPage() {
                   <p className="text-xs text-muted-foreground">No domains configured — go to Settings to add email domains.</p>
                 )}
               </div>
-              <div><Label>User ID <span className="text-muted-foreground text-xs">(optional)</span></Label><Input data-testid="input-member-userid" value={form.userId} onChange={(e) => setForm({ ...form, userId: e.target.value })} placeholder="e.g. STU-001 or EMP-042" /></div>
+              <p className="text-xs text-muted-foreground" data-testid="text-userid-auto">The User ID is assigned automatically (next number after your organisation's prefix).</p>
               <div><Label>Biometric ID <span className="text-muted-foreground text-xs">(optional)</span></Label><Input data-testid="input-member-biometric-id" inputMode="numeric" value={form.biometricId} onChange={(e) => setForm({ ...form, biometricId: e.target.value })} placeholder="Number on the fingerprint machine" /></div>
               <p className="text-xs text-muted-foreground flex items-center gap-1.5">
                 <KeyRound className="w-3 h-3" />
                 A temporary password will be auto-generated and shown after creation.
               </p>
-              <Button type="submit" className="w-full" disabled={createUser.isPending || (getRoleName(form.role) === "member" && !form.memberAccess.mcq && !form.memberAccess.timeTracking)} data-testid="button-submit-member">
+              <Button type="submit" className="w-full" disabled={createUser.isPending || (getRoleName(form.role) === "member" && createFeatures === 0)} data-testid="button-submit-member">
                 {createUser.isPending ? "Creating..." : "Create Member"}
               </Button>
             </form>
@@ -817,6 +846,8 @@ export default function MembersPage() {
             if (selectedMember) {
               const data: any = { ...editForm };
               if (!data.password) delete data.password;
+              // Only an admin links an employee to their manager.
+              if (user?.role !== "org_admin" || getRoleName(editForm.role) !== "employee") delete data.managerId;
               if (data.role && data.role.startsWith("system-")) {
                 data.role = data.role.replace("system-", "");
                 delete data.roleId;
@@ -893,8 +924,14 @@ export default function MembersPage() {
               </div>
             )}
 
-            <div><Label>Current Education</Label><Input data-testid="input-edit-education" value={editForm.education} onChange={(e) => setEditForm({ ...editForm, education: e.target.value })} placeholder="e.g. BSc Computer Science" /></div>
-            <div><Label>User ID <span className="text-muted-foreground text-xs">(optional)</span></Label><Input data-testid="input-edit-userid" value={editForm.userId} onChange={(e) => setEditForm({ ...editForm, userId: e.target.value })} placeholder="e.g. STU-001 or EMP-042" /></div>
+            <div>
+              <Label htmlFor="input-edit-education">Current Education{getRoleName(editForm.role) === "student" ? <span className="text-destructive"> *</span> : <span className="text-muted-foreground text-xs"> (optional)</span>}</Label>
+              <Input id="input-edit-education" data-testid="input-edit-education" value={editForm.education} onChange={(e) => setEditForm({ ...editForm, education: e.target.value })} placeholder="e.g. BSc Computer Science" required={educationRequiredOnEdit} aria-required={educationRequiredOnEdit} />
+            </div>
+            <div>
+              <Label>User ID</Label>
+              <p className="text-sm font-mono py-1" data-testid="text-edit-userid">{selectedMember?.userId || <span className="text-muted-foreground font-sans">None (added before IDs were automatic)</span>}</p>
+            </div>
             <div><Label>Biometric ID <span className="text-muted-foreground text-xs">(optional)</span></Label><Input data-testid="input-edit-biometric-id" inputMode="numeric" value={editForm.biometricId} onChange={(e) => setEditForm({ ...editForm, biometricId: e.target.value })} placeholder="Number on the fingerprint machine" /></div>
             <div>
               <Label>Role</Label>
@@ -907,6 +944,21 @@ export default function MembersPage() {
                 </SelectContent>
               </Select>
             </div>
+            {user?.role === "org_admin" && getRoleName(editForm.role) === "employee" && orgType !== "academy" && (
+              <div>
+                <Label>Reports to</Label>
+                <Select value={editForm.managerId || "none"} onValueChange={(v) => setEditForm({ ...editForm, managerId: v === "none" ? "" : v })}>
+                  <SelectTrigger data-testid="select-edit-manager"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No manager</SelectItem>
+                    {(managers || []).filter((m: any) => m.isActive !== false).map((m: any) => (
+                      <SelectItem key={m._id} value={m._id}>{m.firstName} {m.lastName}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">Their manager sees and supervises their leads and tickets.</p>
+              </div>
+            )}
             <div>
               <Label>New Password (leave empty to keep current)</Label>
               <div className="relative">

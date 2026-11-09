@@ -43,7 +43,7 @@ import {
   TrendingUp,
   BarChart3,
 } from "lucide-react";
-import { canUseAcademy, canUseCrm, canUseProgress, canUseTickets, canUseTimeTracking, permitted } from "@/academy/lib/academy";
+import { canSeeMembers, canUseAcademy, canUseCrm, canUseProgress, canUseTickets, canUseTimeTracking, permitted } from "@/academy/lib/academy";
 import { hasMcqAccess } from "@/mcq/lib/roles";
 
 const roleLabels: Record<string, string> = {
@@ -110,7 +110,7 @@ export function AppSidebar() {
       items.push({ group: "Administration", title: "AI Assistant", url: "/assistant-admin", icon: Bot });
       items.push({ group: "Administration", title: "Settings", url: "/settings", icon: Settings });
     } else {
-      if (["org_admin", "manager", "teacher"].includes(user.role)) {
+      if (canSeeMembers(user)) {
         items.push({ group: "People", title: "Members", url: "/members", icon: Users });
       }
       if (permitted(user, "attendance")) items.push({ group: "Attendance", title: "Attendance", url: "/attendance", icon: CalendarCheck });

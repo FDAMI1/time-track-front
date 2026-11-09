@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
-import ToolAccessCard from "@/components/settings/ToolAccessCard";
+import MemberCodeCard from "@/components/settings/MemberCodeCard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
@@ -1386,7 +1386,7 @@ export default function SettingsPage() {
         </Card>
       )}
 
-      {isOrgAdmin && <ToolAccessCard />}
+      {isOrgAdmin && <MemberCodeCard />}
 
       {isOrgAdmin && <OrganizationAssetsCard token={token!} />}
 

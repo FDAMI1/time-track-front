@@ -10,7 +10,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { getInitials } from "@/lib/utils";
 import { hasMcqAccess } from "@/mcq/lib/roles";
-import { canUseAcademy, canUseCrm, canUseProgress, canUseTickets, canUseTimeTracking, featureOn, permitted } from "@/academy/lib/academy";
+import { canSeeMembers, canUseAcademy, canUseCrm, canUseProgress, canUseTickets, canUseTimeTracking, featureOn, permitted } from "@/academy/lib/academy";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -254,7 +254,7 @@ function AuthenticatedRouter() {
       {(user?.role === "superadmin" && !isImpersonating) && (
         <Route path="/organizations" component={OrganizationsPage} />
       )}
-      {["org_admin", "manager", "teacher"].includes(user?.role || "") && (
+      {canSeeMembers(user) && (
         <Route path="/members" component={MembersPage} />
       )}
       {(user?.role === "org_admin" || user?.permissions?.performanceReports === true) && (

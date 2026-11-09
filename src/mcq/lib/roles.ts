@@ -20,5 +20,5 @@ export const hasMcqAccess = (user?: McqUser | null) =>
 export const isMcqAdmin = (role?: string | null) => !!role && MCQ_ADMIN_ROLES.includes(role);
 // Member access to MCQ makes anyone except a student MCQ staff, like a teacher.
 export const isMcqStaff = (user?: McqUser | null) =>
-  !!user?.role && (MCQ_STAFF_ROLES.includes(user.role) || (user.role !== "student" && user.toolAccess?.mcq === true));
+  !!user?.role && (MCQ_STAFF_ROLES.includes(user.role) || (user.role !== "student" && (user.permissions ? user.permissions.mcq === true : user.toolAccess?.mcq === true)));
 export const isMcqTaker = (role?: string | null) => !!role && MCQ_TAKER_ROLES.includes(role);

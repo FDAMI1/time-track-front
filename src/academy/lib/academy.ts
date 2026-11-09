@@ -13,11 +13,15 @@ interface AcademyUser {
   permissions?: Record<string, boolean>;
 }
 
-// Org admins always have every tool; other members only the ones an admin opened to them in Settings.
+// Org admins always have every tool; other members only the ones ticked on their Edit Member page.
 // The superadmin has none: tickets and the CRM belong to each organization.
 export type Tool = "tickets" | "crm";
 export const hasTool = (user: AcademyUser | null | undefined, tool: Tool): boolean =>
-  user?.role === "org_admin" || user?.toolAccess?.[tool] === true;
+  user?.role === "org_admin" || (user?.permissions ? user.permissions[tool] === true : user?.toolAccess?.[tool] === true);
+
+// The read-only member directory (and, for managers and teachers, managing their people).
+export const canSeeMembers = (user: AcademyUser | null | undefined): boolean =>
+  user?.role === "org_admin" || (user?.role !== "member" && user?.role !== "superadmin" && user?.permissions?.members === true);
 export const canUseTickets = (user: AcademyUser | null | undefined): boolean =>
   user?.organizationId?.features?.tickets !== false && hasTool(user, "tickets");
 
