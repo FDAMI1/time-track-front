@@ -18,6 +18,9 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  // Only needed when the same login exists in two organizations' databases; the server asks for it.
+  const [orgCode, setOrgCode] = useState("");
+  const [showOrgCode, setShowOrgCode] = useState(false);
   const branding = getSavedBranding();
   const appName = branding.appName || "";
   const logoType = branding.logoType || "text";
@@ -34,9 +37,11 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       const isEmail = credential.includes("@");
-      await login(credential.trim(), password, isEmail);
+      await login(credential.trim(), password, isEmail, orgCode.trim() ? { organizationCode: orgCode.trim() } : undefined);
     } catch (err: any) {
-      setError(err.message || "Login failed");
+      const message = err.message || "Login failed";
+      if (/organisation code/i.test(message)) setShowOrgCode(true);
+      setError(message);
     } finally {
       setIsLoading(false);
     }
@@ -109,6 +114,18 @@ export default function LoginPage() {
                   </button>
                 </div>
               </div>
+
+              {showOrgCode ? (
+                <div className="space-y-2">
+                  <Label htmlFor="org-code">Organisation code</Label>
+                  <Input id="org-code" data-testid="input-org-code" placeholder="e.g. acme-academy-1a2b" value={orgCode} onChange={(e) => setOrgCode(e.target.value)} autoComplete="organization" />
+                  <p className="text-xs text-muted-foreground">Your admin can find it in Settings → Database.</p>
+                </div>
+              ) : (
+                <button type="button" className="text-xs text-muted-foreground underline-offset-4 hover:underline" onClick={() => setShowOrgCode(true)} data-testid="button-show-org-code">
+                  Have an organisation code?
+                </button>
+              )}
 
               <Button
                 type="submit"

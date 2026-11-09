@@ -27,7 +27,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   token: string | null;
-  login: (credential: string, password: string, isEmail?: boolean, extras?: Record<string, number>) => Promise<void>;
+  login: (credential: string, password: string, isEmail?: boolean, extras?: Record<string, string | number>) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
   // Adopts a replacement token (issued after a password change, which ends
@@ -102,7 +102,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => { document.removeEventListener("visibilitychange", onVisible); window.clearInterval(timer); };
   }, [token, fetchUser]);
 
-  const login = async (credential: string, password: string, isEmail?: boolean, extras?: Record<string, number>) => {
+  const login = async (credential: string, password: string, isEmail?: boolean, extras?: Record<string, string | number>) => {
     const body = isEmail
       ? { email: credential, password, ...extras }
       : { username: credential, password, ...extras };
