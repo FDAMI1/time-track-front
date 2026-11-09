@@ -2,7 +2,7 @@ import { apiFetch } from "@/lib/api";
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
-import { applyBrandingCss, resetBrandingCss } from "@/lib/branding";
+import { applyBrandingCss, resetBrandingCss, saveBranding } from "@/lib/branding";
 import { queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -840,51 +840,52 @@ export default function SettingsPage() {
   }, [isOrgAdmin, token]);
 
   const saveTheme = async () => {
-    localStorage.setItem("app_theme", JSON.stringify(themeForm));
-    applyBrandingCss(themeForm);
-
+    let theme = themeForm;
     if (logoFile) {
-      try {
-        const fd = new FormData();
-        fd.append("logo", logoFile);
-        const r = await apiFetch("/api/organizations/my/logo", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-          body: fd,
-        });
-        if (r.ok) {
-          const { logoUrl } = await r.json();
-          const updated = { ...themeForm, logoUrl, logoType: "image" as const };
-          setThemeForm(updated);
-          localStorage.setItem("app_theme", JSON.stringify(updated));
-          applyBrandingCss(updated);
-          setLogoFile(null);
-          if (isOrgAdmin) {
-            try {
-              await apiFetch("/api/organizations/my/branding", {
-                method: "PUT",
-                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                body: JSON.stringify(updated),
-              });
-            } catch {}
-          }
-          toast({ title: "Theme settings saved" });
-          return;
-        }
-      } catch {}
+      const fd = new FormData();
+      fd.append("logo", logoFile);
+      const r = await apiFetch("/api/organizations/my/logo", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: fd }).catch(() => null);
+      if (!r?.ok) {
+        const { message } = r ? await r.json().catch(() => ({ message: "" })) : { message: "" };
+        toast({ title: "Logo not saved", description: message || "Upload failed. Try again.", variant: "destructive" });
+        return;
+      }
+      const { logoUrl } = await r.json();
+      theme = { ...themeForm, logoUrl, logoType: "image" as const };
+      setThemeForm(theme);
+      setLogoFile(null);
     }
+    localStorage.setItem("app_theme", JSON.stringify(theme));
+    applyBrandingCss(theme);
 
     if (isOrgAdmin) {
-      try {
-        await apiFetch("/api/organizations/my/branding", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify(themeForm),
-        });
-      } catch {}
+      // The logo image itself is saved by upload/removal, never by this form.
+      const { logoUrl: _logoUrl, ...rest } = theme as typeof theme & { logoUrl?: string };
+      const r = await apiFetch("/api/organizations/my/branding", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(rest),
+      }).catch(() => null);
+      if (!r?.ok) {
+        toast({ title: "Theme not saved", description: "Try again.", variant: "destructive" });
+        return;
+      }
     }
-
     toast({ title: "Theme settings saved" });
+  };
+
+  // Removes the organization's logo for everyone; they see the default branding again.
+  const removeLogo = async () => {
+    const r = await apiFetch("/api/organizations/my/logo", { method: "DELETE", headers: { Authorization: `Bearer ${token}` } }).catch(() => null);
+    if (!r?.ok) {
+      toast({ title: "Logo not removed", description: "Try again.", variant: "destructive" });
+      return;
+    }
+    const updated = { ...themeForm, logoUrl: "", logoType: "text" as const };
+    setThemeForm(updated);
+    setLogoFile(null);
+    saveBranding(updated);
+    toast({ title: "Logo removed" });
   };
 
   const resetTheme = () => {
@@ -995,6 +996,11 @@ export default function SettingsPage() {
                         <Upload className="w-3.5 h-3.5 mr-1" />
                         {logoFile ? logoFile.name.slice(0, 15) + "…" : "Choose file"}
                       </Button>
+                      {themeForm.logoUrl && !logoFile && (
+                        <Button type="button" size="sm" variant="ghost" onClick={removeLogo} data-testid="button-remove-logo">
+                          <Trash2 className="w-3.5 h-3.5 mr-1" />Remove
+                        </Button>
+                      )}
                       <input ref={logoInputRef} type="file" accept="image/png,image/jpeg" className="hidden" onChange={(e) => setLogoFile(e.target.files?.[0] || null)} data-testid="input-logo-file" />
                       {logoFile && logoFile.type === "image/jpeg" && (
                         <p className="text-xs text-amber-600 mt-1">Tip: PNG works best for transparent backgrounds</p>

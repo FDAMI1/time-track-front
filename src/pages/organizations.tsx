@@ -1,6 +1,6 @@
 import { apiFetch } from "@/lib/api";
 import { getInitials } from "@/lib/utils";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
 import { queryClient } from "@/lib/queryClient";
@@ -44,15 +44,27 @@ const EMPTY_FORM = {
 function OrgBranding({ org, token }: { org: { _id: string; name: string; branding?: { logoUrl?: string; logoType?: string } }; token: string | null }) {
   const { toast } = useToast();
   const input = useRef<HTMLInputElement>(null);
-  const upload = useMutation({
-    mutationFn: async (file: File) => {
-      const body = new FormData();
-      body.append("logo", file);
-      const res = await apiFetch(`/api/organizations/${org._id}/logo`, { method: "POST", headers: { Authorization: `Bearer ${token}` }, body });
-      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || "Upload failed");
-      return res.json();
+  const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState("");
+  useEffect(() => {
+    if (!file) { setPreview(""); return; }
+    const url = URL.createObjectURL(file);
+    setPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+  const change = useMutation({
+    mutationFn: async (next: File | null) => {
+      const init: RequestInit = { method: next ? "POST" : "DELETE", headers: { Authorization: `Bearer ${token}` } };
+      if (next) { const body = new FormData(); body.append("logo", next); init.body = body; }
+      const res = await apiFetch(`/api/organizations/${org._id}/logo`, init);
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || "Logo not saved");
+      return next;
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/organizations", org._id] }); toast({ title: "Logo saved" }); },
+    onSuccess: (next) => {
+      setFile(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/organizations", org._id] });
+      toast({ title: next ? "Logo saved" : "Logo removed" });
+    },
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
   const logo = org.branding?.logoType === "image" ? org.branding.logoUrl : "";
@@ -60,14 +72,30 @@ function OrgBranding({ org, token }: { org: { _id: string; name: string; brandin
     <div className="space-y-3">
       <div className="flex items-center gap-4">
         <div className="w-24 h-24 rounded-lg border bg-muted/40 flex items-center justify-center overflow-hidden" data-testid="org-logo-preview">
-          <RemoteImage src={logo || ""} alt={`${org.name} logo`} className="max-w-full max-h-full object-contain" fallback={<span className="text-xs text-muted-foreground text-center px-2">Default branding</span>} />
+          <RemoteImage src={preview || logo || ""} alt={`${org.name} logo`} className="max-w-full max-h-full object-contain" fallback={<span className="text-xs text-muted-foreground text-center px-2">Default branding</span>} />
         </div>
         <div className="space-y-2">
-          <input ref={input} type="file" accept="image/png,image/jpeg" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) upload.mutate(file); e.target.value = ""; }} data-testid="input-org-logo" />
-          <Button size="sm" disabled={upload.isPending} onClick={() => input.current?.click()} data-testid="button-upload-org-logo">
-            <Upload className="w-3.5 h-3.5 mr-1" />{upload.isPending ? "Uploading..." : logo ? "Replace Logo" : "Upload Organisation Logo"}
-          </Button>
-          <p className="text-xs text-muted-foreground">PNG or JPG, up to 2 MB. A square logo looks best.</p>
+          <input ref={input} type="file" accept="image/png,image/jpeg" className="hidden" onChange={(e) => { setFile(e.target.files?.[0] || null); e.target.value = ""; }} data-testid="input-org-logo" />
+          {file ? (
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" disabled={change.isPending} onClick={() => change.mutate(file)} data-testid="button-save-org-logo">
+                {change.isPending ? "Saving..." : "Save Logo"}
+              </Button>
+              <Button size="sm" variant="outline" disabled={change.isPending} onClick={() => setFile(null)} data-testid="button-cancel-org-logo">Cancel</Button>
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" disabled={change.isPending} onClick={() => input.current?.click()} data-testid="button-upload-org-logo">
+                <Upload className="w-3.5 h-3.5 mr-1" />{logo ? "Replace Logo" : "Upload Organisation Logo"}
+              </Button>
+              {logo && (
+                <Button size="sm" variant="outline" disabled={change.isPending} onClick={() => change.mutate(null)} data-testid="button-remove-org-logo">
+                  <Trash2 className="w-3.5 h-3.5 mr-1" />Remove
+                </Button>
+              )}
+            </div>
+          )}
+          <p className="text-xs text-muted-foreground">{file ? "Preview: not saved yet." : "PNG or JPG, up to 2 MB. A square logo looks best."}</p>
         </div>
       </div>
       <p className="text-xs text-muted-foreground">Shown to everyone in {org.name} in the sidebar, the top bar and the browser tab. Without a logo they see the default branding.</p>

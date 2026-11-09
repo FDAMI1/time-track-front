@@ -355,12 +355,21 @@ function AppLayout() {
     if (saved) {
       try { applyBrandingCss(JSON.parse(saved)); } catch {}
     }
-    if (token && user?.organizationId) {
+    if (!token || !user?.organizationId) return;
+    // Re-read when the tab comes back into view, so a logo an admin changed reaches
+    // everyone without a reload. At most once a minute.
+    let last = 0;
+    const refresh = () => {
+      if (document.visibilityState !== "visible" || Date.now() - last < 60_000) return;
+      last = Date.now();
       apiFetch("/api/organizations/my/branding", { headers: { Authorization: `Bearer ${token}` } })
         .then(r => r.ok ? r.json() : null)
         .then(data => { if (data) saveBranding(data); })
         .catch(() => {});
-    }
+    };
+    refresh();
+    document.addEventListener("visibilitychange", refresh);
+    return () => document.removeEventListener("visibilitychange", refresh);
   }, [user?._id, token]);
 
   if (isLoading) {
