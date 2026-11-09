@@ -37,7 +37,13 @@ interface Setup {
   knowledgeUpdatedAt: string | null;
   minWords: number;
   maxWords: number;
+  enabled: boolean;
+  model: string;
+  platformModel: string;
+  platformAvailable: boolean;
+  lastTest: { ok: boolean; at: string; message: string } | null;
 }
+interface ModelOption { id: string; label: string }
 
 const SETUP_URL = "/api/assistant/admin/setup";
 // The chat widget checks availability once per page load; ask it again after a setting changes.
@@ -61,9 +67,25 @@ function SetupTab() {
     onError,
   });
   const testKey = useMutation({
-    mutationFn: () => api.post<{ message: string }>(`${SETUP_URL}/test`),
-    onSuccess: (res) => toast({ title: "Connection works", description: res.message }),
+    mutationFn: () => api.post<{ message: string; setup: Setup }>(`${SETUP_URL}/test`),
+    onSuccess: (res) => { saved(res.setup); toast({ title: "Connection works", description: res.message }); },
+    onError: (err: Error) => { onError(err); queryClient.invalidateQueries({ queryKey: [SETUP_URL] }); },
+  });
+  const removeKey = useMutation({
+    mutationFn: () => api.delete<Setup>(`${SETUP_URL}/key`),
+    onSuccess: (next) => { saved(next); refreshWidget(); toast({ title: "API key removed" }); },
     onError,
+  });
+  const saveSettings = useMutation({
+    mutationFn: (body: { enabled?: boolean; model?: string }) => api.put<Setup>(`${SETUP_URL}/settings`, body),
+    onSuccess: (next) => { saved(next); refreshWidget(); toast({ title: "Assistant settings saved" }); },
+    onError,
+  });
+  // The models this organization's own key may use, as Google lists them.
+  const { data: models } = useQuery({
+    queryKey: [SETUP_URL, "models", data?.keyHint],
+    queryFn: () => api.get<ModelOption[]>(`${SETUP_URL}/models`),
+    enabled: !!data?.hasKey,
   });
   const saveKnowledge = useMutation({
     mutationFn: (knowledge: string) => api.put<Setup>(`${SETUP_URL}/knowledge`, { knowledge }),
@@ -88,11 +110,27 @@ function SetupTab() {
   return (
     <div className="space-y-4">
       <Card>
-        <CardHeader><CardTitle className="text-base">Gemini API Key</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base">Gemini AI</CardTitle></CardHeader>
         <CardContent className="space-y-3">
+          <div className="flex items-start justify-between gap-3 rounded-md border p-3">
+            <label htmlFor="assistant-enabled" className="text-sm">
+              <span className="font-medium">Gemini integration</span>
+              <span className="block text-xs text-muted-foreground">Off: nobody in your organization uses AI (the assistant and ticket drafts).</span>
+            </label>
+            <Switch id="assistant-enabled" checked={data.enabled} disabled={saveSettings.isPending} onCheckedChange={(enabled) => saveSettings.mutate({ enabled })} data-testid="switch-assistant-enabled" />
+          </div>
           <p className="text-sm" data-testid="text-key-status">
-            {data.hasKey ? `A key ending in ${data.keyHint} is saved. The assistant uses it to answer your members.` : "No key saved yet. The assistant stays off until you add one."}
+            {data.hasKey
+              ? `A key ending in ${data.keyHint} is saved. Your organization uses only this key.`
+              : data.platformAvailable
+                ? "No key of your own yet. Your organization shares the platform's key, with an hourly limit. Add your own key for your own quota."
+                : "No key saved yet. The assistant stays off until you add one."}
           </p>
+          {data.lastTest && (
+            <p className={`text-xs ${data.lastTest.ok ? "text-green-700 dark:text-green-400" : "text-destructive"}`} data-testid="text-key-last-test">
+              Connection {data.lastTest.ok ? "working" : "failed"} · checked {new Date(data.lastTest.at).toLocaleString()}
+            </p>
+          )}
           <form className="flex flex-col sm:flex-row gap-2" onSubmit={(e) => { e.preventDefault(); saveKey.mutate(); }}>
             <div className="relative flex-1">
               <Label htmlFor="gemini-key" className="sr-only">Gemini API key</Label>
@@ -103,7 +141,20 @@ function SetupTab() {
             </div>
             <Button type="submit" disabled={!apiKey.trim() || saveKey.isPending} data-testid="button-save-key">{saveKey.isPending ? "Checking..." : data.hasKey ? "Replace Key" : "Save Key"}</Button>
           </form>
-          <Button variant="outline" size="sm" disabled={!data.hasKey || testKey.isPending} onClick={() => testKey.mutate()} data-testid="button-test-key">{testKey.isPending ? "Testing..." : "Test Connection"}</Button>
+          <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" size="sm" disabled={!data.hasKey || testKey.isPending} onClick={() => testKey.mutate()} data-testid="button-test-key">{testKey.isPending ? "Testing..." : "Test Connection"}</Button>
+            {data.hasKey && <Button variant="ghost" size="sm" disabled={removeKey.isPending} onClick={() => removeKey.mutate()} data-testid="button-remove-key">Remove Key</Button>}
+          </div>
+          {data.hasKey && (
+            <div className="space-y-1 max-w-sm">
+              <Label htmlFor="assistant-model">Model</Label>
+              <select id="assistant-model" className="w-full h-9 rounded-md border bg-background px-2 text-sm" value={data.model} disabled={!models || saveSettings.isPending} onChange={(e) => saveSettings.mutate({ model: e.target.value })} data-testid="select-assistant-model">
+                <option value="">Platform default ({data.platformModel})</option>
+                {(models || []).map((m) => <option key={m.id} value={m.id}>{m.label} ({m.id})</option>)}
+              </select>
+              <p className="text-xs text-muted-foreground">Only models Google offers for your key are listed. Flash-Lite is the fastest and cheapest.</p>
+            </div>
+          )}
           <p className="text-xs text-muted-foreground">Create a key in Google AI Studio. We check it with Google before saving, store it encrypted, and never show it again.</p>
         </CardContent>
       </Card>
