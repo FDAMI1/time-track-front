@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileSpreadsheet, FileText, Trash2, GraduationCap } from "lucide-react";
 import { Picker } from "@/academy/components/common";
 import StudentProgressView from "@/academy/components/StudentProgressView";
+import CourseImage from "@/academy/components/CourseImage";
 import { progressPdf, type StudentProgress } from "@/academy/lib/progress";
 import type { Batch, Course, CourseTopic } from "@/academy/lib/academy";
 
@@ -67,6 +68,7 @@ function Syllabus() {
       <div className="max-w-sm"><Picker label="Course" value={courseId} onChange={setCourseId} options={(courses || []).map((c) => ({ value: c._id, label: c.title }))} testId="select-syllabus-course" /></div>
       {courseId && (
         <>
+          {courses?.find((c) => c._id === courseId) && <CourseImage course={courses.find((c) => c._id === courseId)!} />}
           <form className="flex gap-2 flex-wrap" onSubmit={(e) => { e.preventDefault(); if (form.title.trim()) add.mutate(); }}>
             <Input className="w-40" placeholder="Subject or module" value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} aria-label="Subject or module" data-testid="input-topic-subject" />
             <Input className="flex-1 min-w-[180px]" placeholder="Topic" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} aria-label="Topic" data-testid="input-topic-title" />

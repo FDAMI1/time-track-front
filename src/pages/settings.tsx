@@ -12,6 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import MemberCodeCard from "@/components/settings/MemberCodeCard";
 import DatabaseCard from "@/components/settings/DatabaseCard";
+import StorageCard from "@/components/settings/StorageCard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
@@ -1389,6 +1390,7 @@ export default function SettingsPage() {
 
       {isOrgAdmin && <MemberCodeCard />}
       {isOrgAdmin && <DatabaseCard />}
+      {isOrgAdmin && <StorageCard />}
 
       {isOrgAdmin && <OrganizationAssetsCard token={token!} />}
 
