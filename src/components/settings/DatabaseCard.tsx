@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Database, CheckCircle2, XCircle } from "lucide-react";
+import MigrationPanel from "@/components/settings/MigrationPanel";
 
 export interface DatabaseSettings {
   mode: "shared" | "dedicated";
@@ -26,7 +27,7 @@ export const DATABASE_KEY = ["/api/tenant-database"];
 
 // Admin Settings → Database. The address is typed here, tested, and saved encrypted; it is never
 // shown again. Saving does not switch databases: that needs the verified migration below it.
-export default function DatabaseCard({ children }: { children?: React.ReactNode }) {
+export default function DatabaseCard() {
   const api = useMcqApi();
   const { toast } = useToast();
   const { data, isLoading, error } = useQuery({ queryKey: DATABASE_KEY, queryFn: () => api.get<DatabaseSettings>("/api/tenant-database") });
@@ -117,7 +118,7 @@ export default function DatabaseCard({ children }: { children?: React.ReactNode 
             {result.message}
           </p>
         )}
-        {children}
+        <MigrationPanel settings={data} />
       </CardContent>
     </Card>
   );
