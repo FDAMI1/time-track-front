@@ -229,7 +229,7 @@ export default function SalarySetupPage() {
   return (
     <div className="p-6 space-y-8">
       <div>
-        <h1 className="text-2xl font-bold" data-testid="text-salary-setup-title">Salary Setup</h1>
+        <h1 className="page-title" data-testid="text-salary-setup-title">Salary Setup</h1>
         <p className="text-muted-foreground text-sm mt-1">Configure salary structures and the input fields required before generating salary slips</p>
       </div>
 

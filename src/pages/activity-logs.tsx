@@ -117,7 +117,7 @@ export default function ActivityLogsPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold" data-testid="text-activity-logs-title">Activity Logs</h1>
+          <h1 className="page-title" data-testid="text-activity-logs-title">Activity Logs</h1>
           <p className="text-muted-foreground">View all activity and audit logs</p>
         </div>
         <Badge variant="secondary" data-testid="badge-total-logs">

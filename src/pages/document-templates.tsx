@@ -165,7 +165,7 @@ export default function DocumentTemplatesPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold" data-testid="text-page-title">Document Templates</h1>
+          <h1 className="page-title" data-testid="text-page-title">Document Templates</h1>
           <p className="text-muted-foreground text-sm mt-1">
             Upload pre-designed templates (HTML or DOCX) — up to 10MB
           </p>

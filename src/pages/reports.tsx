@@ -44,7 +44,7 @@ export default function ReportsPage() {
     <div className="p-4 sm:p-6 space-y-4">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold">Reports</h1>
+          <h1 className="page-title">Reports</h1>
           <p className="text-sm text-muted-foreground">Hours, sessions, attendance, leads and tickets for each person</p>
         </div>
         <div className="flex gap-2 items-end flex-wrap">

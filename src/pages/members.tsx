@@ -19,6 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Search, Users, Pencil, Trash2, Eye, EyeOff, Phone, GraduationCap, MessageCircle, Clock, KeyRound, Copy, Check } from "lucide-react";
 import PersonPermissions from "@/components/settings/PersonPermissions";
+import { EmptyState, ErrorState } from "@/components/ui/states";
 import AccessSwitches, { type AccessItem } from "@/components/members/AccessSwitches";
 import { Link } from "wouter";
 
@@ -80,7 +81,7 @@ export default function MembersPage() {
     assignedSchedules: [] as string[],
   });
 
-  const { data: members, isLoading } = useQuery({
+  const { data: members, isLoading, isError: membersError, refetch: refetchMembers } = useQuery({
     queryKey: ["/api/users"],
     queryFn: async () => {
       const res = await apiFetch("/api/users", {
@@ -398,7 +399,7 @@ export default function MembersPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold" data-testid="text-members-title">Members</h1>
+          <h1 className="page-title" data-testid="text-members-title">Members</h1>
           <p className="text-muted-foreground">Manage team members in your organization</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -586,11 +587,14 @@ export default function MembersPage() {
 
       {isLoading ? (
         <Card><CardContent className="p-6"><Skeleton className="h-64 w-full" /></CardContent></Card>
+      ) : membersError ? (
+        <Card><CardContent><ErrorState what="Members" onRetry={() => refetchMembers()} /></CardContent></Card>
       ) : filtered.length === 0 ? (
         <Card>
-          <CardContent className="py-12 text-center">
-            <Users className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-            <p className="text-muted-foreground">No members found</p>
+          <CardContent>
+            {search || filterRole !== "all"
+              ? <EmptyState icon={Users} title="No members match" description="Try another name, or show all roles." />
+              : <EmptyState icon={Users} title="No members yet" description={canAddMembers ? "Add the first person with Add Member." : "People your admin adds appear here."} />}
           </CardContent>
         </Card>
       ) : (

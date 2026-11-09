@@ -11,7 +11,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Users, UserCheck, UserX, Clock, CalendarOff, TrendingUp, AlertCircle, Download, FileSpreadsheet, FileText, ChevronDown } from "lucide-react";
+import { Users, UserCheck, UserX, Clock, CalendarOff, TrendingUp, AlertCircle, Download, FileSpreadsheet, FileText, ChevronDown, CalendarCheck } from "lucide-react";
+import { EmptyState } from "@/components/ui/states";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { Button } from "@/components/ui/button";
 
@@ -120,7 +121,7 @@ export default function OrgAdminDashboard() {
     <div className="p-6 space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold" data-testid="text-org-dashboard-title">
+          <h1 className="page-title" data-testid="text-org-dashboard-title">
             {data?.organization?.name || "Organization"} Dashboard
           </h1>
           <p className="text-muted-foreground">
@@ -269,7 +270,7 @@ export default function OrgAdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="h-72">
-              {(data?.chartData || []).length > 0 ? (
+              {(data?.chartData || []).some((d: { present?: number; late?: number; absent?: number }) => (d.present || 0) + (d.late || 0) + (d.absent || 0) > 0) ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={data?.chartData || []}>
                     <XAxis dataKey="day" tick={{ fontSize: 12 }} />
@@ -282,8 +283,8 @@ export default function OrgAdminDashboard() {
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="flex items-center justify-center h-full text-muted-foreground">
-                  No attendance data for this period
+                <div className="flex items-center justify-center h-full">
+                  <EmptyState icon={CalendarCheck} title="No attendance recorded yet" description="Check-ins for this period appear here as people mark attendance." testId="state-empty-attendance-chart" />
                 </div>
               )}
             </div>

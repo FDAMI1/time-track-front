@@ -73,7 +73,7 @@ export default function McqSettingsPage() {
   return (
     <div className="space-y-6 max-w-3xl">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">MCQ Settings</h1>
+        <h1 className="page-title">MCQ Settings</h1>
         <p className="text-muted-foreground text-sm mt-1">PDF templates and proctoring defaults for your organization</p>
       </div>
 

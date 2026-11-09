@@ -19,6 +19,7 @@ import FilterPanel from "@/tickets/components/list/FilterPanel";
 import ViewSwitcher from "@/tickets/components/list/ViewSwitcher";
 import BulkBar from "@/tickets/components/list/BulkBar";
 import type { TicketList, TicketView } from "@/tickets/lib/types";
+import { EmptyState } from "@/components/ui/states";
 
 const PAGE_SIZE = 50;
 const BOARD_SIZE = 100;
@@ -95,9 +96,8 @@ export default function TicketsPage() {
   const list = isLoading || !data ? (
     <div className="space-y-3">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-16 w-full" />)}</div>
   ) : tickets.length === 0 ? (
-    <Card><CardContent className="py-12 text-center text-muted-foreground">
-      <LifeBuoy className="w-8 h-8 mx-auto mb-3" />
-      <p>No tickets found</p>
+    <Card><CardContent>
+      <EmptyState icon={LifeBuoy} title="No tickets here" description="Change the view or filters, or raise a new ticket." />
     </CardContent></Card>
   ) : board && meta ? (
     <TicketBoard tickets={tickets} meta={meta} />
@@ -109,7 +109,7 @@ export default function TicketsPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold text-foreground break-words">{title}</h1>
+          <h1 className="page-title break-words">{title}</h1>
           <p className="text-muted-foreground text-sm mt-1">{data?.total ?? 0} tickets</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">

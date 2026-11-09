@@ -141,7 +141,7 @@ export default function FeesPage() {
   return (
     <div className="p-4 sm:p-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">{isStudent ? "My Fees" : "Fees"}</h1>
+        <h1 className="page-title">{isStudent ? "My Fees" : "Fees"}</h1>
         <p className="text-muted-foreground text-sm mt-1">Records of fees charged and paid. Payments aren't taken online.</p>
       </div>
       {isStudent ? <Invoices isAdmin={false} isStudent /> : (

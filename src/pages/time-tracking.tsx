@@ -19,6 +19,7 @@ import ManualEntryDialog from "@/components/time/ManualEntryDialog";
 import ApprovalsPanel from "@/components/time/ApprovalsPanel";
 import { EntryHistory, StatusBadge, statusOf } from "@/components/time/EntryStatus";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
+import { EmptyState } from "@/components/ui/states";
 
 const COLORS = ["hsl(217, 91%, 45%)", "hsl(142, 76%, 36%)", "hsl(271, 81%, 46%)", "hsl(37, 91%, 45%)", "hsl(0, 84%, 45%)", "hsl(180, 70%, 35%)", "hsl(330, 70%, 45%)", "hsl(50, 90%, 40%)"];
 
@@ -253,7 +254,7 @@ export default function TimeTrackingPage() {
     <div className="p-6 space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold" data-testid="text-time-tracking-title">Time Tracking</h1>
+          <h1 className="page-title" data-testid="text-time-tracking-title">Time Tracking</h1>
           <p className="text-muted-foreground">Track your daily work hours and tasks</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -462,10 +463,8 @@ export default function TimeTrackingPage() {
           )}
           {!isLoading && Object.keys(groupedEntries).length === 0 && (
             <Card>
-              <CardContent className="p-8 text-center">
-                <Timer className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-                <p className="text-muted-foreground">No time entries found for this period</p>
-                <p className="text-sm text-muted-foreground mt-1">Start the timer above, or add a manual entry for time already worked</p>
+              <CardContent>
+                <EmptyState icon={Timer} title="No time entries for this period" description="Start the timer above, or add a manual entry for time already worked." />
               </CardContent>
             </Card>
           )}

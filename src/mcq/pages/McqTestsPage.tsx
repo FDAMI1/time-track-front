@@ -20,6 +20,7 @@ import { userName, type McqTest, type OrgUser, type PublishRule, type TestStatus
 import { AssignStudentsDialog, useOrgUsers } from "@/mcq/components/TestAssignDialogs";
 import { useClampPage } from "@/mcq/lib/usePagination";
 import TestWindowFields, { fromLocalInput } from "@/mcq/components/TestWindowFields";
+import { EmptyState } from "@/components/ui/states";
 
 const PAGE_SIZE = 20;
 
@@ -90,7 +91,7 @@ export default function McqTestsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Tests</h1>
+          <h1 className="page-title">Tests</h1>
           <p className="text-muted-foreground text-sm mt-1">{total} tests total</p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
@@ -227,7 +228,7 @@ export default function McqTestsPage() {
           )}
         </>
       ) : (
-        <Card><CardContent className="p-12 text-center"><ClipboardList className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" /><p className="text-muted-foreground">No tests found</p></CardContent></Card>
+        <Card><CardContent><EmptyState icon={ClipboardList} title="No tests found" description="Create a test, or clear the search to see every test." /></CardContent></Card>
       )}
     </div>
   );

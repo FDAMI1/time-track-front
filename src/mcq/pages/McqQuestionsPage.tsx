@@ -75,7 +75,7 @@ export default function McqQuestionsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Question Bank</h1>
+          <h1 className="page-title">Question Bank</h1>
           <p className="text-muted-foreground text-sm mt-1">{total} questions</p>
         </div>
         <Button onClick={() => { setEditing(null); setDialogOpen(true); }} data-testid="button-add-question">

@@ -45,7 +45,7 @@ function StaffResults() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-foreground" data-testid="text-results-title">Student Results</h1>
+        <h1 className="page-title" data-testid="text-results-title">Student Results</h1>
         <p className="text-muted-foreground text-sm mt-1">View individual student performance and answer breakdowns</p>
       </div>
       <div className="flex flex-col sm:flex-row gap-3">
@@ -135,7 +135,7 @@ function TakerResults() {
 
   return (
     <div className="space-y-6">
-      <div><h1 className="text-2xl font-bold text-foreground">My Results</h1><p className="text-muted-foreground text-sm mt-1">{submitted.length} completed test(s)</p></div>
+      <div><h1 className="page-title">My Results</h1><p className="text-muted-foreground text-sm mt-1">{submitted.length} completed test(s)</p></div>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard label="Average Score" value={`${pctOf(totalScore, totalMarks)}%`} icon={<TrendingUp className="w-5 h-5" />} tone="1" />
         <StatCard label="Best Score" value={`${best}%`} icon={<Trophy className="w-5 h-5" />} tone="2" />

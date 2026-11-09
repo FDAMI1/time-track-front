@@ -79,7 +79,7 @@ export default function EnquiriesPage() {
     <div className="p-4 sm:p-6 space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Leads</h1>
+          <h1 className="page-title">Leads</h1>
           <p className="text-muted-foreground text-sm mt-1">{data?.total ?? 0} leads</p>
         </div>
         <div className="flex gap-2 flex-wrap">

@@ -307,7 +307,7 @@ export default function AssistantAdminPage() {
   return (
     <div className="p-4 sm:p-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">AI Assistant</h1>
+        <h1 className="page-title">AI Assistant</h1>
         <p className="text-muted-foreground text-sm mt-1">{superadmin ? "See how the assistant is used across organizations" : "Set up the assistant that answers your members' questions"}</p>
       </div>
       <Tabs defaultValue={superadmin ? "monitoring" : "setup"}>

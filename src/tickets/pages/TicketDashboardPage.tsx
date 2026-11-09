@@ -59,7 +59,7 @@ export default function TicketDashboardPage() {
   if (!data) return <Skeleton className="h-64 w-full" />;
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-foreground">Ticket Dashboard</h1>
+      <h1 className="page-title">Ticket Dashboard</h1>
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
         {tiles.map((tile) => (
           <Link key={tile.label} href={tile.href} className="rounded-lg border bg-card p-4 hover:bg-accent transition-colors" data-testid={`tile-${tile.label.toLowerCase().replace(/\s+/g, "-")}`}>

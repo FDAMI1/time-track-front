@@ -934,7 +934,7 @@ export default function SettingsPage() {
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold" data-testid="text-settings-title">Settings</h1>
+        <h1 className="page-title" data-testid="text-settings-title">Settings</h1>
         <p className="text-muted-foreground">
           {isSuperAdmin ? "Customize platform appearance and manage your account" : canManagePolicy ? "Configure attendance policies and account settings" : "Manage your account"}
         </p>

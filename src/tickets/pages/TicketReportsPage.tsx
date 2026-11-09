@@ -68,7 +68,7 @@ export default function TicketReportsPage() {
     <div className="space-y-6">
       <div className="flex items-end justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Ticket Reports</h1>
+          <h1 className="page-title">Ticket Reports</h1>
           <p className="text-muted-foreground text-sm mt-1">Based on the date each ticket was created</p>
         </div>
         <div className="flex items-end gap-3 flex-wrap">

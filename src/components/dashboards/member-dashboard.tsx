@@ -265,7 +265,7 @@ export default function MemberDashboard() {
     <div className="p-6 space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold" data-testid="text-member-dashboard-title">
+          <h1 className="page-title" data-testid="text-member-dashboard-title">
             Welcome, {user?.firstName}
           </h1>
           <p className="text-muted-foreground">

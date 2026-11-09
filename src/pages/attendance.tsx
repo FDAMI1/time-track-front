@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { BiometricPanel } from "@/components/biometric-panel";
 import { CalendarCheck, CheckCircle2, Clock, XCircle, Users, Bell, Check, X, UserCheck, FileDown, Copy } from "lucide-react";
+import { EmptyState } from "@/components/ui/states";
 
 const statusBadge: Record<string, { className: string; label: string }> = {
   present: { className: "bg-chart-2/10 text-chart-2", label: "Present" },
@@ -102,7 +103,7 @@ export default function AttendancePage() {
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold" data-testid="text-attendance-title">Attendance</h1>
+        <h1 className="page-title" data-testid="text-attendance-title">Attendance</h1>
         <p className="text-muted-foreground">Track and manage attendance records</p>
       </div>
 
@@ -174,10 +175,7 @@ function MyAttendanceTab({ records, isLoading }: { records: any[]; isLoading: bo
         {isLoading ? (
           <div className="p-6"><Skeleton className="h-48 w-full" /></div>
         ) : (records || []).length === 0 ? (
-          <div className="py-12 text-center">
-            <CalendarCheck className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
-            <p className="text-muted-foreground">No attendance records yet</p>
-          </div>
+          <EmptyState icon={CalendarCheck} title="No attendance records yet" description="Records appear here once people check in for a session." />
         ) : (
           <Table>
             <TableHeader>

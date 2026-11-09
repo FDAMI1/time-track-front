@@ -49,7 +49,7 @@ export default function McqResultDetailPage() {
       <div className="space-y-6 max-w-3xl mx-auto">
         <div className="flex items-center gap-3">
           <Link href="/results"><Button size="icon" variant="ghost" data-testid="button-back"><ArrowLeft className="w-4 h-4" /></Button></Link>
-          <h1 className="text-2xl font-bold text-foreground">Result Details</h1>
+          <h1 className="page-title">Result Details</h1>
         </div>
         <Card><CardContent className="p-6 text-sm text-muted-foreground" data-testid="text-result-pending">
           This result has not been published yet. It will appear here once your teacher publishes it.
@@ -71,7 +71,7 @@ export default function McqResultDetailPage() {
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <Link href="/results"><Button size="icon" variant="ghost" data-testid="button-back"><ArrowLeft className="w-4 h-4" /></Button></Link>
-          <h1 className="text-2xl font-bold text-foreground">Result Details</h1>
+          <h1 className="page-title">Result Details</h1>
         </div>
         {isStaff && (
           <AlertDialog>

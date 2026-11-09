@@ -25,7 +25,7 @@ export default function TicketSettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Ticket Settings</h1>
+        <h1 className="page-title">Ticket Settings</h1>
         <p className="text-muted-foreground text-sm mt-1">Configure how tickets work in your organization</p>
       </div>
       <Tabs defaultValue="general">

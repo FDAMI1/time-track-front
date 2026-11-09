@@ -16,6 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Switch } from "@/components/ui/switch";
 import { CalendarOff, Plus, CheckCircle2, XCircle, Clock } from "lucide-react";
+import { EmptyState } from "@/components/ui/states";
 
 const statusStyles: Record<string, { className: string; label: string }> = {
   pending: { className: "bg-chart-4/10 text-chart-4", label: "Pending" },
@@ -171,7 +172,7 @@ export default function LeavesPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold" data-testid="text-leaves-title">Leave Requests</h1>
+          <h1 className="page-title" data-testid="text-leaves-title">Leave Requests</h1>
           <p className="text-muted-foreground">Manage leave requests and balances</p>
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
@@ -278,9 +279,8 @@ export default function LeavesPage() {
             <Skeleton className="h-48 w-full" />
           ) : (myLeaves || []).length === 0 ? (
             <Card>
-              <CardContent className="py-12 text-center">
-                <CalendarOff className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
-                <p className="text-muted-foreground">No leave requests yet</p>
+              <CardContent>
+                <EmptyState icon={CalendarOff} title="No leave requests yet" description="Use Apply for Leave to request time off; its status shows here." />
               </CardContent>
             </Card>
           ) : (

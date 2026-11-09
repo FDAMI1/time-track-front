@@ -366,7 +366,7 @@ export default function RolesPermissionsPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold" data-testid="text-page-title">Roles & Permissions</h1>
+          <h1 className="page-title" data-testid="text-page-title">Roles & Permissions</h1>
           <p className="text-muted-foreground text-sm mt-1">Create custom roles and assign module-level permissions</p>
         </div>
         <Button onClick={() => { resetForm(); setCreateOpen(true); }} data-testid="button-create-role">

@@ -68,7 +68,7 @@ export default function StaffDashboard() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground" data-testid="text-mcq-dashboard-title">Welcome, {user?.firstName}</h1>
+          <h1 className="page-title" data-testid="text-mcq-dashboard-title">Welcome, {user?.firstName}</h1>
           <p className="text-muted-foreground text-sm mt-1">Manage your question bank, tests and results</p>
         </div>
         <div className="flex gap-2 flex-wrap">

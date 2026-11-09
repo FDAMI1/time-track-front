@@ -144,7 +144,7 @@ export default function WhatsappNotificationsPage() {
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2" data-testid="text-whatsapp-title">
+        <h1 className="page-title flex items-center gap-2" data-testid="text-whatsapp-title">
           <MessageCircle className="w-6 h-6 text-green-600" />
           WhatsApp Notifications
         </h1>

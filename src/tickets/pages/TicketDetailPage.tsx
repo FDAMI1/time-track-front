@@ -54,7 +54,7 @@ export default function TicketDetailPage() {
           <Badge variant="secondary" data-testid="badge-ticket-status">{statusLabel(ticket.status)}</Badge>
           {ticket.isArchived && <Badge variant="outline">Archived</Badge>}
         </div>
-        <h1 className="text-2xl font-bold text-foreground mt-1 break-words">{ticket.subject}</h1>
+        <h1 className="page-title mt-1 break-words">{ticket.subject}</h1>
         <p className="text-sm text-muted-foreground mt-1">Raised by {ticket.requesterName} on {new Date(ticket.createdAt).toLocaleString()} via {sourceLabel(ticket.source)}</p>
         <div className="flex items-center gap-2 flex-wrap mt-2">
           {user?.role !== "superadmin" && (

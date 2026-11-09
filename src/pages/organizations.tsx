@@ -234,7 +234,7 @@ export default function OrganizationsPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold" data-testid="text-orgs-title">Organizations</h1>
+          <h1 className="page-title" data-testid="text-orgs-title">Organizations</h1>
           <p className="text-muted-foreground">Manage all organizations on the platform</p>
         </div>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>

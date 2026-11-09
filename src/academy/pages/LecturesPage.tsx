@@ -31,7 +31,7 @@ export default function LecturesPage() {
     <div className="p-4 sm:p-6 space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Lectures</h1>
+          <h1 className="page-title">Lectures</h1>
           <p className="text-muted-foreground text-sm mt-1">{dayLabel(days[0])} to {dayLabel(days[6])}</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">

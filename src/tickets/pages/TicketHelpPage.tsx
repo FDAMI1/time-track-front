@@ -26,7 +26,7 @@ export default function TicketHelpPage() {
   return (
     <div className="space-y-4">
       <Link href="/" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="w-4 h-4" />Tickets</Link>
-      <h1 className="text-2xl font-bold text-foreground">Help Articles</h1>
+      <h1 className="page-title">Help Articles</h1>
       {openId && article ? (
         <Card data-testid="help-article">
           <CardContent className="p-4 space-y-2">

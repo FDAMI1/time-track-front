@@ -112,7 +112,7 @@ export default function ProgressPage() {
   const header = (
     <div className="flex items-start justify-between gap-4 flex-wrap">
       <div>
-        <h1 className="text-2xl font-bold">{isStudent ? "My Progress" : "Student Progress"}</h1>
+        <h1 className="page-title">{isStudent ? "My Progress" : "Student Progress"}</h1>
         <p className="text-sm text-muted-foreground">Lecture-wise progress, pending portions and make-ups</p>
       </div>
       <DateRange from={range.from} to={range.to} onChange={(from, to) => setRange({ from, to })} />

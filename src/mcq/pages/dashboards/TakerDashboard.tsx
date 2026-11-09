@@ -44,7 +44,7 @@ export default function TakerDashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-foreground" data-testid="text-mcq-dashboard-title">Welcome, {user?.firstName}</h1>
+        <h1 className="page-title" data-testid="text-mcq-dashboard-title">Welcome, {user?.firstName}</h1>
         <p className="text-muted-foreground text-sm mt-1">Track your progress and take assigned tests</p>
       </div>
 

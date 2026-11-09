@@ -155,7 +155,7 @@ export default function McqTestDetailPage() {
           <Link href="/tests"><Button size="icon" variant="ghost" data-testid="button-back"><ArrowLeft className="w-4 h-4" /></Button></Link>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-2xl font-bold text-foreground truncate" data-testid="text-test-title">{test.title}</h1>
+              <h1 className="page-title truncate" data-testid="text-test-title">{test.title}</h1>
               <Badge variant={test.status === "ACTIVE" ? "default" : "secondary"}>{test.status}</Badge>
             </div>
             {test.description && <p className="text-muted-foreground text-sm mt-1">{test.description}</p>}

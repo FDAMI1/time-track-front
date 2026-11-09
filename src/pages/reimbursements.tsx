@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Receipt, Plus, CheckCircle, XCircle, ArrowRight, IndianRupee, Settings2, Trash2 } from "lucide-react";
+import { EmptyState } from "@/components/ui/states";
 
 const CLAIM_TYPES = ["travel", "mobile", "food", "accommodation", "equipment", "medical", "other"];
 
@@ -443,9 +444,8 @@ export default function ReimbursementsPage() {
           <div className="text-sm text-muted-foreground">Loading...</div>
         ) : (claims as any[]).length === 0 ? (
           <Card>
-            <CardContent className="py-12 flex flex-col items-center gap-2 text-center">
-              <Receipt className="w-8 h-8 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">No reimbursement claims yet.</p>
+            <CardContent>
+              <EmptyState icon={Receipt} title="No reimbursement claims yet" description="Submit a claim with its receipt; approvals and payments show here." />
             </CardContent>
           </Card>
         ) : (

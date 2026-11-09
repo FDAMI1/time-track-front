@@ -89,7 +89,7 @@ export default function AdmissionsPage() {
     <div className="p-4 sm:p-6 space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Admissions</h1>
+          <h1 className="page-title">Admissions</h1>
           <p className="text-muted-foreground text-sm mt-1">{data?.total ?? 0} applications</p>
         </div>
         <Button onClick={() => setCreateOpen(true)} data-testid="button-new-application"><Plus className="w-4 h-4 mr-2" />New Application</Button>

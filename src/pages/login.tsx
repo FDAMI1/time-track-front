@@ -59,7 +59,7 @@ export default function LoginPage() {
               fallback={logoText ? <span className="text-2xl font-bold text-primary">{logoText}</span> : <Shield className="w-8 h-8 text-primary" />}
             />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight">{appName}</h1>
+          {appName && <h1 className="text-2xl font-semibold tracking-tight">{appName}</h1>}
           <p className="text-muted-foreground mt-1">Academic & Workforce Management Platform</p>
         </div>
 

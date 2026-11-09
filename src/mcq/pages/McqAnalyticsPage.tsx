@@ -56,7 +56,7 @@ export default function McqAnalyticsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-foreground" data-testid="text-analytics-title">Performance Analytics</h1>
+        <h1 className="page-title" data-testid="text-analytics-title">Performance Analytics</h1>
         <p className="text-muted-foreground text-sm mt-1">Track student and teacher performance across your organization</p>
       </div>
 

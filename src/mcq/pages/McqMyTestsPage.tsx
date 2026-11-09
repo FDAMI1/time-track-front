@@ -53,7 +53,7 @@ export default function McqMyTestsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">My Tests</h1>
+        <h1 className="page-title">My Tests</h1>
         <p className="text-muted-foreground text-sm mt-1">{list.length} assigned tests</p>
       </div>
       <Tabs defaultValue="pending">
