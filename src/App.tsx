@@ -276,7 +276,7 @@ function AuthenticatedRouter() {
       {canUseTimeTracking(user) && (
         <Route path="/time-tracking" component={TimeTrackingPage} />
       )}
-      {["org_admin", "teacher", "manager"].includes(user?.role || "") && (
+      {["org_admin", "teacher", "manager"].includes(user?.role || "") && permitted(user, "communication") && (
         <Route path="/whatsapp" component={WhatsappNotificationsPage} />
       )}
       {["org_admin", "teacher", "manager"].includes(user?.role || "") && featureOn(user, "classes") && (

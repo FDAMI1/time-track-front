@@ -10,6 +10,9 @@ export interface AccessItem {
   requires?: string;
   isModule: boolean;
   byRole: boolean;
+  // False for a module this person's role (or the organization) can't have; shown switched off with `reason`.
+  available?: boolean;
+  reason?: string;
 }
 
 interface Props {
@@ -23,10 +26,20 @@ interface Props {
 // ticked here; a permission counts only while its module (and anything it requires) is on.
 export default function AccessSwitches({ items, value, onChange, disabled }: Props) {
   const on = new Set(value);
+  const usable = items.filter((i) => i.available !== false);
   const set = (key: string, next: boolean) => {
     const copy = new Set(on);
-    if (next) copy.add(key); else copy.delete(key);
-    onChange(items.filter((i) => copy.has(i.key)).map((i) => i.key));
+    if (next) {
+      copy.add(key);
+      // Switching a module on opens it: if nothing inside is ticked yet, tick the role's usual
+      // permissions there, or the first one when the role has none by default.
+      const children = usable.filter((i) => i.module === key && !i.requires);
+      if (children.length && !items.some((i) => i.module === key && copy.has(i.key))) {
+        const defaults = children.filter((c) => c.byRole);
+        (defaults.length ? defaults : children.slice(0, 1)).forEach((c) => copy.add(c.key));
+      }
+    } else copy.delete(key);
+    onChange(usable.filter((i) => copy.has(i.key)).map((i) => i.key));
   };
   const modules = items.filter((i) => i.isModule);
   const live = (item: AccessItem) => (!item.module || on.has(item.module)) && (!item.requires || on.has(item.requires));
@@ -37,22 +50,23 @@ export default function AccessSwitches({ items, value, onChange, disabled }: Pro
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <p className="text-xs text-muted-foreground" data-testid="text-access-count">{effective} feature{effective === 1 ? "" : "s"} switched on</p>
         <div className="flex gap-1">
-          <Button type="button" size="sm" variant="outline" disabled={disabled} onClick={() => onChange(items.map((i) => i.key))} data-testid="button-access-all">Select All</Button>
+          <Button type="button" size="sm" variant="outline" disabled={disabled} onClick={() => onChange(usable.map((i) => i.key))} data-testid="button-access-all">Select All</Button>
           <Button type="button" size="sm" variant="outline" disabled={disabled} onClick={() => onChange([])} data-testid="button-access-none">Clear</Button>
         </div>
       </div>
       {modules.map((m) => {
         const children = items.filter((i) => i.module === m.key);
+        const unavailable = m.available === false;
         return (
-          <div key={m.key} role="group" aria-label={m.label} className="rounded-md border" data-testid={`access-module-${m.key}`}>
+          <div key={m.key} role="group" aria-label={m.label} className={`rounded-md border ${unavailable ? "opacity-60" : ""}`} data-testid={`access-module-${m.key}`}>
             <div className="flex items-start justify-between gap-3 p-3 bg-muted/40">
               <label htmlFor={`access-${m.key}`} className="min-w-0">
                 <span className="block text-sm font-semibold">{m.label}</span>
-                <span className="block text-xs text-muted-foreground">{m.hint}</span>
+                <span className="block text-xs text-muted-foreground">{unavailable ? m.reason || "Not available" : m.hint}</span>
               </label>
-              <Switch id={`access-${m.key}`} checked={on.has(m.key)} disabled={disabled} onCheckedChange={(next) => set(m.key, next)} aria-label={m.label} data-testid={`switch-access-${m.key}`} />
+              <Switch id={`access-${m.key}`} checked={!unavailable && on.has(m.key)} disabled={disabled || unavailable} onCheckedChange={(next) => set(m.key, next)} aria-label={m.label} data-testid={`switch-access-${m.key}`} />
             </div>
-            {children.length > 0 && (
+            {children.length > 0 && !unavailable && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-2">
                 {children.map((c) => {
                   const blocked = !live(c);

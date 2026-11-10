@@ -118,7 +118,7 @@ export function AppSidebar() {
       if (canUseTimeTracking(user)) {
         items.push({ group: "Attendance", title: "Time Tracking", url: "/time-tracking", icon: Timer });
       }
-      if (["org_admin", "teacher", "manager"].includes(user.role)) {
+      if (["org_admin", "teacher", "manager"].includes(user.role) && permitted(user, "communication")) {
         if (orgType !== "company") {
           items.push({ group: "Communication", title: "WhatsApp", url: "/whatsapp", icon: MessageCircle });
         }

@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RemoteImage } from "@/components/remote-image";
-import { ArrowLeft, Camera, FileSpreadsheet, FileText } from "lucide-react";
+import { ArrowLeft, Camera, FileSpreadsheet, FileText, Pencil } from "lucide-react";
 import { hoursOf, profilePdf, type MemberProfile } from "@/lib/memberProfile";
 
 const Stat = ({ label, value, testId }: { label: string; value: string | number; testId?: string }) => (
@@ -78,6 +78,9 @@ export default function MemberProfilePage() {
             <div><Label htmlFor="profile-to" className="text-xs">To</Label><Input id="profile-to" type="date" className="w-[150px]" min={range.from || undefined} value={range.to} onChange={(e) => setRange({ ...range, to: e.target.value })} data-testid="input-profile-to" /></div>
             <Button variant="outline" size="sm" onClick={() => downloadAuthorized(`/api/members/${id}/profile.xlsx${q ? `?${q}` : ""}`, token, "profile.xlsx").catch((err: Error) => toast({ title: "Download failed", description: err.message, variant: "destructive" }))} data-testid="button-profile-excel"><FileSpreadsheet className="w-4 h-4 mr-1" />Excel</Button>
             <Button variant="outline" size="sm" onClick={() => profilePdf(data)} data-testid="button-profile-pdf"><FileText className="w-4 h-4 mr-1" />PDF</Button>
+            {user?.role === "org_admin" && m.role !== "org_admin" && (
+              <Button asChild size="sm" data-testid="button-profile-edit"><Link href={`/members?edit=${id}`}><Pencil className="w-4 h-4 mr-1" />Edit User</Link></Button>
+            )}
           </div>
         </CardContent>
       </Card>

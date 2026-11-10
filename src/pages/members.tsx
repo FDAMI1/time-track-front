@@ -18,7 +18,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Search, Users, Pencil, Trash2, Eye, EyeOff, Phone, GraduationCap, MessageCircle, Clock, KeyRound, Copy, Check } from "lucide-react";
-import PersonPermissions from "@/components/settings/PersonPermissions";
+import { usePersonAccess } from "@/components/members/usePersonAccess";
 import { EmptyState, ErrorState } from "@/components/ui/states";
 import AccessSwitches, { type AccessItem } from "@/components/members/AccessSwitches";
 import { Link } from "wouter";
@@ -199,6 +199,11 @@ export default function MembersPage() {
     },
   });
 
+  // Access Management on Edit Member: the person's own switches, saved with Update Member.
+  const editsAccess = user?.role === "org_admin" && editOpen && !!selectedMember && selectedMember.role !== "org_admin";
+  const editAccess = usePersonAccess(editsAccess ? selectedMember._id : null);
+  const roleChanged = !!selectedMember && editForm.role !== (selectedMember.roleId ? String(selectedMember.roleId) : `system-${selectedMember.role}`);
+
   const updateUser = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: any }) => {
       const res = await apiFetch(`/api/users/${id}`, {
@@ -212,6 +217,7 @@ export default function MembersPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       queryClient.invalidateQueries({ queryKey: ["/api/policy"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tool-access/permissions"] });
       setEditOpen(false);
       setShowEditPassword(false);
       toast({ title: "Member updated successfully" });
@@ -330,6 +336,16 @@ export default function MembersPage() {
     setEditOpen(true);
   };
 
+  // "Edit User" on a member's profile page opens this form for them (/members?edit=<id>), once.
+  const [editFromLink, setEditFromLink] = useState(() => new URLSearchParams(window.location.search).get("edit"));
+  useEffect(() => {
+    if (!editFromLink || !members || policies === undefined) return;
+    const member = (members as any[]).find((m) => m._id === editFromLink);
+    setEditFromLink(null);
+    window.history.replaceState(null, "", window.location.pathname);
+    if (member) openEdit(member);
+  }, [editFromLink, members, policies]);
+
   const roleHierarchy: Record<string, string[]> = {
     superadmin: ["org_admin", "teacher", "student", "manager", "employee", "member"],
     org_admin: ["teacher", "student", "manager", "employee", "member"],
@@ -436,7 +452,7 @@ export default function MembersPage() {
 
               {user?.role === "org_admin" && catalog && (
                 <div className="space-y-2 p-3 rounded-md border" data-testid="member-access">
-                  <p className="text-sm font-medium">Feature Access</p>
+                  <p className="text-sm font-medium">Access Management</p>
                   <p className="text-xs text-muted-foreground">The person gets exactly what is switched on here. The role's usual features start on.</p>
                   <AccessSwitches items={catalog.permissions} value={form.access} onChange={(access) => setForm({ ...form, access })} />
                   {getRoleName(form.role) === "member" && createFeatures === 0 && <p className="text-xs text-destructive">A Member needs at least one feature.</p>}
@@ -859,6 +875,8 @@ export default function MembersPage() {
                 data.roleId = data.role;
                 delete data.role;
               }
+              // The switches belong to the current role; after a role change they are set on the next edit.
+              if (editsAccess && !roleChanged && editAccess.dirty) data.access = editAccess.value;
               updateUser.mutate({ id: selectedMember._id, data });
             }
           }} className="space-y-4">
@@ -963,6 +981,21 @@ export default function MembersPage() {
                 <p className="text-xs text-muted-foreground mt-1">Their manager sees and supervises their leads and tickets.</p>
               </div>
             )}
+            {editsAccess && (
+              <div className="space-y-2 p-3 rounded-md border" data-testid="edit-access-management">
+                <p className="text-sm font-medium">Access Management</p>
+                <p className="text-xs text-muted-foreground">This person can open only the modules switched on here. Saved with Update Member.</p>
+                {roleChanged ? (
+                  <p className="text-xs text-muted-foreground" data-testid="text-access-after-role">Save the new role first, then reopen Edit to set this person's access for it.</p>
+                ) : editAccess.loading ? (
+                  <Skeleton className="h-32 w-full" />
+                ) : editAccess.failed ? (
+                  <p className="text-sm text-destructive">Couldn't load this person's access. Close and open Edit again.</p>
+                ) : (
+                  <AccessSwitches items={editAccess.items} value={editAccess.value} onChange={editAccess.setValue} disabled={updateUser.isPending} />
+                )}
+              </div>
+            )}
             <div>
               <Label>New Password (leave empty to keep current)</Label>
               <div className="relative">
@@ -976,12 +1009,6 @@ export default function MembersPage() {
               {updateUser.isPending ? "Updating..." : "Update Member"}
             </Button>
           </form>
-          {user?.role === "org_admin" && selectedMember && selectedMember.role !== "org_admin" && (
-            <div className="border-t pt-4 space-y-2">
-              <p className="text-sm font-medium">Permissions</p>
-              <PersonPermissions key={selectedMember._id} userId={selectedMember._id} />
-            </div>
-          )}
         </DialogContent>
       </Dialog>
     </div>
