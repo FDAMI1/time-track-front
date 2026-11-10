@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Forward, Loader2, Reply, Sparkles, StickyNote } from "lucide-react";
 import type { TicketControls } from "@/tickets/lib/useTicketDetail";
 import type { TicketMeta } from "@/tickets/lib/types";
+import AttachmentDrop, { useAttachments } from "@/tickets/components/AttachmentDrop";
 
 type Mode = "reply" | "note" | "forward";
 
@@ -22,7 +23,7 @@ export default function Composer({ controls, meta }: Props) {
   const [mode, setMode] = useState<Mode>("reply");
   const [body, setBody] = useState("");
   const [to, setTo] = useState("");
-  const [files, setFiles] = useState<File[]>([]);
+  const attachments = useAttachments();
   const manage = !!data?.permissions.manage;
   const emailOn = !!meta?.emailEnabled;
   const aiOn = manage && !!meta?.aiEnabled;
@@ -32,10 +33,10 @@ export default function Composer({ controls, meta }: Props) {
       const form = new FormData();
       form.append("body", body);
       form.append("isNote", String(mode === "note"));
-      files.forEach((file) => form.append("files", file));
+      attachments.files.forEach((file) => form.append("files", file));
       return api.post(`${url}/replies`, form);
     },
-    onSuccess: () => { setBody(""); setFiles([]); setMode("reply"); refresh(); },
+    onSuccess: () => { setBody(""); attachments.clear(); setMode("reply"); refresh(); },
     onError,
   });
   const forward = useMutation({
@@ -86,9 +87,10 @@ export default function Composer({ controls, meta }: Props) {
           aria-label="Reply"
           value={body}
           onChange={(e) => setBody(e.target.value)}
+          onPaste={mode === "forward" ? undefined : attachments.onPaste}
           data-testid="input-ticket-reply"
         />
-        {mode !== "forward" && <Input type="file" multiple accept=".pdf,.png,.jpg,.jpeg" aria-label="Attach files" onChange={(e) => setFiles(Array.from(e.target.files || []).slice(0, 5))} />}
+        {mode !== "forward" && <AttachmentDrop attachments={attachments} />}
         <div className="flex justify-end">
           {mode === "forward" ? (
             <Button disabled={!to.trim() || forward.isPending} onClick={() => forward.mutate()} data-testid="button-send-forward">

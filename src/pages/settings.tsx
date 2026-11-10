@@ -486,10 +486,6 @@ export default function SettingsPage() {
     (user?.organizationId as any)?.features?.chat !== false
   );
 
-  const [ticketsEnabled, setTicketsEnabled] = useState<boolean>(
-    (user?.organizationId as any)?.features?.tickets !== false
-  );
-
   const [newDomain, setNewDomain] = useState("");
 
   const { data: orgDomainsData, refetch: refetchDomains } = useQuery({
@@ -754,25 +750,6 @@ export default function SettingsPage() {
     },
   });
 
-  const updateTicketsFeature = useMutation({
-    mutationFn: async (enabled: boolean) => {
-      const res = await apiFetch("/api/organizations/my/features", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ features: { tickets: enabled } }),
-      });
-      if (!res.ok) { const err = await res.json(); throw new Error(err.message); }
-      return res.json();
-    },
-    onSuccess: (_, enabled) => {
-      setTicketsEnabled(enabled);
-      refreshUser();
-      toast({ title: `Tickets ${enabled ? "enabled" : "disabled"} successfully` });
-    },
-    onError: (err: Error) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-    },
-  });
 
   const updateAcademyFeature = useMutation({
     mutationFn: async ({ feature, enabled }: { feature: string; enabled: boolean }) => {
@@ -1344,18 +1321,6 @@ export default function SettingsPage() {
                 checked={chatEnabled}
                 disabled={updateChatFeature.isPending || isLocked("chat")}
                 onCheckedChange={(val) => updateChatFeature.mutate(val)}
-              />
-            </div>
-            <div className="flex items-center justify-between py-2 border-b">
-              <div>
-                <p className="font-medium text-sm">Tickets</p>
-                <p className="text-xs text-muted-foreground">Allow members to raise and follow support tickets</p>
-              </div>
-              <Switch
-                data-testid="switch-tickets-enabled"
-                checked={ticketsEnabled}
-                disabled={updateTicketsFeature.isPending || isLocked("tickets")}
-                onCheckedChange={(val) => updateTicketsFeature.mutate(val)}
               />
             </div>
             <div className="flex items-center justify-between py-2 border-b">

@@ -13,7 +13,16 @@ export function eventText(event: TicketEvent, statusLabel: (key: string) => stri
       if (meta.toName) return `assigned this ticket to ${String(meta.toName)}${why}`;
       return `changed the assignment${why}`;
     }
-    case "update": return `updated ${Object.keys((meta.changes as object) || {}).join(", ") || "the ticket"}`;
+    case "update": {
+      const changes = (meta.changes as Record<string, { from?: unknown; to?: unknown } | true>) || {};
+      const priority = changes.priority;
+      const others = Object.keys(changes).filter((k) => k !== "priority");
+      const parts = [
+        ...(priority && priority !== true ? [`changed priority from ${String(priority.from ?? "none")} to ${String(priority.to)}`] : []),
+        ...(others.length ? [`updated ${others.join(", ")}`] : []),
+      ];
+      return parts.join(" and ") || "updated the ticket";
+    }
     case "related": return `${meta.linked ? "linked" : "unlinked"} ${String(meta.ticketKey)}`;
     case "reopened": return "reopened this ticket";
     case "archived": return "archived this ticket";

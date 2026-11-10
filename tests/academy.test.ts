@@ -32,7 +32,9 @@ test("menus follow organization type, feature and role", () => {
   assert.equal(canUseTickets({ role: "superadmin", organizationId: null }), false);
   assert.equal(canUseTickets({ role: "org_admin", organizationId: { type: "company" } }), true);
   assert.equal(canUseTickets({ role: "employee", organizationId: { type: "company" }, toolAccess: { tickets: true } }), true);
-  assert.equal(canUseTickets({ role: "employee", organizationId: { type: "company" } }), false);
+  // Tickets are compulsory: no tool grant or feature switch is needed.
+  assert.equal(canUseTickets({ role: "employee", organizationId: { type: "company" } }), true);
+  assert.equal(canUseTickets({ role: "student", organizationId: { type: "academy", features: { tickets: false } } }), true);
   assert.equal(fillTemplate("Hi {name} from {org}, {missing}", { name: "Asha", org: "Acme" }), "Hi Asha from Acme, {missing}");
   assert.equal(canUseAcademy({ role: "teacher", organizationId: org }, "fees"), false);
   assert.equal(canUseAcademy({ role: "student", organizationId: org }, "fees"), true);

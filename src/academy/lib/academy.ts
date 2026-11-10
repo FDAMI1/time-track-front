@@ -22,8 +22,9 @@ export const hasTool = (user: AcademyUser | null | undefined, tool: Tool): boole
 // The read-only member directory (and, for managers and teachers, managing their people).
 export const canSeeMembers = (user: AcademyUser | null | undefined): boolean =>
   user?.role === "org_admin" || (user?.role !== "member" && user?.role !== "superadmin" && user?.permissions?.members === true);
+// Tickets are compulsory for every member of an organization; the server decides which tickets each person sees.
 export const canUseTickets = (user: AcademyUser | null | undefined): boolean =>
-  user?.organizationId?.features?.tickets !== false && hasTool(user, "tickets");
+  !!user && user.role !== "superadmin";
 
 // Member access adds MCQ or Time Tracking to a person's own role. A "member" account has
 // only what was ticked. MCQ access is decided in mcq/lib/roles.

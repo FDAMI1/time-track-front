@@ -23,7 +23,7 @@ import { Building2, Plus, GraduationCap, Briefcase, Users, Globe, Phone, MapPin,
 // What the superadmin can switch on or off for one organization. Each organization's
 // tickets and CRM are its own; the superadmin only decides whether it has them.
 const ORG_FEATURES: { key: string; label: string; academyOnly?: boolean }[] = [
-  { key: "tickets", label: "Tickets" }, { key: "crm", label: "CRM (Leads)" }, { key: "assistant", label: "AI Assistant" },
+  { key: "crm", label: "CRM (Leads)" }, { key: "assistant", label: "AI Assistant" },
   { key: "attendance", label: "Attendance" }, { key: "leaves", label: "Leaves" }, { key: "timeTracking", label: "Time Tracking" },
   { key: "tasks", label: "Tasks" }, { key: "projects", label: "Projects" }, { key: "departments", label: "Departments" }, { key: "chat", label: "Chat" },
   { key: "classes", label: "Classes", academyOnly: true }, { key: "assignments", label: "Assignments", academyOnly: true },

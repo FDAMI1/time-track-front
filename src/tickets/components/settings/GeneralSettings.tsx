@@ -17,7 +17,18 @@ interface Config {
   priorityMatrix: Record<string, string>;
   requesterReplyStatus: string;
   closeRequiresChildrenClosed: boolean;
+  emailNotifications: Record<EmailEvent, boolean>;
 }
+
+type EmailEvent = "created" | "assigned" | "status" | "priority" | "reply" | "closed";
+const EMAIL_EVENTS: { key: EmailEvent; label: string }[] = [
+  { key: "created", label: "Ticket created (confirmation to the requester, alert to the support team)" },
+  { key: "assigned", label: "Ticket assigned or transferred (to the new assignee)" },
+  { key: "status", label: "Status changed or ticket reopened" },
+  { key: "priority", label: "Priority changed" },
+  { key: "reply", label: "New public reply (internal notes are never emailed to requesters)" },
+  { key: "closed", label: "Ticket resolved or closed" },
+];
 
 const URL = "/api/tickets/settings/config";
 
@@ -92,6 +103,24 @@ export default function GeneralSettings() {
             </Select>
           </div>
           <Button onClick={() => save.mutate({ closeRequiresChildrenClosed: form.closeRequiresChildrenClosed, requesterReplyStatus: form.requesterReplyStatus })}>Save Behaviour</Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle className="text-base">Email Notifications</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">Choose which ticket events send an email. In-app notifications are always sent. Emails go out only when email is set up on the server.</p>
+          {EMAIL_EVENTS.map(({ key, label }) => (
+            <label key={key} className="flex items-center justify-between gap-4 text-sm">
+              {label}
+              <Switch
+                checked={form.emailNotifications?.[key] !== false}
+                onCheckedChange={(v) => setForm({ ...form, emailNotifications: { ...form.emailNotifications, [key]: v } })}
+                data-testid={`switch-email-${key}`}
+              />
+            </label>
+          ))}
+          <Button onClick={() => save.mutate({ emailNotifications: form.emailNotifications })} data-testid="button-save-email-notifications">Save Email Notifications</Button>
         </CardContent>
       </Card>
 
