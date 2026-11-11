@@ -8,10 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Loader2 } from "lucide-react";
+import { Loader2, Plus } from "lucide-react";
 import { useMcqApi } from "@/mcq/lib/api";
 import { LECTURE_STATUSES, peopleOptions, toOptions, type Batch, type CourseTopic, type Lecture, type Person } from "@/academy/lib/academy";
 import { Picker } from "@/academy/components/common";
+import QuickBatchForm from "@/academy/components/QuickBatchForm";
 
 interface Props {
   lecture: Lecture | null;
@@ -40,6 +41,7 @@ export default function LectureDialog({ lecture, defaultDate, onClose }: Props) 
   });
   const set = (field: keyof typeof form, value: string) => setForm((f) => ({ ...f, [field]: value }));
   const chooseTeacher = user?.role !== "teacher";
+  const [creatingBatch, setCreatingBatch] = useState(false);
 
   const { data: batches } = useQuery({ queryKey: ["/api/batches"], queryFn: () => api.get<Batch[]>("/api/batches") });
   // The syllabus of the chosen batch's course, so the lecture can name the topic it covers.
@@ -89,7 +91,22 @@ export default function LectureDialog({ lecture, defaultDate, onClose }: Props) 
             <Input id="lecture-title" required maxLength={200} value={form.title} onChange={(e) => set("title", e.target.value)} data-testid="input-lecture-title" />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Picker label="Batch" value={form.batchId} onChange={(v) => set("batchId", v)} options={(batches || []).map((b) => ({ value: b._id, label: b.batchName }))} testId="select-lecture-batch" />
+            <div className="flex items-end gap-2">
+              <div className="flex-1 min-w-0">
+                <Picker label="Batch" value={form.batchId} onChange={(v) => set("batchId", v)} options={(batches || []).map((b) => ({ value: b._id, label: b.batchName }))} testId="select-lecture-batch" />
+              </div>
+              <Button type="button" variant="outline" size="icon" aria-label="Create batch" title="Create batch" onClick={() => setCreatingBatch((open) => !open)} data-testid="button-new-batch">
+                <Plus className="w-4 h-4" />
+              </Button>
+            </div>
+            {creatingBatch && (
+              <QuickBatchForm
+                defaultDate={form.date}
+                chooseTeacher={chooseTeacher}
+                onCancel={() => setCreatingBatch(false)}
+                onCreated={(batch) => { set("batchId", batch._id); setCreatingBatch(false); }}
+              />
+            )}
             {chooseTeacher && <Picker label="Teacher" value={form.teacherId} onChange={(v) => set("teacherId", v)} options={peopleOptions(teachers)} placeholder="Batch teacher" testId="select-lecture-teacher" />}
             <div className="space-y-1">
               <Label htmlFor="lecture-date">Date</Label>
