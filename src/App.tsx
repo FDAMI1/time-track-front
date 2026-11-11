@@ -232,7 +232,7 @@ function AuthenticatedRouter() {
 
   // A member opens only the features their admin ticked; every other address is Not Found.
   if (user?.role === "member") {
-    const home = canUseTimeTracking(user) ? "/time-tracking" : hasMcqAccess(user) ? "/mcq" : "/settings";
+    const home = canUseTimeTracking(user) ? "/time-tracking" : hasMcqAccess(user) ? "/mcq" : "/tickets";
     return (
       <Switch>
         <Route path="/"><Redirect to={home} /></Route>
@@ -242,6 +242,21 @@ function AuthenticatedRouter() {
             <Suspense fallback={<McqFallback />}><McqRouter /></Suspense>
           </Route>
         )}
+        {canSeeMembers(user) && <Route path="/members" component={MembersPage} />}
+        {canUseCrm(user) && (
+          <Route path="/enquiries">
+            <Suspense fallback={<McqFallback />}><EnquiriesPage /></Suspense>
+          </Route>
+        )}
+        {permitted(user, "chat") && <Route path="/chat" component={ChatPage} />}
+        {user.permissions?.performanceReports === true && (
+          <Route path="/reports">
+            <Suspense fallback={<McqFallback />}><ReportsPage /></Suspense>
+          </Route>
+        )}
+        <Route path="/tickets" nest>
+          <Suspense fallback={<McqFallback />}><TicketsRouter /></Suspense>
+        </Route>
         <Route path="/settings" component={SettingsPage} />
         <Route component={NotFound} />
       </Switch>

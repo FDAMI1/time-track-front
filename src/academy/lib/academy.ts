@@ -21,7 +21,7 @@ export const hasTool = (user: AcademyUser | null | undefined, tool: Tool): boole
 
 // The read-only member directory (and, for managers and teachers, managing their people).
 export const canSeeMembers = (user: AcademyUser | null | undefined): boolean =>
-  user?.role === "org_admin" || (user?.role !== "member" && user?.role !== "superadmin" && user?.permissions?.members === true);
+  user?.role === "org_admin" || (user?.role !== "superadmin" && user?.permissions?.members === true);
 // Tickets are compulsory for every member of an organization; the server decides which tickets each person sees.
 export const canUseTickets = (user: AcademyUser | null | undefined): boolean =>
   !!user && user.role !== "superadmin";
@@ -56,10 +56,10 @@ export const canUseProgress = (user: AcademyUser | null | undefined): boolean =>
   user?.organizationId?.type === "academy" && featureOn(user, "lectures") && ["org_admin", "manager", "teacher", "student"].includes(user?.role || "")
   && (user?.role === "org_admin" || user?.permissions?.studentProgress !== false);
 
-// The CRM is for every organization type. Teachers and employees are telecallers
+// The CRM is for every organization type. Teachers, employees and members are telecallers
 // and see only the leads assigned to them; admins and managers see all.
-export const CRM_ROLES = ["org_admin", "manager", "teacher", "employee"];
-export const TELECALLER_ROLES = ["teacher", "employee"];
+export const CRM_ROLES = ["org_admin", "manager", "teacher", "employee", "member"];
+export const TELECALLER_ROLES = ["teacher", "employee", "member"];
 export function canUseCrm(user: AcademyUser | null | undefined): boolean {
   return user?.organizationId?.features?.crm !== false && CRM_ROLES.includes(user?.role || "") && hasTool(user, "crm");
 }

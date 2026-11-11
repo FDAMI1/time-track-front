@@ -99,6 +99,11 @@ export function AppSidebar() {
     if (user.role === "member") {
       if (canUseTimeTracking(user)) items.push({ group: "Attendance", title: "Time Tracking", url: "/time-tracking", icon: Timer });
       if (hasMcqAccess(user)) items.push({ group: "Academic", title: "MCQ", url: "/mcq", icon: ClipboardList });
+      if (canSeeMembers(user)) items.push({ group: "People", title: "Members", url: "/members", icon: Users });
+      if (canUseCrm(user)) items.push({ group: "CRM", title: "Leads", url: "/enquiries", icon: PhoneCall });
+      items.push({ group: "Communication", title: "Tickets", url: "/tickets", icon: LifeBuoy });
+      if (permitted(user, "chat")) items.push({ group: "Communication", title: "Chat", url: "/chat", icon: MessageCircle });
+      if (user.permissions?.performanceReports === true) items.push({ group: "Records", title: "Reports", url: "/reports", icon: BarChart3 });
       items.push({ group: "Administration", title: "Settings", url: "/settings", icon: Settings });
       return items;
     }

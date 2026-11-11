@@ -119,10 +119,10 @@ export default function MembersPage() {
   const listedRoles: Array<{ value: string; label: string; roleName: string; baseRole?: string }> =
     rolesData && rolesData.length > 0
       ? (rolesData as any[])
-          .filter((r: any) => !["org_admin", "superadmin"].includes(r.roleName))
+          .filter((r: any) => r.roleName !== "superadmin" && (r.roleName !== "org_admin" || canAddMembers))
           .map((r: any) => ({
             value: r._id.toString(),
-            label: r.roleName,
+            label: roleLabels[r.roleName] || r.roleName,
             roleName: r.roleName,
             baseRole: r.baseRole,
           }))
@@ -348,7 +348,7 @@ export default function MembersPage() {
 
   const roleHierarchy: Record<string, string[]> = {
     superadmin: ["org_admin", "teacher", "student", "manager", "employee", "member"],
-    org_admin: ["teacher", "student", "manager", "employee", "member"],
+    org_admin: ["org_admin", "teacher", "student", "manager", "employee", "member"],
     manager: ["employee"],
     teacher: ["student"],
   };
@@ -394,7 +394,6 @@ export default function MembersPage() {
   useEffect(() => {
     if (catalog) setForm((prev) => ({ ...prev, access: catalog.defaults }));
   }, [catalog]);
-  const createFeatures = (catalog?.permissions || []).filter((p) => !p.isModule && form.access.includes(p.key)).length;
 
   const { data: managers } = useQuery({
     queryKey: ["/api/users", "managers"],
@@ -450,12 +449,11 @@ export default function MembersPage() {
                 </Select>
               </div>
 
-              {user?.role === "org_admin" && catalog && (
+              {user?.role === "org_admin" && catalog && createRole !== "org_admin" && (
                 <div className="space-y-2 p-3 rounded-md border" data-testid="member-access">
                   <p className="text-sm font-medium">Access Management</p>
                   <p className="text-xs text-muted-foreground">The person gets exactly what is switched on here. The role's usual features start on.</p>
                   <AccessSwitches items={catalog.permissions} value={form.access} onChange={(access) => setForm({ ...form, access })} />
-                  {getRoleName(form.role) === "member" && createFeatures === 0 && <p className="text-xs text-destructive">A Member needs at least one feature.</p>}
                 </div>
               )}
 
@@ -568,7 +566,7 @@ export default function MembersPage() {
                 <KeyRound className="w-3 h-3" />
                 A temporary password will be auto-generated and shown after creation.
               </p>
-              <Button type="submit" className="w-full" disabled={createUser.isPending || (getRoleName(form.role) === "member" && createFeatures === 0)} data-testid="button-submit-member">
+              <Button type="submit" className="w-full" disabled={createUser.isPending} data-testid="button-submit-member">
                 {createUser.isPending ? "Creating..." : "Create Member"}
               </Button>
             </form>
@@ -960,7 +958,7 @@ export default function MembersPage() {
               <Select value={editForm.role} onValueChange={(v) => setEditForm({ ...editForm, role: v })}>
                 <SelectTrigger data-testid="select-edit-role"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {availableRoles.filter((r) => r.roleName !== "member" || getRoleName(editForm.role) === "member").map((r) => (
+                  {availableRoles.map((r) => (
                     <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
                   ))}
                 </SelectContent>
@@ -986,7 +984,7 @@ export default function MembersPage() {
                 <p className="text-sm font-medium">Access Management</p>
                 <p className="text-xs text-muted-foreground">This person can open only the modules switched on here. Saved with Update Member.</p>
                 {roleChanged ? (
-                  <p className="text-xs text-muted-foreground" data-testid="text-access-after-role">Save the new role first, then reopen Edit to set this person's access for it.</p>
+                  <p className="text-xs text-muted-foreground" data-testid="text-access-after-role">Saving the new role switches on that role's usual modules. Reopen Edit afterwards to change them.</p>
                 ) : editAccess.loading ? (
                   <Skeleton className="h-32 w-full" />
                 ) : editAccess.failed ? (
