@@ -11,13 +11,72 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Loader2, Plus, Search, Wallet } from "lucide-react";
 import { useMcqApi } from "@/mcq/lib/api";
-import { formatMoney, INVOICE_STATUSES, peopleOptions, toMinor, toOptions, type InvoiceList, type Person } from "@/academy/lib/academy";
+import { formatMoney, INVOICE_STATUSES, labelOf, localToday, PAYMENT_METHODS, peopleOptions, toMinor, toOptions, type InvoiceList, type Person } from "@/academy/lib/academy";
 import { ListState, Pager, Picker, StatusBadge } from "@/academy/components/common";
 import InvoiceDialog from "@/academy/components/InvoiceDialog";
 import FeePlans from "@/academy/components/FeePlans";
 import FeeReportPanel from "@/academy/components/FeeReportPanel";
 
 const EMPTY = { studentId: "", title: "", amount: "", dueDate: "" };
+
+type PaidInvoice = InvoiceList["invoices"][number];
+
+// Records the rest of an invoice as paid, with how it was paid. Uses the same payment endpoint as
+// the invoice's own Record payment section, so the payment appears in its history.
+function MarkPaidDialog({ invoice, onClose }: { invoice: PaidInvoice; onClose: () => void }) {
+  const api = useMcqApi();
+  const { toast } = useToast();
+  const [amount, setAmount] = useState((invoice.balanceMinor / 100).toFixed(2));
+  const [date, setDate] = useState(localToday());
+  const [method, setMethod] = useState("cash");
+  const [reference, setReference] = useState("");
+
+  const pay = useMutation({
+    mutationFn: () => {
+      const amountMinor = toMinor(amount);
+      if (!amountMinor) throw new Error("Enter an amount such as 1500 or 1500.50");
+      if (amountMinor > invoice.balanceMinor) throw new Error(`Only ${formatMoney(invoice.balanceMinor)} is left to pay`);
+      return api.post(`/api/fees/invoices/${invoice._id}/payments`, { amountMinor, date, method, reference });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/fees"] });
+      toast({ title: "Marked as paid", description: `${labelOf(method)} · ${invoice.invoiceKey}` });
+      onClose();
+    },
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  return (
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Mark paid · {invoice.invoiceKey}</DialogTitle>
+          <DialogDescription>{invoice.title} · {formatMoney(invoice.balanceMinor)} left to pay</DialogDescription>
+        </DialogHeader>
+        <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); pay.mutate(); }}>
+          <div className="space-y-1">
+            <Label htmlFor="mark-paid-amount">Amount (₹)</Label>
+            <Input id="mark-paid-amount" required inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} data-testid="input-mark-paid-amount" />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <Label htmlFor="mark-paid-date">Date paid</Label>
+              <Input id="mark-paid-date" type="date" required max={localToday()} value={date} onChange={(e) => setDate(e.target.value)} data-testid="input-mark-paid-date" />
+            </div>
+            <Picker label="Payment mode" value={method} onChange={setMethod} options={toOptions(PAYMENT_METHODS)} testId="select-mark-paid-method" />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="mark-paid-reference">Reference (optional)</Label>
+            <Input id="mark-paid-reference" maxLength={120} placeholder="Receipt or transaction number" value={reference} onChange={(e) => setReference(e.target.value)} data-testid="input-mark-paid-reference" />
+          </div>
+          <Button type="submit" className="w-full" disabled={pay.isPending} data-testid="button-mark-paid-submit">
+            {pay.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}Mark Paid
+          </Button>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 function Invoices({ isAdmin, isStudent }: { isAdmin: boolean; isStudent: boolean }) {
   const api = useMcqApi();
@@ -28,7 +87,8 @@ function Invoices({ isAdmin, isStudent }: { isAdmin: boolean; isStudent: boolean
   const [form, setForm] = useState(EMPTY);
   const [createOpen, setCreateOpen] = useState(false);
   const [openId, setOpenId] = useState("");
-  const set = (field: keyof typeof EMPTY, value: string) => setForm((f) => ({ ...f, [field]: value }));
+  const [markPaid, setMarkPaid] = useState<PaidInvoice | null>(null);
+  const set =(field: keyof typeof EMPTY, value: string) => setForm((f) => ({ ...f, [field]: value }));
 
   const params = new URLSearchParams({ page: String(page) });
   if (q) params.set("q", q);
@@ -90,6 +150,9 @@ function Invoices({ isAdmin, isStudent }: { isAdmin: boolean; isStudent: boolean
                 <div className="text-right">
                   <p className="font-semibold">{formatMoney(invoice.amountMinor)}</p>
                   {invoice.balanceMinor > 0 && invoice.paidMinor > 0 && <p className="text-xs text-muted-foreground">{formatMoney(invoice.balanceMinor)} left</p>}
+                  {isAdmin && invoice.balanceMinor > 0 && (
+                    <Button size="sm" variant="outline" className="mt-2" onClick={() => setMarkPaid(invoice)} data-testid={`button-mark-paid-${invoice.invoiceKey}`}>Mark paid</Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -98,6 +161,7 @@ function Invoices({ isAdmin, isStudent }: { isAdmin: boolean; isStudent: boolean
       </ListState>
 
       <Pager page={page} pages={data?.pages || 1} onChange={setPage} />
+      {markPaid && <MarkPaidDialog invoice={markPaid} onClose={() => setMarkPaid(null)} />}
 
       {openId && <InvoiceDialog id={openId} isAdmin={isAdmin} onClose={() => setOpenId("")} />}
 
@@ -110,7 +174,7 @@ function Invoices({ isAdmin, isStudent }: { isAdmin: boolean; isStudent: boolean
           <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); create.mutate(); }}>
             <Picker label="Student" value={form.studentId} onChange={(v) => set("studentId", v)} options={peopleOptions(students)} testId="select-invoice-student" />
             <div className="space-y-1">
-              <Label htmlFor="invoice-title">Fee</Label>
+              <Label htmlFor="invoice-title">Course name</Label>
               <Input id="invoice-title" required maxLength={150} value={form.title} onChange={(e) => set("title", e.target.value)} data-testid="input-invoice-title" />
             </div>
             <div className="grid grid-cols-2 gap-4">
