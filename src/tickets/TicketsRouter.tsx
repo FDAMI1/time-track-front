@@ -4,7 +4,6 @@ import { useTicketMeta } from "@/tickets/lib/useTicketMeta";
 import TicketsPage from "@/tickets/pages/TicketsPage";
 import TicketDetailPage from "@/tickets/pages/TicketDetailPage";
 import TicketDashboardPage from "@/tickets/pages/TicketDashboardPage";
-import TicketHelpPage from "@/tickets/pages/TicketHelpPage";
 import TicketReportsPage from "@/tickets/pages/TicketReportsPage";
 import TicketSettingsPage from "@/tickets/pages/TicketSettingsPage";
 
@@ -44,7 +43,6 @@ export default function TicketsRouter() {
       )}
       <Switch>
         <Route path="/" component={TicketsPage} />
-        <Route path="/help" component={TicketHelpPage} />
         {reports && <Route path="/dashboard" component={TicketDashboardPage} />}
         {reports && <Route path="/reports" component={TicketReportsPage} />}
         {settings && <Route path="/settings" component={TicketSettingsPage} />}

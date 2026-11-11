@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link, useSearch } from "wouter";
+import { useSearch } from "wouter";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { BookOpen, ChevronLeft, ChevronRight, Download, LayoutGrid, LifeBuoy, List, Plus, Search, SlidersHorizontal } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, LayoutGrid, LifeBuoy, List, Plus, Search, SlidersHorizontal } from "lucide-react";
 import { downloadFile, useMcqApi } from "@/mcq/lib/api";
 import { useTicketMeta } from "@/tickets/lib/useTicketMeta";
 import { BUILT_IN_VIEWS, viewFilters } from "@/tickets/lib/views";
@@ -119,10 +119,7 @@ export default function TicketsPage() {
       </div>
 
       {!staff && canCreate && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" data-testid="portal-start">
-          <Link href="/help" className="rounded-lg border bg-card p-4 hover:bg-accent transition-colors flex items-center gap-3" data-testid="link-help-articles">
-            <BookOpen className="w-5 h-5 text-primary shrink-0" /><span className="font-medium">Browse help articles</span>
-          </Link>
+        <div className="grid grid-cols-1 gap-3" data-testid="portal-start">
           <button type="button" className="rounded-lg border bg-card p-4 hover:bg-accent transition-colors flex items-center gap-3 text-left" onClick={() => setCreateOpen(true)} data-testid="button-new-ticket">
             <Plus className="w-5 h-5 text-primary shrink-0" /><span className="font-medium">Report an issue</span>
           </button>
