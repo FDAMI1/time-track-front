@@ -1,4 +1,6 @@
-import { apiFetch } from "@/lib/api";
+import { apiFetch, safeJson } from "@/lib/api";
+import ConfirmDeleteButton from "@/components/ConfirmDeleteButton";
+import EditLeaveDialog from "@/components/leaves/EditLeaveDialog";
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
@@ -15,7 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Switch } from "@/components/ui/switch";
-import { CalendarOff, Plus, CheckCircle2, XCircle, Clock } from "lucide-react";
+import { CalendarOff, Plus, CheckCircle2, XCircle, Clock, Pencil } from "lucide-react";
 import { EmptyState } from "@/components/ui/states";
 
 const statusStyles: Record<string, { className: string; label: string }> = {
@@ -124,6 +126,23 @@ export default function LeavesPage() {
     },
   });
 
+  // Admins only: correct or remove anyone's leave request.
+  const isOrgAdmin = user?.role === "org_admin";
+  const [editing, setEditing] = useState<any>(null);
+  const deleteLeave = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiFetch(`/api/leaves/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) throw new Error((await safeJson(res))?.message || "Failed to delete");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/leaves/org"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/org"] });
+      toast({ title: "Leave request deleted" });
+    },
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
   const renderLeaveCard = (leave: any, showActions: boolean) => {
     const ss = statusStyles[leave.status] || statusStyles.pending;
     return (
@@ -162,6 +181,20 @@ export default function LeavesPage() {
             >
               <XCircle className="w-3.5 h-3.5 mr-1" /> Reject
             </Button>
+          </div>
+        )}
+        {showActions && isOrgAdmin && (
+          <div className="flex gap-1 justify-end">
+            <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setEditing(leave)} data-testid={`button-edit-leave-${leave._id}`}>
+              <Pencil className="w-3.5 h-3.5 mr-1" />Edit
+            </Button>
+            <ConfirmDeleteButton
+              title="Delete this leave request?"
+              description="It is removed for good, whatever its status. The audit log keeps a note of it."
+              onConfirm={() => deleteLeave.mutate(leave._id)}
+              disabled={deleteLeave.isPending}
+              testId={`button-delete-leave-${leave._id}`}
+            />
           </div>
         )}
       </div>
@@ -309,6 +342,7 @@ export default function LeavesPage() {
           </TabsContent>
         )}
       </Tabs>
+      {editing && <EditLeaveDialog leave={editing} token={token!} types={leaveTypeLabels} onClose={() => setEditing(null)} />}
     </div>
   );
 }

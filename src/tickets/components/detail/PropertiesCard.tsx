@@ -7,6 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
+import { useLocation } from "wouter";
+import { queryClient } from "@/lib/queryClient";
+import ConfirmDeleteButton from "@/components/ConfirmDeleteButton";
 import CustomFieldInputs, { fieldsForType } from "@/tickets/components/CustomFieldInputs";
 import MajorIncidentInputs from "@/tickets/components/MajorIncidentInputs";
 import type { TicketControls } from "@/tickets/lib/useTicketDetail";
@@ -72,6 +75,16 @@ function ReadOnly({ ticket, meta, permissions, action }: { ticket: Ticket; meta?
 export default function PropertiesCard({ controls, meta }: Props) {
   const { data, url, api, action, refresh, onError, toast } = controls;
   const ticket = data?.ticket;
+  const [, navigate] = useLocation();
+  const remove = useMutation({
+    mutationFn: () => api.delete(url),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tickets"] });
+      toast({ title: "Ticket deleted" });
+      navigate("/");
+    },
+    onError,
+  });
   const [draft, setDraft] = useState<Draft | null>(ticket ? draftOf(ticket) : null);
   const [custom, setCustom] = useState<Record<string, CustomValue>>(ticket?.customFields || {});
   const [major, setMajor] = useState<MajorIncident>(ticket?.majorIncident || {});
@@ -173,6 +186,18 @@ export default function PropertiesCard({ controls, meta }: Props) {
           </>
         )}
         {meta?.isAdmin && !ticket.isArchived && <Button variant="ghost" className="w-full" onClick={() => action.mutate({ path: "archive" })} data-testid="button-archive-ticket">Archive</Button>}
+        {meta?.isAdmin && (
+          <div className="flex justify-center">
+            <ConfirmDeleteButton
+              title={`Delete ${ticket.ticketKey} permanently?`}
+              description="The ticket, its whole conversation, internal notes, attachments, tasks and time logs are removed for good. This can't be undone. Archive keeps everything instead."
+              label="Delete permanently"
+              onConfirm={() => remove.mutate()}
+              disabled={remove.isPending}
+              testId="button-delete-ticket"
+            />
+          </div>
+        )}
       </CardContent>
     </Card>
   );

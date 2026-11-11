@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { BiometricPanel } from "@/components/biometric-panel";
 import { CalendarCheck, CheckCircle2, Clock, XCircle, Users, Bell, Check, X, UserCheck, FileDown, Copy } from "lucide-react";
 import { EmptyState } from "@/components/ui/states";
+import ConfirmDeleteButton from "@/components/ConfirmDeleteButton";
 
 const statusBadge: Record<string, { className: string; label: string }> = {
   present: { className: "bg-chart-2/10 text-chart-2", label: "Present" },
@@ -385,6 +386,21 @@ function TeamAttendanceTab({ roleFilter, token, viewerRole = "", orgType }: { ro
     },
   });
 
+  // Admins only: removes a wrongly marked record, so the person can be marked again for the day.
+  const deleteAttendance = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiFetch(`/api/attendance/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) throw new Error((await safeJson(res))?.message || "Failed to delete");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/attendance/daily-list"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/attendance/org"] });
+      toast({ title: "Attendance record deleted" });
+    },
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
   const members = data?.members || [];
   const unmarkedMembers = members.filter((m: any) => m.status === "not_marked");
   const pendingApprovalMembers = members.filter((m: any) => m.status === "pending");
@@ -588,6 +604,17 @@ function TeamAttendanceTab({ roleFilter, token, viewerRole = "", orgType }: { ro
                             <XCircle className="w-3.5 h-3.5 mr-1" />
                             Absent
                           </Button>
+                        </div>
+                      )}
+                      {viewerRole === "org_admin" && m.attendanceId && (
+                        <div className="flex justify-end mt-1">
+                          <ConfirmDeleteButton
+                            title="Delete this attendance record?"
+                            description={`${m.firstName} ${m.lastName}'s record for today will be removed and they can be marked again. The audit log keeps a note of it.`}
+                            onConfirm={() => deleteAttendance.mutate(m.attendanceId)}
+                            disabled={deleteAttendance.isPending}
+                            testId={`button-delete-attendance-${m._id}`}
+                          />
                         </div>
                       )}
                     </TableCell>
