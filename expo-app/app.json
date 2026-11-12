@@ -1,0 +1,45 @@
+{
+  "expo": {
+    "name": "NF Skills Portal",
+    "slug": "nfskills-portal-web",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "bundleIdentifier": "com.nfskills.portal",
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "The camera is used for proctored MCQ tests and to attach photos.",
+        "NSLocationWhenInUseUsageDescription": "Your location is checked when you mark attendance, if your organization requires it.",
+        "NSPhotoLibraryUsageDescription": "Photos you choose can be attached to tickets, claims and documents."
+      }
+    },
+    "android": {
+      "package": "com.nfskills.portal",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION"
+      ],
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "plugins": [
+      "expo-sharing",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/icon.png",
+          "imageWidth": 160,
+          "backgroundColor": "#ffffff"
+        }
+      ]
+    ]
+  }
+}

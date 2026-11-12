@@ -1,0 +1,98 @@
+name: Android APK
+
+# Builds the Expo app in expo-app/ (the portal website in a native Android shell) on GitHub's own
+# runner: expo prebuild generates the Android project, Gradle builds the release APK, and the APK
+# is attached to the run. No Expo account or EAS credits are needed.
+#
+# Settings (GitHub -> Settings -> Secrets and variables -> Actions):
+#   Variable  WEB_URL                     optional; the site the app opens (default below)
+#   Secret    ANDROID_KEYSTORE_BASE64     the release keystore, base64-encoded
+#   Secret    ANDROID_KEYSTORE_PASSWORD
+#   Secret    ANDROID_KEY_ALIAS
+#   Secret    ANDROID_KEY_PASSWORD
+# Without the keystore secrets the APK is signed with the public debug key: fine for testing, but
+# phones must uninstall it before installing a build signed with the real key.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, feature/portal-expansion]
+    paths:
+      - "expo-app/**"
+      - ".github/workflows/android-apk.yml"
+
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: expo-app
+    env:
+      EXPO_PUBLIC_WEB_URL: ${{ vars.WEB_URL || 'https://time-track-front.vercel.app' }}
+      APP_VERSION_CODE: ${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: expo-app/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Check the Expo project
+        run: npx --yes expo-doctor
+
+      - name: Generate the Android project
+        run: npx expo prebuild --platform android --no-install
+
+      - name: Set up release signing
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+            echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+            ANDROID_KEYSTORE_PATH="$RUNNER_TEMP/release.jks" node scripts/configure-release-signing.cjs
+          else
+            echo "::warning::No ANDROID_KEYSTORE_BASE64 secret, so this APK is signed with the debug key."
+            node scripts/configure-release-signing.cjs
+          fi
+
+      - name: Build the release APK
+        working-directory: expo-app/android
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./gradlew assembleRelease --no-daemon
+
+      - name: Name the APK
+        run: cp android/app/build/outputs/apk/release/app-release.apk "nfskills-portal-${{ github.run_number }}.apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nfskills-portal-apk-${{ github.run_number }}
+          path: expo-app/nfskills-portal-*.apk
+          if-no-files-found: error
+          retention-days: 30
