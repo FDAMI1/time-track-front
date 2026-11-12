@@ -2,18 +2,18 @@ import { useAuth } from "@/lib/auth";
 import SuperAdminDashboard from "@/components/dashboards/superadmin-dashboard";
 import OrgAdminDashboard from "@/components/dashboards/org-admin-dashboard";
 import MemberDashboard from "@/components/dashboards/member-dashboard";
+import { MobileGreeting } from "@/components/dashboards/mobile-greeting";
 
 export default function DashboardPage() {
   const { user } = useAuth();
 
   if (!user) return null;
 
-  switch (user.role) {
-    case "superadmin":
-      return <SuperAdminDashboard />;
-    case "org_admin":
-      return <OrgAdminDashboard />;
-    default:
-      return <MemberDashboard />;
-  }
+  const dashboard = user.role === "superadmin" ? <SuperAdminDashboard /> : user.role === "org_admin" ? <OrgAdminDashboard /> : <MemberDashboard />;
+  return (
+    <>
+      <MobileGreeting />
+      {dashboard}
+    </>
+  );
 }
