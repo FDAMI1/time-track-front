@@ -26,10 +26,9 @@ const minutesBetween = (start: string, end: string, overnight: boolean) => {
 const EMPTY = { date: "", startTime: "", endTime: "", overnight: false, taskName: "", description: "", category: "", projectId: "" };
 
 // Time worked without the timer. It waits for a manager's approval before it counts.
-export default function ManualEntryDialog({ open, onOpenChange, needsApproval, coords }: {
+export default function ManualEntryDialog({ open, onOpenChange, coords }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  needsApproval: boolean;
   coords?: () => Promise<{ latitude: number; longitude: number } | null>;
 }) {
   const api = useMcqApi();
@@ -56,7 +55,7 @@ export default function ManualEntryDialog({ open, onOpenChange, needsApproval, c
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/timetracking"] });
       queryClient.invalidateQueries({ queryKey: ["/api/timetracking/report"] });
-      toast({ title: needsApproval ? "Sent for approval" : "Time entry saved", description: needsApproval ? "It counts toward your hours once your manager approves it." : undefined });
+      toast({ title: "Sent for approval", description: "It counts toward your hours once it's approved." });
       setForm({ ...EMPTY, date: today });
       onOpenChange(false);
     },
@@ -69,7 +68,7 @@ export default function ManualEntryDialog({ open, onOpenChange, needsApproval, c
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add Manual Entry</DialogTitle>
-          <DialogDescription>{needsApproval ? "Your manager approves manual time before it counts toward your hours." : "Your manual time counts at once."}</DialogDescription>
+          <DialogDescription>Manual time is approved by an admin or manager before it counts toward your hours.</DialogDescription>
         </DialogHeader>
         <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); if (valid) save.mutate(); }}>
           <div>
@@ -120,7 +119,7 @@ export default function ManualEntryDialog({ open, onOpenChange, needsApproval, c
             )}
           </div>
           <Button type="submit" className="w-full" disabled={!valid || save.isPending} data-testid="button-save-manual">
-            {save.isPending ? "Saving..." : needsApproval ? "Submit for Approval" : "Save Entry"}
+            {save.isPending ? "Saving..." : "Submit for Approval"}
           </Button>
         </form>
       </DialogContent>

@@ -60,8 +60,6 @@ export default function TimeTrackingPage() {
 
   const isAdmin = ["org_admin", "manager"].includes(user?.role || "");
   const canApprove = user?.role === "org_admin" || user?.permissions?.timeApproval === true;
-  const needsApproval = user?.role !== "org_admin";
-
   const roleLabel: Record<string, string> = {
     teacher: "Teacher",
     employee: "Employee",
@@ -401,7 +399,7 @@ export default function TimeTrackingPage() {
           </CardContent>
         </Card>
       )}
-      <ManualEntryDialog open={manualOpen} onOpenChange={setManualOpen} needsApproval={needsApproval} coords={locationIfRequired} />
+      <ManualEntryDialog open={manualOpen} onOpenChange={setManualOpen} coords={locationIfRequired} />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
