@@ -3,9 +3,10 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CalendarDays, ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { Link } from "wouter";
+import { CalendarDays, ChevronLeft, ChevronRight, Plus, School } from "lucide-react";
 import { useMcqApi } from "@/mcq/lib/api";
-import { addDays, dayLabel, localToday, mondayOf, nameOf, weekOf, type Lecture } from "@/academy/lib/academy";
+import { addDays, dayLabel, featureOn, localToday, mondayOf, nameOf, weekOf, type Lecture } from "@/academy/lib/academy";
 import { ListState, StatusBadge } from "@/academy/components/common";
 import LectureDialog from "@/academy/components/LectureDialog";
 import LectureAttendanceDialog from "@/academy/components/LectureAttendanceDialog";
@@ -21,6 +22,8 @@ export default function LecturesPage() {
   const [editing, setEditing] = useState<Lecture | "new" | null>(null);
   const [marking, setMarking] = useState<Lecture | null>(null);
   const canManage = user?.role !== "student";
+  // Same rule as the /classes route in App.tsx.
+  const canOpenClasses = ["org_admin", "teacher", "manager"].includes(user?.role || "") && featureOn(user, "classes");
   const days = weekOf(monday);
   const url = `/api/lectures?from=${days[0]}&to=${days[6]}`;
 
@@ -38,6 +41,11 @@ export default function LecturesPage() {
           <Button variant="outline" size="icon" onClick={() => setMonday(addDays(monday, -7))} aria-label="Previous week" data-testid="button-previous-week"><ChevronLeft className="w-4 h-4" /></Button>
           <Button variant="outline" onClick={() => setMonday(mondayOf(today))} data-testid="button-this-week">This Week</Button>
           <Button variant="outline" size="icon" onClick={() => setMonday(addDays(monday, 7))} aria-label="Next week" data-testid="button-next-week"><ChevronRight className="w-4 h-4" /></Button>
+          {canOpenClasses && (
+            <Button variant="outline" asChild data-testid="button-classes">
+              <Link href="/classes"><School className="w-4 h-4 mr-2" />Classes</Link>
+            </Button>
+          )}
           {canManage && <Button onClick={() => setEditing("new")} data-testid="button-new-lecture"><Plus className="w-4 h-4 mr-2" />New Lecture</Button>}
         </div>
       </div>
