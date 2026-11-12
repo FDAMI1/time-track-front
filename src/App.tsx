@@ -53,6 +53,7 @@ const McqFallback = () => (
   </div>
 );
 import ForcePasswordChange from "@/components/force-password-change";
+import { MobileBottomNav } from "@/components/mobile-bottom-nav";
 import { applyBrandingCss, saveBranding, useBranding } from "@/lib/branding";
 import { RemoteImage } from "@/components/remote-image";
 
@@ -417,9 +418,10 @@ function AppLayout() {
         <AppSidebar />
         <div className="flex flex-col flex-1 min-w-0">
           <ImpersonationBanner />
-          <header className="flex items-center justify-between gap-3 px-4 border-b bg-card h-14 shrink-0">
+          {/* On phones: a blue header in the app's primary colour; the menu moves to the bottom bar. */}
+          <header className="flex items-center justify-between gap-3 px-4 border-b bg-card h-14 shrink-0 max-md:border-0 max-md:bg-gradient-to-r max-md:from-primary max-md:to-primary/80 max-md:text-primary-foreground max-md:rounded-b-2xl max-md:shadow-sm">
             <div className="flex items-center gap-3 min-w-0">
-              <SidebarTrigger data-testid="button-sidebar-toggle" />
+              <SidebarTrigger className="max-md:hidden" data-testid="button-sidebar-toggle" />
               <HeaderLogo />
               <PageHeading />
             </div>
@@ -428,19 +430,21 @@ function AppLayout() {
                 <Suspense fallback={null}><GlobalTicketSearch /></Suspense>
               )}
               <NotificationBell />
-              <div className="flex items-center gap-2 pl-2 border-l">
-                <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center text-xs font-semibold">
+              <div className="flex items-center gap-2 pl-2 border-l max-md:border-white/30">
+                <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary max-md:bg-white/20 max-md:text-primary-foreground flex items-center justify-center text-xs font-semibold">
                   {getInitials(user.firstName, user.lastName)}
                 </div>
                 <span className="hidden sm:block text-sm font-medium max-w-[10rem] truncate">{user.firstName} {user.lastName}</span>
               </div>
             </div>
           </header>
-          <main className="flex-1 overflow-auto bg-background">
+          {/* Room for the phone's bottom bar, so it never covers the end of a page. */}
+          <main className="flex-1 overflow-auto bg-background max-md:pb-[calc(5.5rem+env(safe-area-inset-bottom))]">
             <AuthenticatedRouter />
           </main>
         </div>
       </div>
+      <MobileBottomNav />
       <Suspense fallback={null}><AssistantWidget key={user._id} /></Suspense>
     </SidebarProvider>
   );

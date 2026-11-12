@@ -191,7 +191,7 @@ export default function AssistantWidget() {
 
   if (open && needsSetup) {
     return (
-      <section className="fixed z-40 inset-x-4 bottom-4 sm:inset-x-auto sm:right-4 sm:w-96 rounded-lg bg-card border shadow-xl p-4 space-y-3" aria-label="Portal assistant" data-testid="panel-assistant-setup">
+      <section className="fixed z-40 inset-x-4 bottom-24 md:bottom-4 sm:inset-x-auto sm:right-4 sm:w-96 rounded-lg bg-card border shadow-xl p-4 space-y-3" aria-label="Portal assistant" data-testid="panel-assistant-setup">
         <div className="flex items-center gap-2">
           <Bot className="w-5 h-5 text-primary" />
           <h2 className="flex-1 text-sm font-semibold">Assistant</h2>
@@ -206,7 +206,7 @@ export default function AssistantWidget() {
   if (!open) {
     // Wrapped, because the Button's own `relative` class would beat `fixed`.
     return (
-      <div className={`fixed right-4 z-40 ${location.startsWith("/chat") ? "bottom-36" : "bottom-4"}`}>
+      <div className={`fixed right-4 z-40 ${location.startsWith("/chat") ? "bottom-56 md:bottom-36" : "bottom-24 md:bottom-4"}`}>
         <Button
           className="h-12 rounded-full shadow-lg px-3 sm:px-4 gap-2"
           onClick={() => setOpen(true)}
