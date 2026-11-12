@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Check, X, Inbox } from "lucide-react";
 import { EntryHistory, StatusBadge, type TimeEntryRow } from "./EntryStatus";
+import { formatTime12 } from "@/lib/utils";
 
 type Status = "pending" | "approved" | "rejected";
 const formatDuration = (m: number) => (m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m}m`);
@@ -64,7 +65,7 @@ export default function ApprovalsPanel({ fromDate, toDate }: { fromDate: string;
                 {e.description && <p className="text-xs text-muted-foreground">{e.description}</p>}
               </div>
               <div className="text-sm sm:text-right shrink-0">
-                <p>{e.startTime} – {e.endTime}</p>
+                <p>{formatTime12(e.startTime)} – {formatTime12(e.endTime)}</p>
                 <p className="font-semibold">{formatDuration(e.duration)}</p>
               </div>
             </div>

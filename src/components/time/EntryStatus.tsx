@@ -59,7 +59,7 @@ export function EntryHistory({ entry }: { entry: TimeEntryRow }) {
           {entry.history.map((h, i) => (
             <li key={i}>
               <span className="font-medium text-foreground">{ACTIONS[h.action] || h.action}</span>
-              {h.byName ? ` by ${h.byName}` : ""} · {new Date(h.at).toLocaleString()}
+              {h.byName ? ` by ${h.byName}` : ""} · {new Date(h.at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short", hour12: true })}
               {h.note ? ` — ${h.note}` : ""}
             </li>
           ))}

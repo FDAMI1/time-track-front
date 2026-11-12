@@ -2,7 +2,7 @@ import { apiFetch, safeJson } from "@/lib/api";
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
-import { localDateString } from "@/lib/utils";
+import { formatTime12, localDateString } from "@/lib/utils";
 import { queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,11 +13,12 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Clock, Timer, Trash2, BarChart3, Calendar, Play, Square, Edit, Check, X, Plus, Hourglass, ClipboardCheck } from "lucide-react";
+import { Clock, Timer, Trash2, BarChart3, Calendar, Play, Square, Edit, Check, X, Plus, Hourglass, ClipboardCheck, Coffee } from "lucide-react";
 import { getCurrentCoordinates, isLocationRequired } from "@/lib/geolocation";
 import ManualEntryDialog from "@/components/time/ManualEntryDialog";
 import ApprovalsPanel from "@/components/time/ApprovalsPanel";
 import { EntryHistory, StatusBadge, statusOf } from "@/components/time/EntryStatus";
+import { BreakButton, BreakRow, formatClock, useBreaks, type TimeBreakRow } from "@/components/time/Breaks";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
 import { EmptyState } from "@/components/ui/states";
 
@@ -226,6 +227,8 @@ export default function TimeTrackingPage() {
   }
 
   const handleStop = () => timerMutation.mutate("stop");
+  const onBreak = useBreaks({ fromDate, toDate, userId: isViewingSelf ? "" : selectedUserId, coords: locationIfRequired });
+  const isOnBreak = isViewingSelf && !!onBreak.running;
 
   function startEdit(entry: any) {
     setEditingId(entry._id);
@@ -241,10 +244,11 @@ export default function TimeTrackingPage() {
   }
 
   const groupedEntries: Record<string, any[]> = {};
-  (entries || []).forEach((e: any) => {
+  [...(entries || []), ...onBreak.breaks.map((b: TimeBreakRow) => ({ ...b, isBreak: true }))].forEach((e: any) => {
     if (!groupedEntries[e.date]) groupedEntries[e.date] = [];
     groupedEntries[e.date].push(e);
   });
+  Object.values(groupedEntries).forEach((day) => day.sort((a: any, b: any) => a.startTime.localeCompare(b.startTime)));
 
   // Approved time only; the server reports pending minutes beside it.
   const totalMinutes = report?.totalMinutes ?? 0;
@@ -326,7 +330,7 @@ export default function TimeTrackingPage() {
         <Card className={isTimerRunning ? "border-primary shadow-md" : ""}>
           <CardContent className="p-5">
             <div className="space-y-4">
-              <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex flex-col lg:flex-row gap-3">
                 <div className="flex-1">
                   <Label className="text-xs text-muted-foreground mb-1 block">Task Name</Label>
                   <Input
@@ -347,7 +351,7 @@ export default function TimeTrackingPage() {
                     data-testid="input-task-description"
                   />
                 </div>
-                <div className="flex items-end gap-2">
+                <div className="flex items-end gap-2 flex-wrap">
                   {isTimerRunning && (
                     <div className="flex items-center gap-2 px-3 h-10 bg-primary/10 rounded-md">
                       <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
@@ -360,7 +364,8 @@ export default function TimeTrackingPage() {
                     <Button
                       onClick={handleStart}
                       className="gap-2"
-                      disabled={timerMutation.isPending}
+                      disabled={timerMutation.isPending || isOnBreak}
+                      title={isOnBreak ? "Stop the break first" : undefined}
                       data-testid="button-start-timer"
                     >
                       <Play className="w-4 h-4" />
@@ -378,6 +383,14 @@ export default function TimeTrackingPage() {
                       Stop
                     </Button>
                   )}
+                  <BreakButton
+                    timerRunning={isTimerRunning}
+                    onBreak={isOnBreak}
+                    elapsed={onBreak.elapsed}
+                    busy={onBreak.toggle.isPending || timerMutation.isPending}
+                    onStart={() => onBreak.toggle.mutate("start")}
+                    onStop={() => onBreak.toggle.mutate("stop")}
+                  />
                   <Button variant="outline" className="gap-2" onClick={() => setManualOpen(true)} data-testid="button-add-manual">
                     <Plus className="w-4 h-4" />
                     Manual Entry
@@ -390,7 +403,7 @@ export default function TimeTrackingPage() {
       )}
       <ManualEntryDialog open={manualOpen} onOpenChange={setManualOpen} needsApproval={needsApproval} coords={locationIfRequired} />
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-5">
             <div className="flex items-center justify-between">
@@ -427,6 +440,22 @@ export default function TimeTrackingPage() {
               </div>
               <div className="w-10 h-10 rounded-full bg-chart-3/10 flex items-center justify-center">
                 <BarChart3 className="w-5 h-5 text-chart-3" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground">Total Break Time</p>
+                <p className="text-2xl font-bold mt-1" data-testid="text-break-time">{formatDuration(onBreak.totalMinutes)}</p>
+                <p className="text-xs text-muted-foreground" data-testid="text-break-count">
+                  {isOnBreak ? <span className="text-red-600">On break · {formatClock(onBreak.elapsed)}</span> : `${onBreak.breaks.length} breaks`}
+                </p>
+              </div>
+              <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center">
+                <Coffee className="w-5 h-5 text-red-600" />
               </div>
             </div>
           </CardContent>
@@ -483,8 +512,8 @@ export default function TimeTrackingPage() {
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-2">
-                    {dateEntries.map((entry: any) => (
-                      <div key={entry._id} className="flex items-center justify-between p-3 rounded-md bg-muted/30 hover:bg-muted/50 transition-colors" data-testid={`entry-${entry._id}`}>
+                    {dateEntries.map((entry: any) => entry.isBreak ? <BreakRow key={entry._id} brk={entry} /> : (
+                      <div key={entry._id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-md bg-muted/30 hover:bg-muted/50 transition-colors" data-testid={`entry-${entry._id}`}>
                         {editingId === entry._id ? (
                           <div className="flex items-center gap-3 flex-1 min-w-0">
                             <div className="w-1 h-10 rounded-full bg-chart-2 shrink-0" />
@@ -523,8 +552,8 @@ export default function TimeTrackingPage() {
                                 {statusOf(entry) === "rejected" && entry.rejectionReason && <p className="text-xs text-destructive mt-1">Rejected: {entry.rejectionReason}</p>}
                               </div>
                             </div>
-                            <div className="flex items-center gap-3 shrink-0">
-                              <span className="text-xs text-muted-foreground">{entry.startTime} - {entry.endTime}</span>
+                            <div className="flex items-center gap-3 shrink-0 pl-4 sm:pl-0">
+                              <span className="text-xs text-muted-foreground whitespace-nowrap">{formatTime12(entry.startTime)} - {formatTime12(entry.endTime)}</span>
                               <Badge variant="outline">{formatDuration(entry.duration)}</Badge>
                               {isViewingSelf && (
                                 <div className="flex gap-1">

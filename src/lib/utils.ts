@@ -24,3 +24,11 @@ export function localDateString(date: Date = new Date()): string {
   const d = String(date.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
 }
+
+// "13:25" -> "1:25 PM". Anything that isn't HH:MM is returned as it is.
+export function formatTime12(hhmm: string | null | undefined): string {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(hhmm || "");
+  if (!match) return hhmm || "";
+  const hours = Number(match[1]);
+  return `${hours % 12 || 12}:${match[2]} ${hours < 12 ? "AM" : "PM"}`;
+}
