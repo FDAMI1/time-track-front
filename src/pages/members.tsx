@@ -22,6 +22,7 @@ import { usePersonAccess } from "@/components/members/usePersonAccess";
 import { EmptyState, ErrorState } from "@/components/ui/states";
 import AccessSwitches, { type AccessItem } from "@/components/members/AccessSwitches";
 import ImportMembersDialog from "@/components/members/ImportMembersDialog";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Link } from "wouter";
 
 const roleLabels: Record<string, string> = {
@@ -411,6 +412,164 @@ export default function MembersPage() {
   const educationRequiredOnEdit = getRoleName(editForm.role) === "student"
     && (!!selectedMember?.education || selectedMember?.role !== "student" || editForm.education !== "");
 
+  // One member's cell contents, shared by the desktop table and the phone cards so each control exists once.
+  const memberCells = (m: any) => ({
+    identity: (<>
+      <div className="flex items-center gap-3">
+        <Avatar className="w-8 h-8">
+          <AvatarFallback className="text-xs bg-primary/10 text-primary">
+            {getInitials(m.firstName, m.lastName)}
+          </AvatarFallback>
+        </Avatar>
+        <div>
+          <Link href={`/members/${m._id}`} className="font-medium text-sm hover:underline text-left" data-testid={`link-member-profile-${m._id}`}>{m.firstName} {m.lastName}</Link>
+          <div className="flex items-center gap-1">
+            <p className="text-xs text-muted-foreground">{m.email}</p>
+            <button
+              className="text-muted-foreground hover:text-foreground opacity-60 hover:opacity-100"
+              onClick={() => { navigator.clipboard.writeText(m.email); toast({ title: "Email copied" }); }}
+              data-testid={`button-copy-email-${m._id}`}
+              title="Copy email"
+            >
+              <Copy className="w-3 h-3" />
+            </button>
+          </div>
+          {m.userId && (
+            <p className="text-xs text-muted-foreground" data-testid={`text-member-code-${m._id}`}>ID: {m.userId}</p>
+          )}
+          {m.biometricId && (
+            <p className="text-xs text-muted-foreground" data-testid={`text-member-biometric-${m._id}`}>Biometric ID: {m.biometricId}</p>
+          )}
+          {m.phone && (
+            <p className="text-xs text-muted-foreground flex items-center gap-1"><Phone className="w-3 h-3" />{m.phone}</p>
+          )}
+          {m.education && (
+            <p className="text-xs text-muted-foreground flex items-center gap-1"><GraduationCap className="w-3 h-3" />{m.education}</p>
+          )}
+        </div>
+      </div>
+    </>),
+    username: (<>
+      <div className="flex items-center gap-1">
+        <span>{m.username}</span>
+        <button
+          className="text-muted-foreground hover:text-foreground opacity-60 hover:opacity-100"
+          onClick={() => { navigator.clipboard.writeText(m.username); toast({ title: "Username copied" }); }}
+          data-testid={`button-copy-username-${m._id}`}
+          title="Copy username"
+        >
+          <Copy className="w-3 h-3" />
+        </button>
+      </div>
+    </>),
+    role: (<>
+      <span className={`text-xs px-2 py-1 rounded-md ${roleBadgeColors[m.role] || ""}`}>
+        {roleLabels[m.role] || m.role}
+      </span>
+    </>),
+    whatsapp: (<>
+      {isStudentOrEmployee(m.role) && (m.studentWhatsapp || m.parentWhatsapp) ? (
+        <div className="space-y-0.5">
+          {m.studentWhatsapp && (
+            <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
+              <MessageCircle className="w-3 h-3" />
+              {m.studentWhatsapp}
+            </p>
+          )}
+          {m.parentWhatsapp && (
+            <p className="text-xs text-muted-foreground flex items-center gap-1">
+              <Phone className="w-3 h-3" />
+              {m.parentWhatsapp}
+            </p>
+          )}
+        </div>
+      ) : (
+        <span className="text-xs text-muted-foreground">—</span>
+      )}
+    </>),
+    status: (<>
+      {canManageRole(m.role) && m._id !== user?._id ? (
+        <div className="inline-flex rounded-full border text-xs font-medium overflow-hidden" role="group" aria-label={`Status of ${m.firstName} ${m.lastName}`}>
+          {([true, false] as const).map((active) => (
+            <button
+              key={String(active)}
+              type="button"
+              aria-pressed={m.isActive === active}
+              disabled={setStatus.isPending || m.isActive === active}
+              onClick={() => setStatus.mutate({ id: m._id, isActive: active })}
+              className={`px-2.5 py-1 transition-colors disabled:cursor-default ${m.isActive === active ? (active ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground") : "text-muted-foreground hover:bg-muted"}`}
+              data-testid={`button-status-${active ? "active" : "inactive"}-${m._id}`}
+            >
+              {active ? "Active" : "Inactive"}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <span className={`inline-block rounded-full border px-2.5 py-1 text-xs font-medium ${m.isActive ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"}`} title={m._id === user?._id ? "You can't deactivate your own account" : undefined} data-testid={`text-status-${m._id}`}>
+          {m.isActive ? "Active" : "Inactive"}
+        </span>
+      )}
+    </>),
+    location: (<>
+      {canManageRole(m.role) ? (
+        <Select
+          value={m.locationRestrictionEnabled === null || m.locationRestrictionEnabled === undefined ? "default" : m.locationRestrictionEnabled ? "on" : "off"}
+          onValueChange={(v) => locationOverride.mutate({ id: m._id, value: v === "default" ? null : v === "on" })}
+          data-testid={`select-location-${m._id}`}
+        >
+          <SelectTrigger className="h-7 w-24 text-xs" data-testid={`trigger-location-${m._id}`}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="default">Default</SelectItem>
+            <SelectItem value="on">ON</SelectItem>
+            <SelectItem value="off">OFF</SelectItem>
+          </SelectContent>
+        </Select>
+      ) : <span className="text-xs text-muted-foreground">—</span>}
+    </>),
+    teacher: (<>
+        {m.role === "student" ? (
+          <Select
+            value={m.assignedTeacher?._id || m.assignedTeacher || "none"}
+            onValueChange={(v) => assignTeacher.mutate({ id: m._id, teacherId: v === "none" ? null : v })}
+            data-testid={`select-teacher-${m._id}`}
+          >
+            <SelectTrigger className="h-7 w-36 text-xs" data-testid={`trigger-teacher-${m._id}`}>
+              <SelectValue placeholder="Assign teacher" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">— Unassigned —</SelectItem>
+              {(teachersList || []).map((t: any) => (
+                <SelectItem key={t._id} value={t._id}>{t.firstName} {t.lastName}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : (
+          <span className="text-xs text-muted-foreground">—</span>
+        )}
+    </>),
+    actions: (<>
+      {canManageRole(m.role) && (
+        <div className="flex gap-1 justify-end">
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(m)} data-testid={`button-edit-member-${m._id}`}>
+            <Pencil className="w-3.5 h-3.5" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-amber-600" title="Reset Password" onClick={() => { if (confirm(`Reset password for ${m.firstName} ${m.lastName}?`)) resetPassword.mutate(m._id); }} data-testid={`button-reset-password-${m._id}`} disabled={resetPassword.isPending}>
+            <KeyRound className="w-3.5 h-3.5" />
+          </Button>
+          {["superadmin", "org_admin"].includes(user?.role || "") && (
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => { if (confirm(`Delete ${m.firstName} ${m.lastName}?`)) deleteUser.mutate(m._id); }} data-testid={`button-delete-member-${m._id}`}>
+              <Trash2 className="w-3.5 h-3.5" />
+            </Button>
+          )}
+        </div>
+      )}
+    </>),
+  });
+  const isMobile = useIsMobile();
+  const showTeacher = ["superadmin", "org_admin"].includes(user?.role || "") && orgType === "academy";
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -613,6 +772,30 @@ export default function MembersPage() {
               : <EmptyState icon={Users} title="No members yet" description={canAddMembers ? "Add the first person with Add Member." : "People your admin adds appear here."} />}
           </CardContent>
         </Card>
+      ) : isMobile ? (
+        <div className="space-y-3" data-testid="list-member-cards">
+          {filtered.map((m: any) => {
+            const c = memberCells(m);
+            return (
+              <Card key={m._id} className="rounded-2xl" data-testid={`row-member-${m._id}`}>
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">{c.identity}</div>
+                    {c.role}
+                  </div>
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">@{c.username}</div>
+                  {(m.studentWhatsapp || m.parentWhatsapp) && c.whatsapp}
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
+                    <div className="flex items-center gap-2"><span className="text-muted-foreground">Status</span>{c.status}</div>
+                    <div className="flex items-center gap-2"><span className="text-muted-foreground">Location</span>{c.location}</div>
+                  </div>
+                  {showTeacher && m.role === "student" && <div className="flex items-center gap-2 text-xs"><span className="text-muted-foreground">Teacher</span>{c.teacher}</div>}
+                  <div className="flex justify-end border-t pt-2">{c.actions}</div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
       ) : (
         <Card>
           <CardContent className="p-0 overflow-x-auto">
@@ -625,171 +808,28 @@ export default function MembersPage() {
                   <TableHead>WhatsApp</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Location</TableHead>
-                  {["superadmin", "org_admin"].includes(user?.role || "") && orgType === "academy" && (
+                  {showTeacher && (
                     <TableHead>Teacher</TableHead>
                   )}
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((m: any) => (
+                {filtered.map((m: any) => {
+                  const c = memberCells(m);
+                  return (
                   <TableRow key={m._id} data-testid={`row-member-${m._id}`}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <Avatar className="w-8 h-8">
-                          <AvatarFallback className="text-xs bg-primary/10 text-primary">
-                            {getInitials(m.firstName, m.lastName)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <Link href={`/members/${m._id}`} className="font-medium text-sm hover:underline text-left" data-testid={`link-member-profile-${m._id}`}>{m.firstName} {m.lastName}</Link>
-                          <div className="flex items-center gap-1">
-                            <p className="text-xs text-muted-foreground">{m.email}</p>
-                            <button
-                              className="text-muted-foreground hover:text-foreground opacity-60 hover:opacity-100"
-                              onClick={() => { navigator.clipboard.writeText(m.email); toast({ title: "Email copied" }); }}
-                              data-testid={`button-copy-email-${m._id}`}
-                              title="Copy email"
-                            >
-                              <Copy className="w-3 h-3" />
-                            </button>
-                          </div>
-                          {m.userId && (
-                            <p className="text-xs text-muted-foreground" data-testid={`text-member-code-${m._id}`}>ID: {m.userId}</p>
-                          )}
-                          {m.biometricId && (
-                            <p className="text-xs text-muted-foreground" data-testid={`text-member-biometric-${m._id}`}>Biometric ID: {m.biometricId}</p>
-                          )}
-                          {m.phone && (
-                            <p className="text-xs text-muted-foreground flex items-center gap-1"><Phone className="w-3 h-3" />{m.phone}</p>
-                          )}
-                          {m.education && (
-                            <p className="text-xs text-muted-foreground flex items-center gap-1"><GraduationCap className="w-3 h-3" />{m.education}</p>
-                          )}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        <span>{m.username}</span>
-                        <button
-                          className="text-muted-foreground hover:text-foreground opacity-60 hover:opacity-100"
-                          onClick={() => { navigator.clipboard.writeText(m.username); toast({ title: "Username copied" }); }}
-                          data-testid={`button-copy-username-${m._id}`}
-                          title="Copy username"
-                        >
-                          <Copy className="w-3 h-3" />
-                        </button>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <span className={`text-xs px-2 py-1 rounded-md ${roleBadgeColors[m.role] || ""}`}>
-                        {roleLabels[m.role] || m.role}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      {isStudentOrEmployee(m.role) && (m.studentWhatsapp || m.parentWhatsapp) ? (
-                        <div className="space-y-0.5">
-                          {m.studentWhatsapp && (
-                            <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
-                              <MessageCircle className="w-3 h-3" />
-                              {m.studentWhatsapp}
-                            </p>
-                          )}
-                          {m.parentWhatsapp && (
-                            <p className="text-xs text-muted-foreground flex items-center gap-1">
-                              <Phone className="w-3 h-3" />
-                              {m.parentWhatsapp}
-                            </p>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {canManageRole(m.role) && m._id !== user?._id ? (
-                        <div className="inline-flex rounded-full border text-xs font-medium overflow-hidden" role="group" aria-label={`Status of ${m.firstName} ${m.lastName}`}>
-                          {([true, false] as const).map((active) => (
-                            <button
-                              key={String(active)}
-                              type="button"
-                              aria-pressed={m.isActive === active}
-                              disabled={setStatus.isPending || m.isActive === active}
-                              onClick={() => setStatus.mutate({ id: m._id, isActive: active })}
-                              className={`px-2.5 py-1 transition-colors disabled:cursor-default ${m.isActive === active ? (active ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground") : "text-muted-foreground hover:bg-muted"}`}
-                              data-testid={`button-status-${active ? "active" : "inactive"}-${m._id}`}
-                            >
-                              {active ? "Active" : "Inactive"}
-                            </button>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className={`inline-block rounded-full border px-2.5 py-1 text-xs font-medium ${m.isActive ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"}`} title={m._id === user?._id ? "You can't deactivate your own account" : undefined} data-testid={`text-status-${m._id}`}>
-                          {m.isActive ? "Active" : "Inactive"}
-                        </span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {canManageRole(m.role) ? (
-                        <Select
-                          value={m.locationRestrictionEnabled === null || m.locationRestrictionEnabled === undefined ? "default" : m.locationRestrictionEnabled ? "on" : "off"}
-                          onValueChange={(v) => locationOverride.mutate({ id: m._id, value: v === "default" ? null : v === "on" })}
-                          data-testid={`select-location-${m._id}`}
-                        >
-                          <SelectTrigger className="h-7 w-24 text-xs" data-testid={`trigger-location-${m._id}`}>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="default">Default</SelectItem>
-                            <SelectItem value="on">ON</SelectItem>
-                            <SelectItem value="off">OFF</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      ) : <span className="text-xs text-muted-foreground">—</span>}
-                    </TableCell>
-                    {["superadmin", "org_admin"].includes(user?.role || "") && orgType === "academy" && (
-                      <TableCell>
-                        {m.role === "student" ? (
-                          <Select
-                            value={m.assignedTeacher?._id || m.assignedTeacher || "none"}
-                            onValueChange={(v) => assignTeacher.mutate({ id: m._id, teacherId: v === "none" ? null : v })}
-                            data-testid={`select-teacher-${m._id}`}
-                          >
-                            <SelectTrigger className="h-7 w-36 text-xs" data-testid={`trigger-teacher-${m._id}`}>
-                              <SelectValue placeholder="Assign teacher" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="none">— Unassigned —</SelectItem>
-                              {(teachersList || []).map((t: any) => (
-                                <SelectItem key={t._id} value={t._id}>{t.firstName} {t.lastName}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                    )}
-                    <TableCell className="text-right">
-                      {canManageRole(m.role) && (
-                        <div className="flex gap-1 justify-end">
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(m)} data-testid={`button-edit-member-${m._id}`}>
-                            <Pencil className="w-3.5 h-3.5" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-amber-600" title="Reset Password" onClick={() => { if (confirm(`Reset password for ${m.firstName} ${m.lastName}?`)) resetPassword.mutate(m._id); }} data-testid={`button-reset-password-${m._id}`} disabled={resetPassword.isPending}>
-                            <KeyRound className="w-3.5 h-3.5" />
-                          </Button>
-                          {["superadmin", "org_admin"].includes(user?.role || "") && (
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => { if (confirm(`Delete ${m.firstName} ${m.lastName}?`)) deleteUser.mutate(m._id); }} data-testid={`button-delete-member-${m._id}`}>
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </Button>
-                          )}
-                        </div>
-                      )}
-                    </TableCell>
+                    <TableCell>{c.identity}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{c.username}</TableCell>
+                    <TableCell>{c.role}</TableCell>
+                    <TableCell>{c.whatsapp}</TableCell>
+                    <TableCell>{c.status}</TableCell>
+                    <TableCell>{c.location}</TableCell>
+                    {showTeacher && <TableCell>{c.teacher}</TableCell>}
+                    <TableCell className="text-right">{c.actions}</TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
               </TableBody>
             </Table>
           </CardContent>

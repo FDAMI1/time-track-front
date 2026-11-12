@@ -211,7 +211,7 @@ export default function ReimbursementsPage() {
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <Receipt className="w-6 h-6 text-primary" />
           <div>
@@ -219,7 +219,7 @@ export default function ReimbursementsPage() {
             <p className="text-sm text-muted-foreground">Manage expense claims and reimbursements</p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {isAdmin && (
             <Button variant="outline" size="sm" onClick={() => setShowPolicyForm((v) => !v)} data-testid="button-manage-policies">
               <Settings2 className="w-4 h-4 mr-1.5" />
@@ -316,7 +316,7 @@ export default function ReimbursementsPage() {
                 />
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button
                 size="sm"
                 onClick={() => savePolicy.mutate()}
@@ -415,7 +415,7 @@ export default function ReimbursementsPage() {
               />
               {invoiceFile && <p className="text-xs text-muted-foreground">{invoiceFile.name}</p>}
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button
                 onClick={() => createClaim.mutate()}
                 disabled={isSubmitDisabled}

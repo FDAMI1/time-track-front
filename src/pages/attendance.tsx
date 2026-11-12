@@ -458,7 +458,7 @@ function TeamAttendanceTab({ roleFilter, token, viewerRole = "", orgType }: { ro
             )}
           </div>
           {unmarkedMembers.length > 0 && (
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button
                 size="sm"
                 onClick={() => markBulk.mutate(unmarkedMembers.map((m: any) => m._id))}
@@ -491,8 +491,8 @@ function TeamAttendanceTab({ roleFilter, token, viewerRole = "", orgType }: { ro
             <p className="text-muted-foreground">No {roleLabel.toLowerCase()} found</p>
           </div>
         ) : (
-          <Table>
-            <TableHeader>
+          <Table className="max-md:block">
+            <TableHeader className="max-md:hidden">
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Status</TableHead>
@@ -506,14 +506,14 @@ function TeamAttendanceTab({ roleFilter, token, viewerRole = "", orgType }: { ro
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody>
+            <TableBody className="max-md:block max-md:space-y-2 max-md:p-3">
               {sortedMembers.map((m: any) => {
                 const sb = statusBadge[m.status] || statusBadge.not_marked;
                 const isPending = m.status === "pending";
                 const isNotMarked = m.status === "not_marked";
                 return (
-                  <TableRow key={m._id} data-testid={`row-member-attendance-${m._id}`} className={isPending ? "bg-chart-3/5" : ""}>
-                    <TableCell className="font-medium">
+                  <TableRow key={m._id} data-testid={`row-member-attendance-${m._id}`} className={`max-md:flex max-md:flex-wrap max-md:items-center max-md:gap-x-3 max-md:gap-y-2 max-md:rounded-xl max-md:!border max-md:p-3 ${isPending ? "bg-chart-3/5" : ""}`}>
+                    <TableCell className="font-medium max-md:p-0 max-md:border-0 max-md:w-full">
                       <div className="flex items-center gap-2">
                         {m.firstName} {m.lastName}
                         {isPending && (
@@ -524,14 +524,14 @@ function TeamAttendanceTab({ roleFilter, token, viewerRole = "", orgType }: { ro
                         )}
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="max-md:p-0 max-md:border-0">
                       <span className={`text-xs px-2 py-1 rounded-md ${sb.className}`}>{sb.label}</span>
                     </TableCell>
-                    <TableCell className="text-muted-foreground">{m.checkInTime || "-"}<SourceTag source={m.source} /></TableCell>
+                    <TableCell className="text-muted-foreground max-md:p-0 max-md:border-0"><span className="md:hidden text-xs">In </span>{m.checkInTime || "-"}<SourceTag source={m.source} /></TableCell>
                     {viewerRole === "manager" && roleFilter === "employee" && (
                       <>
-                        <TableCell className="text-muted-foreground">{m.checkOutTime || "-"}</TableCell>
-                        <TableCell className="text-muted-foreground text-xs">
+                        <TableCell className="text-muted-foreground max-md:p-0 max-md:border-0"><span className="md:hidden text-xs">Out </span>{m.checkOutTime || "-"}</TableCell>
+                        <TableCell className="text-muted-foreground text-xs max-md:p-0 max-md:border-0">
                           {m.checkInTime && m.checkOutTime ? (() => {
                             const [ih, im] = m.checkInTime.split(":").map(Number);
                             const [oh, om] = m.checkOutTime.split(":").map(Number);
@@ -542,7 +542,7 @@ function TeamAttendanceTab({ roleFilter, token, viewerRole = "", orgType }: { ro
                         </TableCell>
                       </>
                     )}
-                    <TableCell className="text-right">
+                    <TableCell className="text-right max-md:p-0 max-md:border-0 max-md:ml-auto">
                       {(roleFilter === "student" || roleFilter === "employee") && !isPending && !isNotMarked && (
                         <Button
                           size="sm"

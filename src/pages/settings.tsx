@@ -1032,7 +1032,7 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
               <Button onClick={saveTheme} data-testid="button-save-theme">Save Theme</Button>
               <Button variant="outline" onClick={resetTheme} data-testid="button-reset-theme">Reset to Defaults</Button>
             </div>

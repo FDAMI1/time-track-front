@@ -254,15 +254,15 @@ export default function TimeTrackingPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
         <div>
           <h1 className="page-title" data-testid="text-time-tracking-title">Time Tracking</h1>
           <p className="text-muted-foreground">Track your daily work hours and tasks</p>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
           {isAdmin && (
             <Select value={selectedUserId || "self"} onValueChange={(v) => setSelectedUserId(v === "self" ? "" : v)}>
-              <SelectTrigger className="w-[220px]" data-testid="select-user-filter">
+              <SelectTrigger className="w-full sm:w-[220px]" data-testid="select-user-filter">
                 <SelectValue placeholder="View member" />
               </SelectTrigger>
               <SelectContent>
@@ -280,8 +280,8 @@ export default function TimeTrackingPage() {
               </SelectContent>
             </Select>
           )}
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1">
+          <div className="grid grid-cols-2 gap-2 w-full sm:flex sm:items-center sm:w-auto">
+            <div className="flex items-center gap-1 min-w-0">
               <Label className="text-xs text-muted-foreground whitespace-nowrap">From</Label>
               <Input
                 type="date"
@@ -290,18 +290,18 @@ export default function TimeTrackingPage() {
                   setFromDate(e.target.value);
                   if (e.target.value > toDate) setToDate(e.target.value);
                 }}
-                className="w-[150px]"
+                className="w-full min-w-0 sm:w-[150px]"
                 data-testid="input-from-date"
               />
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 min-w-0">
               <Label className="text-xs text-muted-foreground whitespace-nowrap">To</Label>
               <Input
                 type="date"
                 value={toDate}
                 min={fromDate}
                 onChange={(e) => setToDate(e.target.value)}
-                className="w-[150px]"
+                className="w-full min-w-0 sm:w-[150px]"
                 data-testid="input-to-date"
               />
             </div>
@@ -460,7 +460,7 @@ export default function TimeTrackingPage() {
         </Card>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <Button variant={viewTab === "entries" ? "default" : "outline"} onClick={() => setViewTab("entries")} data-testid="button-tab-entries">
           <Calendar className="w-4 h-4 mr-2" />
           Entries
