@@ -21,6 +21,7 @@ import { Plus, Search, Users, Pencil, Trash2, Eye, EyeOff, Phone, GraduationCap,
 import { usePersonAccess } from "@/components/members/usePersonAccess";
 import { EmptyState, ErrorState } from "@/components/ui/states";
 import AccessSwitches, { type AccessItem } from "@/components/members/AccessSwitches";
+import ImportMembersDialog from "@/components/members/ImportMembersDialog";
 import { Link } from "wouter";
 
 const roleLabels: Record<string, string> = {
@@ -419,6 +420,7 @@ export default function MembersPage() {
         </div>
         <div className="flex items-center gap-2 flex-wrap">
         {(user?.organizationId as { type?: string } | undefined)?.type === "academy" && isMcqStaff(user) && <AddExternalUserDialog />}
+        {user?.role === "org_admin" && <ImportMembersDialog />}
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
             <Button data-testid="button-create-member">

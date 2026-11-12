@@ -16,6 +16,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { RemoteImage } from "@/components/remote-image";
 import { ArrowLeft, Camera, FileSpreadsheet, FileText, Pencil } from "lucide-react";
 import { hoursOf, profilePdf, type MemberProfile } from "@/lib/memberProfile";
+import { canUseAcademy } from "@/academy/lib/academy";
+import StudentFees from "@/academy/components/StudentFees";
 
 const Stat = ({ label, value, testId }: { label: string; value: string | number; testId?: string }) => (
   <div className="rounded-md border p-3"><p className="text-xs text-muted-foreground">{label}</p><p className="text-lg font-semibold" data-testid={testId}>{value}</p></div>
@@ -152,7 +154,8 @@ export default function MemberProfilePage() {
           </Section>
         )}
       </div>
-      {!Object.keys(s).length && <p className="text-sm text-muted-foreground">Nothing to show for this member with your access.</p>}
+      {m.role === "student" && user?.role !== "student" && canUseAcademy(user, "fees") && <StudentFees studentId={id} isAdmin={user?.role === "org_admin"} />}
+      {!Object.keys(s).length &&<p className="text-sm text-muted-foreground">Nothing to show for this member with your access.</p>}
     </div>
   );
 }

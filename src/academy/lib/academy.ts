@@ -196,6 +196,7 @@ export interface Invoice {
   dueDate: string;
   notes: string;
   status: string;
+  createdAt?: string;
 }
 export interface InvoiceList { invoices: Invoice[]; total: number; pages: number }
 export interface Payment {
@@ -211,6 +212,12 @@ export interface Payment {
   reversed: boolean;
 }
 export interface InvoiceDetail extends Invoice { payments: Payment[] }
+// One student's account, from GET /api/fees/students/:id.
+export interface StudentAccount {
+  summary: { billedMinor: number; paidMinor: number; outstandingMinor: number; overdueMinor: number; nextDueDate: string; status: "none" | "pending" | "partial" | "paid" | "overdue" };
+  invoices: Invoice[];
+  payments: (Payment & { invoiceId: { _id: string; invoiceKey: string; title: string } })[];
+}
 export interface Receipt extends Payment { invoice: { invoiceKey: string; title: string; studentName: string; amountMinor: number } }
 export interface FeeReport {
   collectedMinor: number;

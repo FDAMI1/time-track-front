@@ -12,7 +12,7 @@ import { useMcqApi } from "@/mcq/lib/api";
 import { formatMoney, labelOf, localToday, PAYMENT_METHODS, toMinor, toOptions, type InvoiceDetail, type Payment, type Receipt } from "@/academy/lib/academy";
 import { Picker, StatusBadge } from "@/academy/components/common";
 
-function ReceiptDialog({ id, onClose }: { id: string; onClose: () => void }) {
+export function ReceiptDialog({ id, onClose }: { id: string; onClose: () => void }) {
   const api = useMcqApi();
   const { data, error } = useQuery({ queryKey: ["/api/fees", "payment", id], queryFn: () => api.get<Receipt>(`/api/fees/payments/${id}`) });
   const rows: [string, string][] = data ? [
