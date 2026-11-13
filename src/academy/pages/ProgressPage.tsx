@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileSpreadsheet, FileText, Trash2, GraduationCap } from "lucide-react";
 import { Picker } from "@/academy/components/common";
 import StudentProgressView from "@/academy/components/StudentProgressView";
+import RecoveryPanel from "@/academy/components/RecoveryPanel";
 import CourseImage from "@/academy/components/CourseImage";
 import { progressPdf, type StudentProgress } from "@/academy/lib/progress";
 import type { Batch, Course, CourseTopic } from "@/academy/lib/academy";
@@ -127,7 +128,11 @@ export default function ProgressPage() {
     <div className="p-4 sm:p-6 space-y-4">
       {header}
       <Tabs defaultValue="students">
-        <TabsList><TabsTrigger value="students">Students</TabsTrigger><TabsTrigger value="syllabus" data-testid="tab-syllabus">Syllabus</TabsTrigger></TabsList>
+        <TabsList>
+          <TabsTrigger value="students">Students</TabsTrigger>
+          <TabsTrigger value="recovery" data-testid="tab-recovery">Pending Recovery</TabsTrigger>
+          <TabsTrigger value="syllabus" data-testid="tab-syllabus">Syllabus</TabsTrigger>
+        </TabsList>
         <TabsContent value="students" className="space-y-4">
           <div className="flex gap-2 items-end flex-wrap">
             <div className="w-56"><Picker label="Batch" value={batchId} onChange={(v) => { setBatchId(v); setStudentId(""); }} options={(batches || []).map((b) => ({ value: b._id, label: b.batchName }))} allLabel="All batches" testId="select-progress-batch" /></div>
@@ -159,6 +164,10 @@ export default function ProgressPage() {
               ) : <p className="text-sm text-muted-foreground p-6 text-center border rounded-md">Choose a student to see their progress</p>}
             </div>
           </div>
+        </TabsContent>
+        <TabsContent value="recovery" className="space-y-4">
+          <div className="w-56"><Picker label="Batch" value={batchId} onChange={(v) => { setBatchId(v); setStudentId(""); }} options={(batches || []).map((b) => ({ value: b._id, label: b.batchName }))} allLabel="All batches" testId="select-recovery-batch" /></div>
+          <RecoveryPanel batchId={batchId} />
         </TabsContent>
         <TabsContent value="syllabus"><Syllabus /></TabsContent>
       </Tabs>

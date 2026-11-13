@@ -57,6 +57,8 @@ import { MobileBottomNav } from "@/components/mobile-bottom-nav";
 import { applyBrandingCss, saveBranding, useBranding } from "@/lib/branding";
 import { RemoteImage } from "@/components/remote-image";
 
+const NOTIFICATION_WINDOW_MS = 5 * 60 * 60 * 1000;
+
 function NotificationBell() {
   const { token } = useAuth();
   const [open, setOpen] = useState(false);
@@ -75,8 +77,19 @@ function NotificationBell() {
     refetchInterval: 30000,
   });
 
-  const notifications = notifResponse?.notifications || [];
-  const unreadCount = notifResponse?.unreadCount ?? (notifications || []).filter((n: any) => !n.isRead).length;
+  // The server sends the last five hours; this keeps the list right between fetches as time passes.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 60000);
+    return () => clearInterval(id);
+  }, []);
+  const notifications = (notifResponse?.notifications || []).filter((n: any) => {
+    const at = new Date(n.createdAt).getTime();
+    return Number.isFinite(at) && at <= now + 60000 && now - at <= NOTIFICATION_WINDOW_MS && n.title !== "Time Entry Logged";
+  });
+  const unreadOf = (list: any[]) => list.filter((n: any) => !n.isRead).length;
+  const agedOut = unreadOf(notifResponse?.notifications || []) - unreadOf(notifications);
+  const unreadCount = Math.max(0, (notifResponse?.unreadCount ?? 0) - agedOut);
 
   const markRead = async (id: string) => {
     await apiFetch(`/api/notifications/${id}/read`, {

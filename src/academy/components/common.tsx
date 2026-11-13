@@ -78,6 +78,7 @@ const TONES: Record<string, string> = {
   new: "bg-chart-1/10 text-chart-1",
   applied: "bg-chart-1/10 text-chart-1",
   scheduled: "bg-chart-1/10 text-chart-1",
+  in_progress: "bg-violet-500/10 text-violet-700 dark:text-violet-400",
   pending: "bg-chart-1/10 text-chart-1",
   contacted: "bg-chart-3/10 text-chart-3",
   follow_up: "bg-chart-3/10 text-chart-3",

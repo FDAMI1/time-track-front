@@ -3,18 +3,38 @@ import { jsPDF } from "jspdf";
 export interface ProgressCourse {
   batchId: string; batchName: string; course: string; status: string;
   totalPortion: number; completed: number; pending: number; notYetTaught: number; progress: number;
+  recoveryRequired?: number; lecturesAssigned?: number;
   lecturesAttended: number; lecturesMissed: number; makeups: number;
 }
 export interface ProgressTopic {
-  _id: string; batchId: string; subject: string; topicTitle: string; originalDate: string;
+  _id: string; batchId: string; subject: string; topicTitle: string; originalDate: string; originalLectureId?: string;
   lecturerId?: { firstName: string; lastName: string } | null;
   status: "pending" | "completed"; completedDate: string; completedVia: "" | "lecture" | "makeup" | "manual";
+  // Pending because the student was absent or their check-in was denied: needs a recovery lecture.
+  recoveryRequired?: boolean;
   history?: { action: string; note?: string; byName?: string; at: string }[];
 }
+type Who = { firstName: string; lastName: string };
 export interface ProgressAttendance {
-  _id: string; batchId: string; kind: "regular" | "makeup"; status: "present" | "absent"; date: string; notes?: string;
-  lectureId?: { title: string; subject?: string; portion?: string; date: string; teacherId?: { firstName: string; lastName: string } } | null;
+  _id: string; batchId: string; kind: "regular" | "makeup"; status: "present" | "absent" | "rejected"; date: string; notes?: string;
+  method?: "" | "checkin" | "manual"; markedBy?: Who | null; startTime?: string; durationMinutes?: number; topicTaught?: string;
+  lectureId?: {
+    _id?: string; title: string; subject?: string; portion?: string; date: string; startTime?: string; endTime?: string;
+    actualStartTime?: string; actualEndTime?: string; durationMinutes?: number; teacherId?: Who | null;
+  } | null;
 }
+// A topic a student missed and hasn't recovered yet, for the recovery list.
+export interface RecoveryTopic {
+  _id: string; topicTitle: string; subject: string; originalDate: string; status: "pending";
+  attendanceStatus: "absent" | "rejected";
+  studentId: { _id: string; firstName: string; lastName: string; username: string; userId?: string; photoUrl?: string } | null;
+  lecturerId?: Who | null;
+  originalLectureId: { _id: string; title: string; subject?: string; portion?: string; date: string; batchId?: { batchName: string } | null } | null;
+}
+
+// Display status of a topic for one student.
+export const topicState = (t: ProgressTopic) => (t.status === "completed" ? "Completed" : t.recoveryRequired ? "Recovery Required" : "Pending");
+export const ATTENDANCE_LABEL: Record<string, string> = { present: "Present", absent: "Absent", rejected: "Rejected" };
 export interface StudentProgress {
   student: { _id: string; firstName: string; lastName: string; username: string; email?: string; userId?: string; phone?: string; photoUrl?: string; createdAt?: string };
   courses: ProgressCourse[];
@@ -70,7 +90,7 @@ export function progressPdf(data: StudentProgress, period: string) {
     [45, 45, 18, 22, 20, 28, 22, 22, 20, 22]);
   line("Topics", 11, true);
   table(["Subject", "Topic", "Lecture date", "Lecturer", "Status", "Completed on", "How"],
-    data.topics.map((t) => [t.subject, t.topicTitle, t.originalDate, person(t.lecturerId), t.status === "completed" ? "Completed" : "Pending", t.completedDate || "Not completed", VIA[t.completedVia] || ""]),
+    data.topics.map((t) => [t.subject, t.topicTitle, t.originalDate, person(t.lecturerId), topicState(t), t.completedDate || "Not completed", VIA[t.completedVia] || ""]),
     [35, 70, 28, 40, 25, 30, 35]);
   doc.save(`progress-${person(s).replace(/\s+/g, "-") || s.username}.pdf`);
 }

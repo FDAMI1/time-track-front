@@ -13,12 +13,14 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Clock, Timer, Trash2, BarChart3, Calendar, Play, Square, Edit, Check, X, Plus, Hourglass, ClipboardCheck, Coffee } from "lucide-react";
+import { Timer, Trash2, BarChart3, Calendar, Play, Square, Edit, Check, X, Plus, ClipboardCheck } from "lucide-react";
 import { getCurrentCoordinates, isLocationRequired } from "@/lib/geolocation";
 import ManualEntryDialog from "@/components/time/ManualEntryDialog";
 import ApprovalsPanel from "@/components/time/ApprovalsPanel";
 import { EntryHistory, StatusBadge, statusOf } from "@/components/time/EntryStatus";
 import { BreakButton, BreakRow, formatClock, useBreaks, type TimeBreakRow } from "@/components/time/Breaks";
+import { LectureButton, LectureRow, useLectures, type TimeLectureRow } from "@/components/time/Lectures";
+import TimeSummaryCards from "@/components/time/TimeSummaryCards";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
 import { EmptyState } from "@/components/ui/states";
 
@@ -227,6 +229,8 @@ export default function TimeTrackingPage() {
   const handleStop = () => timerMutation.mutate("stop");
   const onBreak = useBreaks({ fromDate, toDate, userId: isViewingSelf ? "" : selectedUserId, coords: locationIfRequired });
   const isOnBreak = isViewingSelf && !!onBreak.running;
+  const lectures = useLectures({ fromDate, toDate, userId: isViewingSelf ? "" : selectedUserId, coords: locationIfRequired });
+  const isInLecture = isViewingSelf && !!lectures.running;
 
   function startEdit(entry: any) {
     setEditingId(entry._id);
@@ -242,15 +246,27 @@ export default function TimeTrackingPage() {
   }
 
   const groupedEntries: Record<string, any[]> = {};
-  [...(entries || []), ...onBreak.breaks.map((b: TimeBreakRow) => ({ ...b, isBreak: true }))].forEach((e: any) => {
+  [
+    ...(entries || []),
+    ...onBreak.breaks.map((b: TimeBreakRow) => ({ ...b, isBreak: true })),
+    ...lectures.lectures.map((l: TimeLectureRow) => ({ ...l, isLecture: true })),
+  ].forEach((e: any) => {
     if (!groupedEntries[e.date]) groupedEntries[e.date] = [];
     groupedEntries[e.date].push(e);
   });
   Object.values(groupedEntries).forEach((day) => day.sort((a: any, b: any) => a.startTime.localeCompare(b.startTime)));
 
-  // Approved time only; the server reports pending minutes beside it.
-  const totalMinutes = report?.totalMinutes ?? 0;
-  const pendingMinutes = report?.pendingMinutes ?? 0;
+  // The server reports approved and waiting work; breaks and lectures add the running one's minutes.
+  const summary = {
+    approvedMinutes: report?.totalMinutes ?? 0,
+    pendingMinutes: report?.pendingMinutes ?? 0,
+    totalTasks: report?.totalTasks ?? 0,
+    productionMinutes: report?.productionMinutes ?? 0,
+    lectureMinutes: lectures.totalMinutes,
+    breakMinutes: onBreak.totalMinutes,
+    lectureNote: isInLecture ? <span className="text-violet-600">In lecture · {formatClock(lectures.elapsed)}</span> : `${lectures.lectures.length} lecture${lectures.lectures.length === 1 ? "" : "s"}`,
+    breakNote: isOnBreak ? <span className="text-red-600">On break · {formatClock(onBreak.elapsed)}</span> : `${onBreak.breaks.length} break${onBreak.breaks.length === 1 ? "" : "s"}`,
+  };
 
   return (
     <div className="p-6 space-y-6">
@@ -362,8 +378,8 @@ export default function TimeTrackingPage() {
                     <Button
                       onClick={handleStart}
                       className="gap-2"
-                      disabled={timerMutation.isPending || isOnBreak}
-                      title={isOnBreak ? "Stop the break first" : undefined}
+                      disabled={timerMutation.isPending || isOnBreak || isInLecture}
+                      title={isOnBreak ? "Stop the break first" : isInLecture ? "Stop the lecture first" : undefined}
                       data-testid="button-start-timer"
                     >
                       <Play className="w-4 h-4" />
@@ -389,6 +405,14 @@ export default function TimeTrackingPage() {
                     onStart={() => onBreak.toggle.mutate("start")}
                     onStop={() => onBreak.toggle.mutate("stop")}
                   />
+                  <LectureButton
+                    inLecture={isInLecture}
+                    blocked={isTimerRunning || isOnBreak}
+                    elapsed={lectures.elapsed}
+                    busy={lectures.start.isPending || lectures.stop.isPending || timerMutation.isPending}
+                    onStart={(body) => lectures.start.mutate(body)}
+                    onStop={() => lectures.stop.mutate()}
+                  />
                   <Button variant="outline" className="gap-2" onClick={() => setManualOpen(true)} data-testid="button-add-manual">
                     <Plus className="w-4 h-4" />
                     Manual Entry
@@ -401,64 +425,7 @@ export default function TimeTrackingPage() {
       )}
       <ManualEntryDialog open={manualOpen} onOpenChange={setManualOpen} coords={locationIfRequired} />
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-        <Card>
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-muted-foreground">Approved Time</p>
-                <p className="text-2xl font-bold mt-1" data-testid="text-total-time">{formatDuration(totalMinutes)}</p>
-              </div>
-              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <Clock className="w-5 h-5 text-primary" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-muted-foreground">Waiting for Approval</p>
-                <p className="text-2xl font-bold mt-1" data-testid="text-pending-time">{formatDuration(pendingMinutes)}</p>
-                <p className="text-xs text-muted-foreground" data-testid="text-total-entries">{(entries || []).length} entries</p>
-              </div>
-              <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center">
-                <Hourglass className="w-5 h-5 text-amber-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-muted-foreground">Tasks</p>
-                <p className="text-2xl font-bold mt-1" data-testid="text-unique-tasks">{report?.taskReport?.length || 0}</p>
-              </div>
-              <div className="w-10 h-10 rounded-full bg-chart-3/10 flex items-center justify-center">
-                <BarChart3 className="w-5 h-5 text-chart-3" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-muted-foreground">Total Break Time</p>
-                <p className="text-2xl font-bold mt-1" data-testid="text-break-time">{formatDuration(onBreak.totalMinutes)}</p>
-                <p className="text-xs text-muted-foreground" data-testid="text-break-count">
-                  {isOnBreak ? <span className="text-red-600">On break · {formatClock(onBreak.elapsed)}</span> : `${onBreak.breaks.length} breaks`}
-                </p>
-              </div>
-              <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center">
-                <Coffee className="w-5 h-5 text-red-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <TimeSummaryCards s={summary} />
 
       <div className="flex flex-wrap gap-2">
         <Button variant={viewTab === "entries" ? "default" : "outline"} onClick={() => setViewTab("entries")} data-testid="button-tab-entries">
@@ -498,7 +465,7 @@ export default function TimeTrackingPage() {
           {Object.entries(groupedEntries)
             .sort(([a], [b]) => b.localeCompare(a))
             .map(([date, dateEntries]) => {
-              const dayTotal = dateEntries.filter((e: any) => statusOf(e) === "approved").reduce((sum: number, e: any) => sum + (e.duration || 0), 0);
+              const dayTotal = dateEntries.filter((e: any) => !e.isBreak && !e.isLecture && statusOf(e) === "approved").reduce((sum: number, e: any) => sum + (e.duration || 0), 0);
               return (
                 <Card key={date}>
                   <CardHeader className="pb-3">
@@ -510,7 +477,7 @@ export default function TimeTrackingPage() {
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-2">
-                    {dateEntries.map((entry: any) => entry.isBreak ? <BreakRow key={entry._id} brk={entry} /> : (
+                    {dateEntries.map((entry: any) => entry.isBreak ? <BreakRow key={entry._id} brk={entry} /> : entry.isLecture ? <LectureRow key={entry._id} lecture={entry} /> : (
                       <div key={entry._id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-md bg-muted/30 hover:bg-muted/50 transition-colors" data-testid={`entry-${entry._id}`}>
                         {editingId === entry._id ? (
                           <div className="flex items-center gap-3 flex-1 min-w-0">

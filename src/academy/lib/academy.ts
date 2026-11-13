@@ -244,5 +244,10 @@ export interface Lecture {
   description?: string;
   batchId?: Batch | null;
   teacherId?: Person | null;
+  // Set when the lecture was taught with the Time Tracking lecture timer.
+  source?: "schedule" | "timer";
+  actualStartTime?: string;
+  actualEndTime?: string;
+  durationMinutes?: number;
 }
 export interface CourseTopic { _id: string; title: string; subject: string; order: number }

@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import MemberCodeCard from "@/components/settings/MemberCodeCard";
 import DatabaseCard from "@/components/settings/DatabaseCard";
 import StorageCard from "@/components/settings/StorageCard";
+import OrgAdminsCard from "@/components/settings/OrgAdminsCard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
@@ -932,6 +933,8 @@ export default function SettingsPage() {
         </TabsList>
 
         <TabsContent value="general" className="space-y-6 mt-4">
+
+      {isSuperAdmin && <OrgAdminsCard />}
 
       {(isSuperAdmin || isOrgAdmin) && (
         <Card>

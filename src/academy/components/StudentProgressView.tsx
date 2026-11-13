@@ -10,7 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { RemoteImage } from "@/components/remote-image";
 import { formatMoney } from "@/academy/lib/academy";
-import { VIA, person, type StudentProgress } from "@/academy/lib/progress";
+import { VIA, person, topicState, type StudentProgress } from "@/academy/lib/progress";
+import { LectureHistoryCard, RecoveryHistoryCard } from "@/academy/components/LectureHistory";
 
 // One student's progress: profile, each course's portion, pending (missed) topics first,
 // every topic with its original and actual dates, and the lecture history.
@@ -55,13 +56,16 @@ export default function StudentProgressView({ data, canEdit }: { data: StudentPr
             <CardHeader className="pb-2"><CardTitle className="text-base">{c.course} <span className="text-muted-foreground font-normal text-sm">· {c.batchName}</span></CardTitle></CardHeader>
             <CardContent className="space-y-3">
               <div className="flex items-center gap-3"><Progress value={c.progress} className="flex-1" aria-label="Course progress" /><span className="font-semibold text-sm" data-testid={`text-progress-${c.batchId}`}>{c.progress}%</span></div>
-              <div className="grid grid-cols-4 gap-2 text-center text-xs">
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 text-center text-xs">
                 <div><p className="text-lg font-semibold">{c.totalPortion}</p>Total</div>
                 <div><p className="text-lg font-semibold text-green-700 dark:text-green-400">{c.completed}</p>Completed</div>
                 <div><p className="text-lg font-semibold text-amber-600">{c.pending}</p>Pending</div>
-                <div><p className="text-lg font-semibold">{c.notYetTaught}</p>Not yet taught</div>
+                <div><p className="text-lg font-semibold text-destructive" data-testid={`text-recovery-${c.batchId}`}>{c.recoveryRequired ?? 0}</p>Recovery</div>
+                <div><p className="text-lg font-semibold">{c.notYetTaught}</p>Not started</div>
               </div>
-              <p className="text-xs text-muted-foreground">Lectures attended {c.lecturesAttended} · missed {c.lecturesMissed} · make-ups {c.makeups}</p>
+              <p className="text-xs text-muted-foreground" data-testid={`text-lectures-${c.batchId}`}>
+                Lectures assigned {c.lecturesAssigned ?? "—"} · attended {c.lecturesAttended} · missed {c.lecturesMissed} · recoveries completed {c.makeups}
+              </p>
             </CardContent>
           </Card>
         ))}
@@ -72,7 +76,7 @@ export default function StudentProgressView({ data, canEdit }: { data: StudentPr
           <CardHeader className="pb-2"><CardTitle className="text-base">Pending portions ({pending.length})</CardTitle></CardHeader>
           <CardContent>
             <ul className="space-y-1 text-sm" data-testid="list-pending-portions">
-              {pending.map((t) => <li key={t._id}>{t.subject ? `${t.subject} · ` : ""}<span className="font-medium">{t.topicTitle}</span> <span className="text-muted-foreground">— missed on {t.originalDate}</span></li>)}
+              {pending.map((t) => <li key={t._id}>{t.subject ? `${t.subject} · ` : ""}<span className="font-medium">{t.topicTitle}</span> <span className="text-muted-foreground">— {t.recoveryRequired ? "missed on" : "pending since"} {t.originalDate}</span>{t.recoveryRequired && <Badge variant="outline" className="ml-2 text-destructive text-[10px]">Recovery Required</Badge>}</li>)}
             </ul>
           </CardContent>
         </Card>
@@ -90,7 +94,7 @@ export default function StudentProgressView({ data, canEdit }: { data: StudentPr
                     <td className="py-2 pr-2">{t.subject && <span className="text-xs text-muted-foreground block">{t.subject}</span>}{t.topicTitle}</td>
                     <td className="pr-2 whitespace-nowrap">{t.originalDate}</td>
                     <td className="pr-2">{person(t.lecturerId)}</td>
-                    <td className="pr-2"><Badge variant="outline" className={t.status === "completed" ? "text-green-700 dark:text-green-400" : "text-amber-600"}>{t.status === "completed" ? "Completed" : "Pending"}</Badge></td>
+                    <td className="pr-2"><Badge variant="outline" className={t.status === "completed" ? "text-green-700 dark:text-green-400" : t.recoveryRequired ? "text-destructive" : "text-amber-600"}>{topicState(t)}</Badge></td>
                     <td className="pr-2 whitespace-nowrap">{t.completedDate || "Not completed"}{t.completedVia && <span className="block text-xs text-muted-foreground">{VIA[t.completedVia]}</span>}</td>
                     {canEdit && (
                       <td className="py-2">
@@ -134,21 +138,8 @@ export default function StudentProgressView({ data, canEdit }: { data: StudentPr
         </Card>
       )}
 
-      <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-base">Lecture history</CardTitle></CardHeader>
-        <CardContent>
-          {!data.attendance.length ? <p className="text-sm text-muted-foreground">No lecture attendance in these dates.</p> : (
-            <ul className="divide-y text-sm" data-testid="list-lecture-history">
-              {data.attendance.map((a) => (
-                <li key={a._id} className="py-2 flex justify-between gap-2 flex-wrap">
-                  <span>{a.date} · {a.lectureId?.title}{a.kind === "makeup" && <span className="text-muted-foreground"> (make-up for {a.lectureId?.date})</span>}</span>
-                  <Badge variant={a.status === "present" ? "secondary" : "destructive"}>{a.status === "present" ? (a.kind === "makeup" ? "Made up" : "Present") : "Absent"}</Badge>
-                </li>
-              ))}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
+      <LectureHistoryCard attendance={data.attendance} />
+      <RecoveryHistoryCard attendance={data.attendance} />
     </div>
   );
 }
