@@ -1,4 +1,7 @@
-const CACHE_NAME = "ug-app-v2";
+// Bump this name whenever a production release must replace every previously
+// cached application shell.  The Tickets navigation was added after v2, so
+// v3 makes clients discard any bundle retained from before that release.
+const CACHE_NAME = "ug-app-v3";
 
 self.addEventListener("install", () => self.skipWaiting());
 
