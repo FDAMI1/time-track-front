@@ -1,10 +1,10 @@
 import type { ComponentType } from "react";
 import {
   LayoutDashboard, Building2, Users, CalendarCheck, CalendarOff, Settings, Timer, MessageCircle, Files, Receipt,
-  ClipboardList, LifeBuoy, Bot, PhoneCall, UserPlus, Wallet, CalendarDays, TrendingUp, BarChart3,
+  ClipboardList, LifeBuoy, Bot, PhoneCall, UserPlus, Wallet, CalendarDays, TrendingUp, BarChart3, Layers, BookOpen,
 } from "lucide-react";
 import type { useAuth } from "@/lib/auth";
-import { canSeeMembers, canUseAcademy, canUseCrm, canUseProgress, canUseTickets, canUseTimeTracking, permitted } from "@/academy/lib/academy";
+import { canSeeMembers, canUseAcademy, canUseAcademyPage, canUseCrm, canUseProgress, canUseTickets, canUseTimeTracking, permitted } from "@/academy/lib/academy";
 import { hasMcqAccess } from "@/mcq/lib/roles";
 
 export interface NavItem {
@@ -15,6 +15,12 @@ export interface NavItem {
 }
 
 type User = NonNullable<ReturnType<typeof useAuth>["user"]>;
+
+// Batches and Syllabus: the server shows each person only their own (teachers what they teach).
+const academyPages = (user: User): NavItem[] => [
+  ...(canUseAcademyPage(user, "batches") ? [{ group: "Academic", title: "Batches", url: "/batches", icon: Layers }] : []),
+  ...(canUseAcademyPage(user, "syllabus") ? [{ group: "Academic", title: "Syllabus", url: "/syllabus", icon: BookOpen }] : []),
+];
 
 // Display order of the sidebar sections.
 export const NAV_GROUPS = ["Main", "People", "Attendance", "CRM", "Academic", "Communication", "Records", "Platform", "Administration"];
@@ -32,6 +38,7 @@ export function navItemsFor(user: User): NavItem[] {
   if (user.role === "member") {
     if (canUseTimeTracking(user)) items.push({ group: "Attendance", title: "Time Tracking", url: "/time-tracking", icon: Timer });
     if (hasMcqAccess(user)) items.push({ group: "Academic", title: "MCQ", url: "/mcq", icon: ClipboardList });
+    items.push(...academyPages(user));
     if (canSeeMembers(user)) items.push({ group: "People", title: "Members", url: "/members", icon: Users });
     if (canUseCrm(user)) items.push({ group: "CRM", title: "Leads", url: "/enquiries", icon: PhoneCall });
     items.push({ group: "Communication", title: "Tickets", url: "/tickets", icon: LifeBuoy });
@@ -71,6 +78,7 @@ export function navItemsFor(user: User): NavItem[] {
   if (canUseAcademy(user, "admissions")) items.push({ group: "Academic", title: "Admissions", url: "/admissions", icon: UserPlus });
   if (canUseAcademy(user, "fees")) items.push({ group: "Academic", title: "Fees", url: "/fees", icon: Wallet });
   if (canUseAcademy(user, "lectures")) items.push({ group: "Academic", title: "Lectures", url: "/lectures", icon: CalendarDays });
+  items.push(...academyPages(user));
   if (canUseProgress(user)) items.push({ group: "Academic", title: user.role === "student" ? "My Progress" : "Student Progress", url: "/progress", icon: TrendingUp });
   return items;
 }

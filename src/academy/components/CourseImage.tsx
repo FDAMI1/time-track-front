@@ -9,7 +9,8 @@ import { ImageIcon } from "lucide-react";
 import type { Course } from "@/academy/lib/academy";
 
 // A course's cover image, stored on the organization's image storage (Cloudinary).
-export default function CourseImage({ course }: { course: Course }) {
+// Read-only viewers see the image, if there is one, without the buttons.
+export default function CourseImage({ course, readOnly = false }: { course: Course; readOnly?: boolean }) {
   const api = useMcqApi();
   const { toast } = useToast();
   const input = useRef<HTMLInputElement>(null);
@@ -22,17 +23,22 @@ export default function CourseImage({ course }: { course: Course }) {
   });
   const remove = useMutation({ mutationFn: () => api.delete(`/api/courses/${course._id}/image`), onSuccess: done, onError: failed });
   const busy = upload.isPending || remove.isPending;
+  if (readOnly && !course.imageUrl) return null;
 
   return (
     <div className="flex items-center gap-3" data-testid="course-image">
       <div className="w-24 h-16 rounded-md border bg-muted overflow-hidden flex items-center justify-center shrink-0">
         <RemoteImage src={course.imageUrl || ""} alt={`${course.title} cover`} className="w-full h-full object-cover" fallback={<ImageIcon className="w-5 h-5 text-muted-foreground" aria-hidden />} />
       </div>
-      <input ref={input} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) upload.mutate(f); e.target.value = ""; }} data-testid="input-course-image" />
-      <div className="flex gap-1 flex-wrap">
-        <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => input.current?.click()} data-testid="button-course-image">{upload.isPending ? "Uploading..." : course.imageUrl ? "Replace Image" : "Add Image"}</Button>
-        {course.imageUrl && <Button type="button" size="sm" variant="ghost" disabled={busy} onClick={() => remove.mutate()}>Remove</Button>}
-      </div>
+      {!readOnly && (
+        <>
+          <input ref={input} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) upload.mutate(f); e.target.value = ""; }} data-testid="input-course-image" />
+          <div className="flex gap-1 flex-wrap">
+            <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => input.current?.click()} data-testid="button-course-image">{upload.isPending ? "Uploading..." : course.imageUrl ? "Replace Image" : "Add Image"}</Button>
+            {course.imageUrl && <Button type="button" size="sm" variant="ghost" disabled={busy} onClick={() => remove.mutate()}>Remove</Button>}
+          </div>
+        </>
+      )}
     </div>
   );
 }

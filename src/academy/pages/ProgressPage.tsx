@@ -1,7 +1,6 @@
 import { useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
-import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { downloadAuthorized } from "@/lib/download";
 import { useMcqApi } from "@/mcq/lib/api";
@@ -12,13 +11,12 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileSpreadsheet, FileText, Trash2, GraduationCap } from "lucide-react";
+import { FileSpreadsheet, FileText, GraduationCap } from "lucide-react";
 import { Picker } from "@/academy/components/common";
 import StudentProgressView from "@/academy/components/StudentProgressView";
 import RecoveryPanel from "@/academy/components/RecoveryPanel";
-import CourseImage from "@/academy/components/CourseImage";
 import { progressPdf, type StudentProgress } from "@/academy/lib/progress";
-import type { Batch, Course, CourseTopic } from "@/academy/lib/academy";
+import type { Batch } from "@/academy/lib/academy";
 
 interface StudentRow { _id: string; firstName: string; lastName: string; username: string; userId?: string; completed: number; pending: number }
 
@@ -44,49 +42,6 @@ function StudentDetail({ url, canEdit, from, to }: { url: string; canEdit: boole
     <div className="space-y-3">
       <div className="flex justify-end"><Button variant="outline" size="sm" onClick={() => progressPdf(data, periodOf(from, to))} data-testid="button-progress-pdf"><FileText className="w-4 h-4 mr-1" />PDF</Button></div>
       <StudentProgressView data={data} canEdit={canEdit} />
-    </div>
-  );
-}
-
-function Syllabus() {
-  const api = useMcqApi();
-  const { toast } = useToast();
-  const [courseId, setCourseId] = useState("");
-  const [form, setForm] = useState({ subject: "", title: "" });
-  const { data: courses } = useQuery({ queryKey: ["/api/courses"], queryFn: () => api.get<Course[]>("/api/courses") });
-  const key = ["/api/progress/courses", courseId, "topics"];
-  const { data: topics } = useQuery({ queryKey: key, queryFn: () => api.get<CourseTopic[]>(`/api/progress/courses/${courseId}/topics`), enabled: !!courseId });
-  const failed = (err: Error) => toast({ title: "Not saved", description: err.message, variant: "destructive" });
-  const add = useMutation({
-    mutationFn: () => api.post(`/api/progress/courses/${courseId}/topics`, form),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: key }); setForm({ subject: form.subject, title: "" }); },
-    onError: failed,
-  });
-  const remove = useMutation({ mutationFn: (id: string) => api.delete(`/api/progress/topics/${id}`), onSuccess: () => queryClient.invalidateQueries({ queryKey: key }), onError: failed });
-  return (
-    <div className="space-y-3">
-      <p className="text-sm text-muted-foreground">A course's topics are its total portion. Lectures that name a topic complete it for each student marked present.</p>
-      <div className="max-w-sm"><Picker label="Course" value={courseId} onChange={setCourseId} options={(courses || []).map((c) => ({ value: c._id, label: c.title }))} testId="select-syllabus-course" /></div>
-      {courseId && (
-        <>
-          {courses?.find((c) => c._id === courseId) && <CourseImage course={courses.find((c) => c._id === courseId)!} />}
-          <form className="flex gap-2 flex-wrap" onSubmit={(e) => { e.preventDefault(); if (form.title.trim()) add.mutate(); }}>
-            <Input className="w-40" placeholder="Subject or module" value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} aria-label="Subject or module" data-testid="input-topic-subject" />
-            <Input className="flex-1 min-w-[180px]" placeholder="Topic" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} aria-label="Topic" data-testid="input-topic-title" />
-            <Button type="submit" disabled={!form.title.trim() || add.isPending} data-testid="button-add-topic">Add Topic</Button>
-          </form>
-          {!topics?.length ? <p className="text-sm text-muted-foreground">No topics yet.</p> : (
-            <ol className="divide-y rounded-md border" data-testid="list-syllabus">
-              {topics.map((t, i) => (
-                <li key={t._id} className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
-                  <span>{i + 1}. {t.subject && <span className="text-muted-foreground">{t.subject} · </span>}{t.title}</span>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" aria-label={`Remove ${t.title}`} onClick={() => remove.mutate(t._id)}><Trash2 className="w-3.5 h-3.5" /></Button>
-                </li>
-              ))}
-            </ol>
-          )}
-        </>
-      )}
     </div>
   );
 }
@@ -131,7 +86,6 @@ export default function ProgressPage() {
         <TabsList>
           <TabsTrigger value="students">Students</TabsTrigger>
           <TabsTrigger value="recovery" data-testid="tab-recovery">Pending Recovery</TabsTrigger>
-          <TabsTrigger value="syllabus" data-testid="tab-syllabus">Syllabus</TabsTrigger>
         </TabsList>
         <TabsContent value="students" className="space-y-4">
           <div className="flex gap-2 items-end flex-wrap">
@@ -169,7 +123,6 @@ export default function ProgressPage() {
           <div className="w-56"><Picker label="Batch" value={batchId} onChange={(v) => { setBatchId(v); setStudentId(""); }} options={(batches || []).map((b) => ({ value: b._id, label: b.batchName }))} allLabel="All batches" testId="select-recovery-batch" /></div>
           <RecoveryPanel batchId={batchId} />
         </TabsContent>
-        <TabsContent value="syllabus"><Syllabus /></TabsContent>
       </Tabs>
     </div>
   );

@@ -10,7 +10,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { getInitials } from "@/lib/utils";
 import { hasMcqAccess } from "@/mcq/lib/roles";
-import { canSeeMembers, canUseAcademy, canUseCrm, canUseProgress, canUseTickets, canUseTimeTracking, featureOn, permitted } from "@/academy/lib/academy";
+import { canSeeMembers, canUseAcademy, canUseAcademyPage, canUseCrm, canUseProgress, canUseTickets, canUseTimeTracking, featureOn, permitted } from "@/academy/lib/academy";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -41,6 +41,18 @@ const EnquiriesPage = lazy(() => import("@/academy/pages/EnquiriesPage"));
 const AdmissionsPage = lazy(() => import("@/academy/pages/AdmissionsPage"));
 const FeesPage = lazy(() => import("@/academy/pages/FeesPage"));
 const LecturesPage = lazy(() => import("@/academy/pages/LecturesPage"));
+const BatchesPage = lazy(() => import("@/academy/pages/BatchesPage"));
+const SyllabusPage = lazy(() => import("@/academy/pages/SyllabusPage"));
+
+// Batches and Syllabus, for every role that may open them (the sidebar uses the same check).
+const academyPageRoutes = (user: Parameters<typeof canUseAcademyPage>[0]) => [
+  canUseAcademyPage(user, "batches") && (
+    <Route key="batches" path="/batches"><Suspense fallback={<McqFallback />}><BatchesPage /></Suspense></Route>
+  ),
+  canUseAcademyPage(user, "syllabus") && (
+    <Route key="syllabus" path="/syllabus"><Suspense fallback={<McqFallback />}><SyllabusPage /></Suspense></Route>
+  ),
+];
 const ProgressPage = lazy(() => import("@/academy/pages/ProgressPage"));
 const MemberProfilePage = lazy(() => import("@/pages/member-profile"));
 const ReportsPage = lazy(() => import("@/pages/reports"));
@@ -191,6 +203,8 @@ const PAGE_TITLES: Record<string, string> = {
   admissions: "Admissions",
   fees: "Fees",
   lectures: "Lectures",
+  batches: "Batches",
+  syllabus: "Syllabus",
   progress: "Student Progress",
   reports: "Reports",
   "assistant-admin": "AI Assistant",
@@ -257,6 +271,7 @@ function AuthenticatedRouter() {
           </Route>
         )}
         {canSeeMembers(user) && <Route path="/members" component={MembersPage} />}
+        {academyPageRoutes(user)}
         {canUseCrm(user) && (
           <Route path="/enquiries">
             <Suspense fallback={<McqFallback />}><EnquiriesPage /></Suspense>
@@ -361,6 +376,7 @@ function AuthenticatedRouter() {
           <Suspense fallback={<McqFallback />}><LecturesPage /></Suspense>
         </Route>
       )}
+      {academyPageRoutes(user)}
       {canUseProgress(user) && (
         <Route path="/progress">
           <Suspense fallback={<McqFallback />}><ProgressPage /></Suspense>

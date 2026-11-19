@@ -51,6 +51,12 @@ export function canUseAcademy(user: AcademyUser | null | undefined, feature: Aca
   return org?.type === "academy" && permitted(user, feature) && FEATURE_ROLES[feature].includes(user?.role || "");
 }
 
+// Batches and Syllabus come with Lectures; Employee and Member accounts get them through their own switch.
+// Which batches and courses appear is decided by the server (teachers and students: their own).
+export const canUseAcademyPage = (user: AcademyUser | null | undefined, key: "batches" | "syllabus"): boolean =>
+  user?.organizationId?.type === "academy" && featureOn(user, "lectures")
+  && (canUseAcademy(user, "lectures") || user?.permissions?.[key] === true);
+
 // Lecture-wise progress: staff follow their students, a student sees their own.
 export const canUseProgress = (user: AcademyUser | null | undefined): boolean =>
   user?.organizationId?.type === "academy" && featureOn(user, "lectures") && ["org_admin", "manager", "teacher", "student"].includes(user?.role || "")
@@ -73,7 +79,7 @@ export const labelOf = (value: string) => {
 
 export const toOptions = (values: readonly string[]) => values.map((value) => ({ value, label: labelOf(value) }));
 
-export interface Person { _id: string; firstName?: string; lastName?: string; role?: string; username?: string }
+export interface Person { _id: string; firstName?: string; lastName?: string; role?: string; username?: string; userId?: string }
 export const nameOf = (person?: Person | null) => `${person?.firstName || ""} ${person?.lastName || ""}`.trim();
 export const peopleOptions = (people: Person[] = []) => people.map((p) => ({ value: p._id, label: nameOf(p) || p.username || p._id }));
 
@@ -126,7 +132,18 @@ export const PAYMENT_METHODS = ["cash", "upi", "bank_transfer", "card", "cheque"
 export const LECTURE_STATUSES = ["scheduled", "completed", "cancelled"] as const;
 
 export interface Course { _id: string; title: string; imageUrl?: string }
-export interface Batch { _id: string; batchName: string; courseId?: Course | null }
+export type BatchStatus = "upcoming" | "active" | "completed" | "cancelled";
+export interface Batch {
+  _id: string;
+  batchName: string;
+  courseId?: Course | null;
+  teacherId?: Person | null;
+  students?: Person[];
+  startDate?: string;
+  endDate?: string;
+  schedule?: string;
+  status?: BatchStatus;
+}
 
 export type NoteKind = "note" | "call" | "discussion" | "whatsapp" | "status" | "assigned" | "followup";
 export interface EnquiryNote { _id: string; body: string; kind?: NoteKind; outcome?: string; authorId?: string; authorName: string; createdAt: string; editedAt?: string }

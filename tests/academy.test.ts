@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { addDays, canUseAcademy, canUseCrm, canUseTickets, fillTemplate, formatMoney, mondayOf, toMinor, weekOf } from "../src/academy/lib/academy.ts";
+import { addDays, canUseAcademy, canUseAcademyPage, canUseCrm, canUseTickets, fillTemplate, formatMoney, mondayOf, toMinor, weekOf } from "../src/academy/lib/academy.ts";
 
 test("money text becomes exact paise", () => {
   assert.equal(toMinor("19.99"), 1999);
@@ -41,4 +41,19 @@ test("menus follow organization type, feature and role", () => {
   assert.equal(canUseAcademy({ role: "manager", organizationId: { type: "company" } }, "fees"), false);
   assert.equal(canUseAcademy({ role: "manager", organizationId: { type: "academy", features: { fees: false } } }, "fees"), false);
   assert.equal(canUseAcademy(null, "fees"), false);
+});
+
+test("Batches and Syllabus come with Lectures, or their own switch for other roles", () => {
+  const org = { type: "academy", features: {} };
+  for (const role of ["org_admin", "manager", "teacher", "student"]) {
+    assert.equal(canUseAcademyPage({ role, organizationId: org }, "batches"), true, role);
+    assert.equal(canUseAcademyPage({ role, organizationId: org }, "syllabus"), true, role);
+  }
+  assert.equal(canUseAcademyPage({ role: "teacher", organizationId: org, permissions: { lectures: false } }, "batches"), false);
+  assert.equal(canUseAcademyPage({ role: "employee", organizationId: org }, "batches"), false);
+  assert.equal(canUseAcademyPage({ role: "employee", organizationId: org, permissions: { batches: true } }, "batches"), true);
+  assert.equal(canUseAcademyPage({ role: "member", organizationId: org, permissions: { syllabus: true } }, "syllabus"), true);
+  assert.equal(canUseAcademyPage({ role: "member", organizationId: org, permissions: { syllabus: true } }, "batches"), false);
+  assert.equal(canUseAcademyPage({ role: "org_admin", organizationId: { type: "academy", features: { lectures: false } } }, "batches"), false);
+  assert.equal(canUseAcademyPage({ role: "org_admin", organizationId: { type: "company" } }, "syllabus"), false);
 });
