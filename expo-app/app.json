@@ -40,6 +40,12 @@
           "backgroundColor": "#ffffff"
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "b3c1f1af-c8c8-44b1-9709-1ac191717058"
+      }
+    },
+    "owner": "fadmi1"
   }
 }
